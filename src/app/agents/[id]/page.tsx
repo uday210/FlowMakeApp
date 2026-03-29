@@ -6,7 +6,9 @@ import {
   FileText, Cpu, Wrench, Palette, Code2, ChevronLeft,
   Loader2, X, Plus, Check, Copy, Send,
   Lock, Info, ExternalLink, ChevronDown, History, MessageSquare, User, Bot,
+  Paperclip, File, Trash2,
 } from "lucide-react";
+import { useRef } from "react";
 import MarkdownMessage from "@/components/MarkdownMessage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -455,6 +457,41 @@ function OverviewTab({
   onChange: (updates: Partial<Chatbot>) => void;
 }) {
   const [newQ, setNewQ] = useState("");
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so same file can be re-uploaded
+    e.target.value = "";
+
+    setUploading(true);
+    try {
+      let text = "";
+      if (file.name.toLowerCase().endsWith(".pdf")) {
+        // Server-side parsing for PDF
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch("/api/agents/parse-file", { method: "POST", body: form });
+        if (!res.ok) throw new Error((await res.json()).error ?? "Parse failed");
+        const result = await res.json();
+        text = result.text as string;
+      } else {
+        // Client-side for .txt, .md, .csv, .json
+        text = await file.text();
+      }
+      const separator = chatbot.knowledge_base ? "\n\n" : "";
+      const header = `--- ${file.name} ---\n`;
+      onChange({ knowledge_base: chatbot.knowledge_base + separator + header + text.trim() });
+      setUploadedFiles(prev => [...prev, file.name]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to read file");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const addQuestion = () => {
     const q = newQ.trim();
@@ -506,17 +543,51 @@ function OverviewTab({
       </div>
 
       <div>
-        <label className="text-xs font-semibold text-gray-600 mb-1 block">Knowledge Base</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs font-semibold text-gray-600">Knowledge Base</label>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-1 text-[10px] font-semibold text-violet-600 hover:text-violet-800 disabled:opacity-50 transition-colors"
+          >
+            {uploading
+              ? <><Loader2 size={10} className="animate-spin" /> Parsing...</>
+              : <><Paperclip size={10} /> Upload file</>
+            }
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,.csv,.json,.pdf"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+        </div>
         <p className="text-[11px] text-gray-400 mb-1.5">
-          This content is prepended to the system prompt automatically.
+          Prepended to the system prompt. Supports .txt, .md, .csv, .json, .pdf
         </p>
         <textarea
           value={chatbot.knowledge_base}
           onChange={e => onChange({ knowledge_base: e.target.value })}
-          rows={4}
-          placeholder="Add FAQs, product info, or any context your agent should know..."
+          rows={5}
+          placeholder="Add FAQs, product info, or paste/upload any context your agent should know..."
           className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
         />
+        {uploadedFiles.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {uploadedFiles.map((name, i) => (
+              <span key={i} className="flex items-center gap-1 text-[10px] bg-violet-50 text-violet-600 border border-violet-100 px-2 py-0.5 rounded-full">
+                <File size={9} /> {name}
+                <button
+                  onClick={() => setUploadedFiles(prev => prev.filter((_, j) => j !== i))}
+                  className="ml-0.5 text-violet-400 hover:text-violet-700"
+                >
+                  <X size={9} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>

@@ -6,7 +6,7 @@ import type { UserTable, UserTableColumn } from "@/lib/types";
 import {
   Plus, Trash2, Table2, Loader2, ChevronRight, ChevronDown,
   Settings2, X, Check, RefreshCw, Copy, Database,
-  AlertCircle, MoreHorizontal, Download, Rows3,
+  AlertCircle, MoreHorizontal, Download, Rows3, PenLine,
 } from "lucide-react";
 
 const COLUMN_TYPES = ["text", "number", "boolean", "date", "json"] as const;
@@ -217,6 +217,112 @@ function TableModal({
   );
 }
 
+// ─── Add Row Modal ────────────────────────────────────────────────────────────
+
+function AddRowModal({
+  table,
+  onSave,
+  onClose,
+}: {
+  table: UserTable;
+  onSave: (data: Record<string, string>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(table.columns.map(c => [c.name, ""]))
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    const missing = table.columns.filter(c => c.required && !values[c.name]?.trim());
+    if (missing.length > 0) {
+      setError(`Required: ${missing.map(c => c.name).join(", ")}`);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(values);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h3 className="text-sm font-bold text-gray-900">Add Row — {table.name}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {table.columns.map(col => (
+            <div key={col.name}>
+              <label className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1.5">
+                <span className="font-mono">{col.name}</span>
+                <TypeBadge type={col.type} />
+                {col.required && <span className="text-red-400 text-[10px]">required</span>}
+              </label>
+              {col.type === "boolean" ? (
+                <select
+                  value={values[col.name]}
+                  onChange={e => setValues(v => ({ ...v, [col.name]: e.target.value }))}
+                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                >
+                  <option value="">— select —</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              ) : col.type === "json" ? (
+                <textarea
+                  value={values[col.name]}
+                  onChange={e => setValues(v => ({ ...v, [col.name]: e.target.value }))}
+                  rows={3}
+                  placeholder='{"key": "value"}'
+                  className="w-full text-sm font-mono border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
+                />
+              ) : (
+                <input
+                  type={col.type === "number" ? "number" : col.type === "date" ? "date" : "text"}
+                  value={values[col.name]}
+                  onChange={e => setValues(v => ({ ...v, [col.name]: e.target.value }))}
+                  placeholder={col.type === "number" ? "0" : `Enter ${col.name}`}
+                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                />
+              )}
+            </div>
+          ))}
+          {error && (
+            <p className="text-xs text-red-500 flex items-center gap-1.5">
+              <AlertCircle size={12} /> {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 font-medium">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-5 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50"
+          >
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+            Add row
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Row viewer ───────────────────────────────────────────────────────────────
 
 function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }) {
@@ -224,6 +330,7 @@ function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
+  const [addingRow, setAddingRow] = useState(false);
   const PAGE_SIZE = 25;
 
   const load = useCallback(() => {
@@ -238,6 +345,29 @@ function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }
 
   const deleteRow = async (rowId: string) => {
     await fetch(`/api/tables/${table.id}/rows?rowId=${rowId}`, { method: "DELETE" });
+    load();
+  };
+
+  const addRow = async (data: Record<string, string>) => {
+    // Cast values to their proper types
+    const typed: Record<string, unknown> = {};
+    for (const col of table.columns) {
+      const raw = data[col.name];
+      if (raw === "" || raw === undefined) continue;
+      if (col.type === "number") typed[col.name] = Number(raw);
+      else if (col.type === "boolean") typed[col.name] = raw === "true";
+      else if (col.type === "json") typed[col.name] = JSON.parse(raw);
+      else typed[col.name] = raw;
+    }
+    const res = await fetch(`/api/tables/${table.id}/rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: typed }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error ?? "Failed to insert row");
+    }
     load();
   };
 
@@ -263,6 +393,12 @@ function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }
             <p className="text-xs text-gray-400 mt-0.5">{total} row{total !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAddingRow(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors"
+            >
+              <Plus size={12} /> Add row
+            </button>
             <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
               <Download size={12} /> Export CSV
             </button>
@@ -285,7 +421,13 @@ function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }
             <div className="flex flex-col items-center justify-center py-16 gap-2 text-gray-400">
               <Rows3 size={28} className="text-gray-200" />
               <p className="text-sm">No rows yet</p>
-              <p className="text-xs">Rows will appear here when your workflow inserts data</p>
+              <p className="text-xs">Add rows manually or let your workflow insert data</p>
+              <button
+                onClick={() => setAddingRow(true)}
+                className="mt-2 flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-xs font-semibold rounded-xl hover:bg-teal-700 transition-colors"
+              >
+                <PenLine size={12} /> Add first row
+              </button>
             </div>
           ) : (
             <table className="w-full text-xs border-collapse">
@@ -359,6 +501,14 @@ function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }
           </div>
         )}
       </div>
+
+      {addingRow && (
+        <AddRowModal
+          table={table}
+          onSave={addRow}
+          onClose={() => setAddingRow(false)}
+        />
+      )}
     </div>
   );
 }
