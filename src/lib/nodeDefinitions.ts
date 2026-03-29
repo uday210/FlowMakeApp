@@ -351,6 +351,25 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
+    type: "action_agent_reply",
+    label: "Agent Reply",
+    description: "Send a response back to the AI agent that invoked this workflow as a tool. Use merge fields to include data from earlier nodes.",
+    category: "action",
+    subcategory: "Flow Control",
+    color: "#6d28d9",
+    icon: "MessageSquareReply",
+    defaultConfig: { message: "" },
+    configFields: [
+      {
+        key: "message",
+        label: "Reply Message",
+        type: "textarea",
+        placeholder: "Found {{node_1.count}} results: {{node_1.summary}}",
+        required: true,
+      },
+    ],
+  },
+  {
     type: "action_merge",
     label: "Merge",
     description: "Wait for all incoming branches and combine their outputs",

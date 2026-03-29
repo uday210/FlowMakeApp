@@ -89,9 +89,13 @@ export async function POST(
     })
     .eq("id", execution.id);
 
+  // Surface agent_reply if present so the calling agent gets a clean text response
+  const agentReply = (ctx as { nodeOutputs?: Record<string, unknown> }).nodeOutputs?.["__agent_reply__"];
+
   return NextResponse.json({
     execution_id: execution.id,
     status: finalStatus,
     logs: ctx.logs,
+    ...(agentReply !== undefined ? { agent_reply: agentReply } : {}),
   });
 }

@@ -80,7 +80,12 @@ async function executeWorkflow(
       return `Workflow execution failed with status ${res.status}`;
     }
     const result = await res.json();
-    return typeof result === "string" ? result : JSON.stringify(result);
+    // Prefer explicit agent_reply if the workflow has an Agent Reply node
+    if (result.agent_reply !== undefined) {
+      return String(result.agent_reply);
+    }
+    // Fallback: summarise the execution outcome
+    return `Workflow completed with status: ${result.status ?? "unknown"}`;
   } catch (err) {
     return `Failed to execute workflow: ${err instanceof Error ? err.message : "Unknown error"}`;
   }

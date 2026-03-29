@@ -1140,6 +1140,14 @@ async function executeNodeOnce(
         break;
       }
 
+      case "action_agent_reply": {
+        const message = interpolate((config.message as string) || "");
+        // Store as a special context key — execute route surfaces this to the calling agent
+        ctx.nodeOutputs["__agent_reply__"] = message;
+        output = { reply: message };
+        break;
+      }
+
       case "action_merge": {
         // Collect outputs from all incoming nodes and merge them into one object
         const merged: Record<string, unknown> = {};

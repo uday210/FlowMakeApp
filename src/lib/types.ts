@@ -49,6 +49,7 @@ export type NodeType =
   | "action_get_variable"
   | "action_sub_workflow"
   | "action_webhook_response"
+  | "action_agent_reply"
   | "action_merge"
   // Data Processing
   | "action_code"
