@@ -272,7 +272,7 @@ async function streamAnthropic(
   });
 }
 
-// ─── OpenAI streaming ─────────────────────────────────────────────────────────
+// ─── OpenAI streaming with native function calling ────────────────────────────
 
 async function streamOpenAI(
   chatbot: {
@@ -284,7 +284,8 @@ async function streamOpenAI(
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
   },
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  origin: string
 ): Promise<ReadableStream> {
   const apiKey = getApiKey("openai", chatbot.api_key);
   if (!apiKey) throw new Error("No OpenAI API key configured");
@@ -292,42 +293,123 @@ async function streamOpenAI(
   const OpenAI = (await import("openai")).default;
   const client = new OpenAI({ apiKey });
 
+  // Use clean system prompt without INVOKE_WORKFLOW injection
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
-    chatbot.connected_workflows,
+    [],   // pass empty — tools are declared natively below
     "openai"
   );
 
-  const openaiMessages: import("openai/resources").ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt },
-    ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
-  ];
+  type OAIMessage = import("openai/resources").ChatCompletionMessageParam;
 
-  const stream = await client.chat.completions.create({
-    model: chatbot.model ?? "gpt-4o-mini",
-    max_tokens: chatbot.max_tokens ?? 1024,
-    temperature: chatbot.temperature ?? 0.7,
-    messages: openaiMessages,
-    stream: true,
-  });
+  const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
+
+  const tools: import("openai/resources").ChatCompletionTool[] = enabledWorkflows.map(wf => ({
+    type: "function" as const,
+    function: {
+      name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
+      description: wf.whenToUse || wf.description || wf.name,
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "The user input or context to pass to this workflow" },
+        },
+        required: [],
+      },
+    },
+  }));
 
   const encoder = new TextEncoder();
 
   return new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of stream) {
-          const delta = chunk.choices[0]?.delta?.content;
-          if (delta) {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`)
-            );
+        let currentMessages: OAIMessage[] = [
+          { role: "system", content: systemPrompt },
+          ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ];
+
+        // Agentic loop — keep running until no more tool calls
+        while (true) {
+          const stream = await client.chat.completions.create({
+            model: chatbot.model ?? "gpt-4o-mini",
+            max_tokens: chatbot.max_tokens ?? 1024,
+            temperature: chatbot.temperature ?? 0.7,
+            messages: currentMessages,
+            stream: true,
+            ...(tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
+          });
+
+          let accText = "";
+          let finishReason = "";
+          // Map from tool_call index → accumulated call data
+          const toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
+
+          for await (const chunk of stream) {
+            const choice = chunk.choices[0];
+            if (!choice) continue;
+
+            finishReason = choice.finish_reason ?? finishReason;
+            const delta = choice.delta;
+
+            // Stream text tokens to client
+            if (delta?.content) {
+              accText += delta.content;
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ text: delta.content })}\n\n`)
+              );
+            }
+
+            // Accumulate tool call deltas
+            if (delta?.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                const idx = tc.index ?? 0;
+                if (!toolCallsMap[idx]) {
+                  toolCallsMap[idx] = { id: "", name: "", arguments: "" };
+                }
+                if (tc.id) toolCallsMap[idx].id = tc.id;
+                if (tc.function?.name) toolCallsMap[idx].name = tc.function.name;
+                if (tc.function?.arguments) toolCallsMap[idx].arguments += tc.function.arguments;
+              }
+            }
           }
-          if (chunk.choices[0]?.finish_reason === "stop") {
-            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+
+          const toolCalls = Object.values(toolCallsMap);
+
+          // No tool calls — we're done
+          if (finishReason !== "tool_calls" || toolCalls.length === 0) break;
+
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ text: "\n\n*Looking up information...*\n\n" })}\n\n`)
+          );
+
+          // Add assistant message with tool_calls to history
+          currentMessages.push({
+            role: "assistant",
+            content: accText || null,
+            tool_calls: toolCalls.map(tc => ({
+              id: tc.id,
+              type: "function" as const,
+              function: { name: tc.name, arguments: tc.arguments },
+            })),
+          });
+
+          // Execute each workflow and append tool results
+          for (const tc of toolCalls) {
+            const workflowId = tc.name.replace(/^workflow_/, "").replace(/_/g, "-");
+            let args: Record<string, unknown> = {};
+            try { args = JSON.parse(tc.arguments || "{}"); } catch { /**/ }
+            const result = await executeWorkflow(workflowId, args, origin);
+            currentMessages.push({
+              role: "tool",
+              tool_call_id: tc.id,
+              content: result,
+            });
           }
         }
+
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Stream error";
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
@@ -339,7 +421,7 @@ async function streamOpenAI(
   });
 }
 
-// ─── Groq streaming (OpenAI-compatible) ───────────────────────────────────────
+// ─── Groq streaming with native function calling (OpenAI-compatible) ─────────
 
 async function streamGroq(
   chatbot: {
@@ -351,7 +433,8 @@ async function streamGroq(
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
   },
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  origin: string
 ): Promise<ReadableStream> {
   const apiKey = getApiKey("groq", chatbot.api_key);
   if (!apiKey) throw new Error("No Groq API key configured");
@@ -362,39 +445,111 @@ async function streamGroq(
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
-    chatbot.connected_workflows,
+    [],
     "groq"
   );
 
-  const groqMessages: import("groq-sdk/resources/chat/completions").ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt },
-    ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
-  ];
+  type GroqMessage = import("groq-sdk/resources/chat/completions").ChatCompletionMessageParam;
 
-  const stream = await client.chat.completions.create({
-    model: chatbot.model ?? "llama-3.1-8b-instant",
-    max_tokens: chatbot.max_tokens ?? 1024,
-    temperature: chatbot.temperature ?? 0.7,
-    messages: groqMessages,
-    stream: true,
-  });
+  const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tools: any[] = enabledWorkflows.map(wf => ({
+    type: "function",
+    function: {
+      name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
+      description: wf.whenToUse || wf.description || wf.name,
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "The user input or context to pass to this workflow" },
+        },
+        required: [],
+      },
+    },
+  }));
 
   const encoder = new TextEncoder();
 
   return new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of stream) {
-          const delta = chunk.choices[0]?.delta?.content;
-          if (delta) {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`)
-            );
+        let currentMessages: GroqMessage[] = [
+          { role: "system", content: systemPrompt },
+          ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ];
+
+        while (true) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const stream = await client.chat.completions.create({
+            model: chatbot.model ?? "llama-3.1-8b-instant",
+            max_tokens: chatbot.max_tokens ?? 1024,
+            temperature: chatbot.temperature ?? 0.7,
+            messages: currentMessages,
+            stream: true,
+            ...(tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
+          } as Parameters<typeof client.chat.completions.create>[0]);
+
+          let accText = "";
+          let finishReason = "";
+          const toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
+
+          for await (const chunk of stream) {
+            const choice = chunk.choices[0];
+            if (!choice) continue;
+            finishReason = choice.finish_reason ?? finishReason;
+            const delta = choice.delta as Record<string, unknown>;
+
+            if (typeof delta?.content === "string") {
+              accText += delta.content;
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ text: delta.content })}\n\n`)
+              );
+            }
+
+            const tcs = delta?.tool_calls as Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> | undefined;
+            if (tcs) {
+              for (const tc of tcs) {
+                const idx = tc.index ?? 0;
+                if (!toolCallsMap[idx]) toolCallsMap[idx] = { id: "", name: "", arguments: "" };
+                if (tc.id) toolCallsMap[idx].id = tc.id;
+                if (tc.function?.name) toolCallsMap[idx].name = tc.function.name;
+                if (tc.function?.arguments) toolCallsMap[idx].arguments += tc.function.arguments;
+              }
+            }
           }
-          if (chunk.choices[0]?.finish_reason === "stop") {
-            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+
+          const toolCalls = Object.values(toolCallsMap);
+          if (finishReason !== "tool_calls" || toolCalls.length === 0) break;
+
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ text: "\n\n*Looking up information...*\n\n" })}\n\n`)
+          );
+
+          (currentMessages as unknown[]).push({
+            role: "assistant",
+            content: accText || null,
+            tool_calls: toolCalls.map(tc => ({
+              id: tc.id,
+              type: "function",
+              function: { name: tc.name, arguments: tc.arguments },
+            })),
+          });
+
+          for (const tc of toolCalls) {
+            const workflowId = tc.name.replace(/^workflow_/, "").replace(/_/g, "-");
+            let args: Record<string, unknown> = {};
+            try { args = JSON.parse(tc.arguments || "{}"); } catch { /**/ }
+            const result = await executeWorkflow(workflowId, args, origin);
+            (currentMessages as unknown[]).push({
+              role: "tool",
+              tool_call_id: tc.id,
+              content: result,
+            });
           }
         }
+
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Stream error";
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
@@ -575,10 +730,10 @@ export async function POST(
 
     switch (provider) {
       case "openai":
-        stream = await streamOpenAI(chatbot, messages);
+        stream = await streamOpenAI(chatbot, messages, origin);
         break;
       case "groq":
-        stream = await streamGroq(chatbot, messages);
+        stream = await streamGroq(chatbot, messages, origin);
         break;
       case "gemini":
         stream = await streamGemini(chatbot, messages);
