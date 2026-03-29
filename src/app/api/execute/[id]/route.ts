@@ -23,7 +23,10 @@ export async function POST(
     return NextResponse.json({ error: "Workflow not found" }, { status: 404 });
   }
 
-  const triggerData = await request.json().catch(() => ({}));
+  // Unwrap trigger_data if the caller sent { trigger_data: {...} }
+  // (e.g. agent chat route sends args wrapped in trigger_data key)
+  const body = await request.json().catch(() => ({}));
+  const triggerData = body.trigger_data !== undefined ? body.trigger_data : body;
 
   // Collect all connectionIds referenced in this workflow's nodes
   const nodes = workflow.nodes as WorkflowNode[];
