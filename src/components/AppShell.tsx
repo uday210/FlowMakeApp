@@ -14,6 +14,7 @@ import {
   HelpCircle,
   Building2,
   Table2,
+  Bot,
 } from "lucide-react";
 
 const NAV = [
@@ -21,6 +22,7 @@ const NAV = [
   { href: "/", icon: Home, label: "Scenarios" },
   { href: "/templates", icon: LayoutTemplate, label: "Templates" },
   { href: "/tables", icon: Table2, label: "My Tables" },
+  { href: "/agents", icon: Bot, label: "AI Agents" },
   { href: "/connections", icon: Shield, label: "Credentials" },
   { href: "/webhooks", icon: Globe, label: "Webhooks" },
   { href: "/datastores", icon: Database, label: "Data stores" },
