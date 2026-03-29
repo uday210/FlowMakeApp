@@ -1,21 +1,42 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import AppShell, { PageHeader } from "@/components/AppShell";
 import {
   Plus, Trash2, Loader2, X, Check, Copy, Bot,
-  AlertCircle, Sparkles, Pencil, Code2, ToggleLeft, ToggleRight,
-  ChevronDown,
+  AlertCircle, Sparkles, Code2, ToggleLeft, ToggleRight,
+  Settings, Zap,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type Provider = "anthropic" | "openai" | "gemini" | "groq" | "mistral";
+
 type Appearance = {
+  agentName: string;
+  avatar: string;
   primaryColor: string;
+  headerBg: string;
+  userBubbleBg: string;
+  botBubbleBg: string;
+  userBubbleText: string;
+  botBubbleText: string;
   greetingMessage: string;
   placeholder: string;
-  agentName: string;
+  sendButtonLabel: string;
   showBranding: boolean;
+  position: "bottom-right" | "bottom-left" | "inline";
+  windowWidth: number;
+  borderRadius: number;
+};
+
+type ConnectedWorkflow = {
+  workflowId: string;
+  name: string;
+  description: string;
+  whenToUse: string;
+  enabled: boolean;
 };
 
 type Chatbot = {
@@ -23,26 +44,46 @@ type Chatbot = {
   name: string;
   description: string;
   system_prompt: string;
+  knowledge_base: string;
+  provider: Provider;
   model: string;
+  api_key: string;
+  temperature: number;
+  max_tokens: number;
   appearance: Appearance;
   starter_questions: string[];
+  connected_workflows: ConnectedWorkflow[];
   is_active: boolean;
   created_at: string;
 };
 
-const DEFAULT_APPEARANCE: Appearance = {
-  primaryColor: "#7c3aed",
-  greetingMessage: "Hi! How can I help you today?",
-  placeholder: "Type a message...",
-  agentName: "Assistant",
-  showBranding: true,
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PROVIDER_COLORS: Record<Provider, { bg: string; text: string; icon: string }> = {
+  anthropic: { bg: "#7c3aed", text: "Anthropic", icon: "◆" },
+  openai: { bg: "#10a37f", text: "OpenAI", icon: "⬡" },
+  gemini: { bg: "#4285f4", text: "Gemini", icon: "✦" },
+  groq: { bg: "#f97316", text: "Groq", icon: "▲" },
+  mistral: { bg: "#0ea5e9", text: "Mistral", icon: "❋" },
 };
 
-const MODELS = [
-  { value: "claude-haiku-4-5-20251001", label: "Claude Haiku (Fast)" },
-  { value: "claude-sonnet-4-6", label: "Claude Sonnet (Balanced)" },
-  { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-];
+const DEFAULT_APPEARANCE: Appearance = {
+  agentName: "Assistant",
+  avatar: "🤖",
+  primaryColor: "#7c3aed",
+  headerBg: "#7c3aed",
+  userBubbleBg: "#7c3aed",
+  botBubbleBg: "#ffffff",
+  userBubbleText: "#ffffff",
+  botBubbleText: "#1f2937",
+  greetingMessage: "Hi! How can I help you today?",
+  placeholder: "Type a message...",
+  sendButtonLabel: "Send",
+  showBranding: true,
+  position: "bottom-right",
+  windowWidth: 400,
+  borderRadius: 16,
+};
 
 const EXAMPLE_PROMPTS = [
   "Customer support for a SaaS product",
@@ -51,212 +92,294 @@ const EXAMPLE_PROMPTS = [
   "IT helpdesk assistant",
 ];
 
-// ─── Agent Modal ──────────────────────────────────────────────────────────────
+type TemplateConfig = Omit<Chatbot, "id" | "is_active" | "created_at" | "api_key" | "connected_workflows">;
 
-function AgentModal({
-  initial,
-  onSave,
-  onClose,
+const TEMPLATES: (TemplateConfig & { emoji: string; category: string })[] = [
+  {
+    emoji: "🎧",
+    name: "Customer Support Agent",
+    description: "Handle questions, returns, complaints & escalations 24/7",
+    category: "Support",
+    provider: "anthropic",
+    model: "claude-haiku-4-5-20251001",
+    system_prompt:
+      "You are a friendly, professional customer support agent. Help customers with their questions, complaints, and issues. Be empathetic, clear, and solution-focused. If you cannot resolve an issue, offer to escalate to a human agent.",
+    knowledge_base: "",
+    temperature: 0.7,
+    max_tokens: 1024,
+    starter_questions: [
+      "How do I track my order?",
+      "I need help with a refund",
+      "How do I reset my password?",
+      "Can I change my subscription?",
+    ],
+    appearance: {
+      ...DEFAULT_APPEARANCE,
+      primaryColor: "#0ea5e9",
+      headerBg: "#0ea5e9",
+      userBubbleBg: "#0ea5e9",
+      agentName: "Support",
+      avatar: "🎧",
+      greetingMessage:
+        "Hi! I'm here to help with any questions or issues. What can I assist you with today?",
+    },
+  },
+  {
+    emoji: "💼",
+    name: "Sales Assistant",
+    description: "Qualify leads, answer product questions, book demos",
+    category: "Sales",
+    provider: "anthropic",
+    model: "claude-sonnet-4-6",
+    system_prompt:
+      "You are an enthusiastic sales assistant. Help prospects understand the product's value, answer questions about pricing and features, qualify leads, and encourage booking a demo. Be persuasive but not pushy.",
+    knowledge_base: "",
+    temperature: 0.7,
+    max_tokens: 1024,
+    starter_questions: [
+      "What does your product do?",
+      "How much does it cost?",
+      "Can I get a demo?",
+      "How does it compare to competitors?",
+    ],
+    appearance: {
+      ...DEFAULT_APPEARANCE,
+      primaryColor: "#10b981",
+      headerBg: "#10b981",
+      userBubbleBg: "#10b981",
+      agentName: "Sales",
+      avatar: "💼",
+      greetingMessage: "Hi! Interested in learning more about us? I'd love to help!",
+    },
+  },
+  {
+    emoji: "❓",
+    name: "FAQ Bot",
+    description: "Answer common questions instantly from your knowledge base",
+    category: "Support",
+    provider: "anthropic",
+    model: "claude-haiku-4-5-20251001",
+    system_prompt:
+      "You are a helpful FAQ assistant. Answer questions concisely and accurately. If a question isn't covered in the knowledge base, politely let the user know and suggest they contact support.",
+    knowledge_base: "",
+    temperature: 0.7,
+    max_tokens: 1024,
+    starter_questions: [
+      "What are your hours?",
+      "Where are you located?",
+      "How do I get started?",
+      "What payment methods do you accept?",
+    ],
+    appearance: {
+      ...DEFAULT_APPEARANCE,
+      primaryColor: "#8b5cf6",
+      headerBg: "#8b5cf6",
+      userBubbleBg: "#8b5cf6",
+      agentName: "FAQ Bot",
+      avatar: "❓",
+      greetingMessage: "Hello! Ask me anything — I'll do my best to help!",
+    },
+  },
+  {
+    emoji: "👥",
+    name: "HR Onboarding Assistant",
+    description: "Guide new employees through onboarding, answer HR questions",
+    category: "HR",
+    provider: "anthropic",
+    model: "claude-sonnet-4-6",
+    system_prompt:
+      "You are a friendly HR onboarding assistant. Help new employees navigate their first weeks: answer questions about policies, benefits, tools, and processes. Be welcoming and informative.",
+    knowledge_base: "",
+    temperature: 0.7,
+    max_tokens: 1024,
+    starter_questions: [
+      "How do I set up my benefits?",
+      "What's the vacation policy?",
+      "How do I request time off?",
+      "Who do I contact for IT help?",
+    ],
+    appearance: {
+      ...DEFAULT_APPEARANCE,
+      primaryColor: "#f59e0b",
+      headerBg: "#f59e0b",
+      userBubbleBg: "#f59e0b",
+      agentName: "HR Assistant",
+      avatar: "👥",
+      greetingMessage:
+        "Welcome aboard! I'm here to help you settle in. What questions do you have?",
+    },
+  },
+  {
+    emoji: "💻",
+    name: "Code Assistant",
+    description: "Help developers with code reviews, debugging, and questions",
+    category: "Dev",
+    provider: "anthropic",
+    model: "claude-sonnet-4-6",
+    system_prompt:
+      "You are an expert software engineering assistant. Help with code reviews, debugging, architecture questions, and best practices. Provide clear code examples when helpful. Support multiple programming languages.",
+    knowledge_base: "",
+    temperature: 0.7,
+    max_tokens: 1024,
+    starter_questions: [
+      "Can you review this code?",
+      "How do I fix this bug?",
+      "What's the best approach for...?",
+      "Explain this error message",
+    ],
+    appearance: {
+      ...DEFAULT_APPEARANCE,
+      primaryColor: "#6366f1",
+      headerBg: "#6366f1",
+      userBubbleBg: "#6366f1",
+      agentName: "Code Bot",
+      avatar: "💻",
+      greetingMessage: "Hey! Ready to help with code, debugging, or technical questions.",
+    },
+  },
+  {
+    emoji: "🛒",
+    name: "Shopping Assistant",
+    description: "Help customers find products, compare options, and complete purchases",
+    category: "E-commerce",
+    provider: "anthropic",
+    model: "claude-haiku-4-5-20251001",
+    system_prompt:
+      "You are a helpful shopping assistant. Help customers find the right products, compare options, understand sizing and specifications, and complete their purchase. Be helpful and knowledgeable about the product catalog.",
+    knowledge_base: "",
+    temperature: 0.7,
+    max_tokens: 1024,
+    starter_questions: [
+      "Help me find a product",
+      "What's the difference between...?",
+      "Do you have this in my size?",
+      "What's your return policy?",
+    ],
+    appearance: {
+      ...DEFAULT_APPEARANCE,
+      primaryColor: "#f97316",
+      headerBg: "#f97316",
+      userBubbleBg: "#f97316",
+      agentName: "Shop Assistant",
+      avatar: "🛒",
+      greetingMessage:
+        "Hi! Looking for something specific? I'm here to help you find the perfect match!",
+    },
+  },
+  {
+    emoji: "📅",
+    name: "Appointment Booking Bot",
+    description: "Schedule appointments, manage bookings, send reminders",
+    category: "Scheduling",
+    provider: "anthropic",
+    model: "claude-haiku-4-5-20251001",
+    system_prompt:
+      "You are an appointment scheduling assistant. Help users book, reschedule, or cancel appointments. Collect necessary information (name, preferred date/time, service type) and confirm bookings. Be efficient and friendly.",
+    knowledge_base: "",
+    temperature: 0.7,
+    max_tokens: 1024,
+    starter_questions: [
+      "I'd like to book an appointment",
+      "Can I reschedule?",
+      "What times are available?",
+      "How do I cancel?",
+    ],
+    appearance: {
+      ...DEFAULT_APPEARANCE,
+      primaryColor: "#ec4899",
+      headerBg: "#ec4899",
+      userBubbleBg: "#ec4899",
+      agentName: "Booking Bot",
+      avatar: "📅",
+      greetingMessage:
+        "Hi! I can help you schedule, reschedule, or manage appointments. What do you need?",
+    },
+  },
+  {
+    emoji: "📊",
+    name: "Data Analyst",
+    description: "Answer questions about your data, generate insights and reports",
+    category: "Analytics",
+    provider: "anthropic",
+    model: "claude-opus-4-6",
+    system_prompt:
+      "You are an expert data analyst assistant. Help users understand their data, identify trends, generate reports, and draw insights. Be precise with numbers, explain your reasoning, and suggest actionable next steps.",
+    knowledge_base: "",
+    temperature: 0.7,
+    max_tokens: 1024,
+    starter_questions: [
+      "Analyze this data for me",
+      "What trends do you see?",
+      "Generate a summary report",
+      "What are the key insights?",
+    ],
+    appearance: {
+      ...DEFAULT_APPEARANCE,
+      primaryColor: "#14b8a6",
+      headerBg: "#14b8a6",
+      userBubbleBg: "#14b8a6",
+      agentName: "Data Analyst",
+      avatar: "📊",
+      greetingMessage:
+        "Hello! I can help you make sense of your data. What would you like to analyze?",
+    },
+  },
+];
+
+// ─── Template Card ─────────────────────────────────────────────────────────────
+
+function TemplateCard({
+  template,
+  onUse,
+  loading,
 }: {
-  initial?: Partial<Chatbot>;
-  onSave: (data: Partial<Chatbot>) => Promise<void>;
-  onClose: () => void;
+  template: (typeof TEMPLATES)[number];
+  onUse: () => void;
+  loading: boolean;
 }) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [systemPrompt, setSystemPrompt] = useState(
-    initial?.system_prompt ?? "You are a helpful assistant."
-  );
-  const [model, setModel] = useState(initial?.model ?? "claude-haiku-4-5-20251001");
-  const [starterQs, setStarterQs] = useState(
-    (initial?.starter_questions ?? []).join(", ")
-  );
-  const [appearance, setAppearance] = useState<Appearance>(
-    initial?.appearance ?? { ...DEFAULT_APPEARANCE }
-  );
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSave = async () => {
-    if (!name.trim()) { setError("Agent name is required"); return; }
-    setSaving(true);
-    try {
-      const questions = starterQs
-        .split(",")
-        .map(q => q.trim())
-        .filter(Boolean);
-      await onSave({
-        name: name.trim(),
-        description: description.trim(),
-        system_prompt: systemPrompt.trim(),
-        model,
-        appearance,
-        starter_questions: questions,
-      });
-      onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  };
-
+  const color = template.appearance.primaryColor;
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">
-            {initial?.id ? "Edit Agent" : "Create New Agent"}
-          </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
-            <X size={16} />
-          </button>
+    <div
+      className="flex-shrink-0 w-60 bg-white border border-gray-200 rounded-2xl p-4 flex flex-col gap-3 hover:shadow-md transition-all group"
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+          style={{ backgroundColor: color + "1a" }}
+        >
+          {template.emoji}
         </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Name */}
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Agent name</label>
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g. Support Bot, Sales Assistant"
-              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
-              Description <span className="font-normal text-gray-400">(optional)</span>
-            </label>
-            <input
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="What does this agent do?"
-              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-            />
-          </div>
-
-          {/* System Prompt */}
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">System prompt</label>
-            <textarea
-              value={systemPrompt}
-              onChange={e => setSystemPrompt(e.target.value)}
-              rows={5}
-              placeholder="Instructions for how the agent should behave..."
-              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
-            />
-          </div>
-
-          {/* Model */}
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Model</label>
-            <div className="relative">
-              <select
-                value={model}
-                onChange={e => setModel(e.target.value)}
-                className="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 appearance-none bg-white"
-              >
-                {MODELS.map(m => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Starter Questions */}
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
-              Starter questions <span className="font-normal text-gray-400">(comma-separated)</span>
-            </label>
-            <input
-              value={starterQs}
-              onChange={e => setStarterQs(e.target.value)}
-              placeholder="How can I reset my password?, What are your hours?, ..."
-              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-            />
-          </div>
-
-          {/* Appearance */}
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-3 block">Appearance</label>
-            <div className="space-y-3 bg-gray-50 rounded-xl p-4">
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-[11px] text-gray-500 mb-1 block">Agent display name</label>
-                  <input
-                    value={appearance.agentName}
-                    onChange={e => setAppearance(a => ({ ...a, agentName: e.target.value }))}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 bg-white"
-                    placeholder="Assistant"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] text-gray-500 mb-1 block">Primary color</label>
-                  <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 bg-white">
-                    <input
-                      type="color"
-                      value={appearance.primaryColor}
-                      onChange={e => setAppearance(a => ({ ...a, primaryColor: e.target.value }))}
-                      className="w-7 h-7 rounded cursor-pointer border-0 p-0 bg-transparent"
-                    />
-                    <span className="text-xs font-mono text-gray-500">{appearance.primaryColor}</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="text-[11px] text-gray-500 mb-1 block">Greeting message</label>
-                <input
-                  value={appearance.greetingMessage}
-                  onChange={e => setAppearance(a => ({ ...a, greetingMessage: e.target.value }))}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 bg-white"
-                  placeholder="Hi! How can I help you today?"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] text-gray-500">Show &quot;Powered by FlowMake&quot; branding</label>
-                <button
-                  type="button"
-                  onClick={() => setAppearance(a => ({ ...a, showBranding: !a.showBranding }))}
-                  className={`transition-colors ${appearance.showBranding ? "text-violet-600" : "text-gray-300"}`}
-                >
-                  {appearance.showBranding ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {error && (
-            <p className="text-xs text-red-500 flex items-center gap-1.5">
-              <AlertCircle size={12} /> {error}
-            </p>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-50"
+        <div className="min-w-0">
+          <span
+            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+            style={{ backgroundColor: color + "1a", color }}
           >
-            {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-            {initial?.id ? "Save changes" : "Create agent"}
-          </button>
+            {template.category}
+          </span>
         </div>
       </div>
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900 leading-tight mb-1">
+          {template.name}
+        </h3>
+        <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">
+          {template.description}
+        </p>
+      </div>
+      <button
+        onClick={onUse}
+        disabled={loading}
+        className="mt-auto w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-white rounded-xl transition-all hover:opacity-90 disabled:opacity-50"
+        style={{ backgroundColor: color }}
+      >
+        {loading ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+        Use Template
+      </button>
     </div>
   );
 }
 
-// ─── Embed Code Modal ─────────────────────────────────────────────────────────
+// ─── Embed Modal ──────────────────────────────────────────────────────────────
 
 function EmbedModal({ agent, onClose }: { agent: Chatbot; onClose: () => void }) {
   const [tab, setTab] = useState<"iframe" | "script">("iframe");
@@ -305,9 +428,7 @@ function EmbedModal({ agent, onClose }: { agent: Chatbot; onClose: () => void })
             <X size={16} />
           </button>
         </div>
-
         <div className="px-6 py-5">
-          {/* Tabs */}
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">
             {(["iframe", "script"] as const).map(t => (
               <button
@@ -321,8 +442,6 @@ function EmbedModal({ agent, onClose }: { agent: Chatbot; onClose: () => void })
               </button>
             ))}
           </div>
-
-          {/* Code block */}
           <div className="relative">
             <pre className="bg-gray-900 text-gray-100 rounded-xl p-4 text-xs overflow-x-auto font-mono leading-relaxed">
               {code}
@@ -335,9 +454,9 @@ function EmbedModal({ agent, onClose }: { agent: Chatbot; onClose: () => void })
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-
           <p className="text-[11px] text-gray-400 mt-3">
-            Paste this code anywhere in your website&apos;s HTML. The chatbot will be publicly accessible — no login required.
+            Paste this code anywhere in your website&apos;s HTML. The chatbot will be publicly
+            accessible — no login required.
           </p>
         </div>
       </div>
@@ -349,32 +468,32 @@ function EmbedModal({ agent, onClose }: { agent: Chatbot; onClose: () => void })
 
 function AgentCard({
   agent,
-  onEdit,
   onDelete,
   onEmbed,
   onToggle,
+  onConfigure,
 }: {
   agent: Chatbot;
-  onEdit: () => void;
   onDelete: () => void;
   onEmbed: () => void;
   onToggle: () => void;
+  onConfigure: () => void;
 }) {
-  const modelLabel = MODELS.find(m => m.value === agent.model)?.label ?? agent.model;
+  const provider = agent.provider ?? "anthropic";
+  const providerInfo = PROVIDER_COLORS[provider as Provider] ?? PROVIDER_COLORS.anthropic;
+  const avatar = agent.appearance?.avatar ?? "🤖";
+  const primaryColor = agent.appearance?.primaryColor ?? "#7c3aed";
+  const connectedCount = (agent.connected_workflows ?? []).filter(w => w.enabled).length;
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all group">
-      {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border"
-            style={{
-              backgroundColor: agent.appearance.primaryColor + "1a",
-              borderColor: agent.appearance.primaryColor + "33",
-            }}
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+            style={{ backgroundColor: primaryColor + "1a" }}
           >
-            <Bot size={18} style={{ color: agent.appearance.primaryColor }} />
+            {avatar}
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-gray-900 truncate">{agent.name}</h3>
@@ -392,14 +511,26 @@ function AgentCard({
         </button>
       </div>
 
-      {/* Model badge */}
-      <div className="mb-4">
-        <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-2 py-0.5 rounded-full">
-          {modelLabel}
+      {/* Badges */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        <span
+          className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+          style={{ backgroundColor: providerInfo.bg }}
+        >
+          {providerInfo.icon} {providerInfo.text}
         </span>
-        {agent.starter_questions.length > 0 && (
-          <span className="ml-2 text-[10px] bg-blue-50 text-blue-500 font-medium px-2 py-0.5 rounded-full">
-            {agent.starter_questions.length} starter question{agent.starter_questions.length !== 1 ? "s" : ""}
+        <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-2 py-0.5 rounded-full truncate max-w-[120px]">
+          {agent.model}
+        </span>
+        {connectedCount > 0 && (
+          <span className="text-[10px] bg-amber-50 text-amber-600 font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Zap size={9} />
+            {connectedCount} flow{connectedCount !== 1 ? "s" : ""}
+          </span>
+        )}
+        {agent.starter_questions?.length > 0 && (
+          <span className="text-[10px] bg-blue-50 text-blue-500 font-medium px-2 py-0.5 rounded-full">
+            {agent.starter_questions.length} starter{agent.starter_questions.length !== 1 ? "s" : ""}
           </span>
         )}
       </div>
@@ -412,10 +543,10 @@ function AgentCard({
       {/* Actions */}
       <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
         <button
-          onClick={onEdit}
+          onClick={onConfigure}
           className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all"
         >
-          <Pencil size={12} /> Edit
+          <Settings size={12} /> Configure
         </button>
         <button
           onClick={onEmbed}
@@ -437,10 +568,11 @@ function AgentCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AgentsPage() {
+  const router = useRouter();
   const [agents, setAgents] = useState<Chatbot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<{ mode: "create" | "edit"; agent?: Chatbot } | null>(null);
   const [embedAgent, setEmbedAgent] = useState<Chatbot | null>(null);
+  const [templateLoading, setTemplateLoading] = useState<number | null>(null);
 
   // AI generation
   const [aiPrompt, setAiPrompt] = useState("");
@@ -457,23 +589,35 @@ export default function AgentsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleSave = async (data: Partial<Chatbot>) => {
-    if (modal?.mode === "edit" && modal.agent) {
-      const res = await fetch(`/api/agents/${modal.agent.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const updated = await res.json();
-      setAgents(prev => prev.map(a => a.id === updated.id ? updated : a));
-    } else {
+  const handleUseTemplate = async (template: (typeof TEMPLATES)[number], index: number) => {
+    setTemplateLoading(index);
+    try {
       const res = await fetch("/api/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          name: template.name,
+          description: template.description,
+          system_prompt: template.system_prompt,
+          knowledge_base: template.knowledge_base,
+          provider: template.provider,
+          model: template.model,
+          temperature: template.temperature,
+          max_tokens: template.max_tokens,
+          appearance: template.appearance,
+          starter_questions: template.starter_questions,
+          connected_workflows: [],
+          is_active: true,
+        }),
       });
       const created = await res.json();
-      setAgents(prev => [created, ...prev]);
+      if (created.id) {
+        router.push(`/agents/${created.id}`);
+      }
+    } catch {
+      // fail silently — user can create manually
+    } finally {
+      setTemplateLoading(null);
     }
   };
 
@@ -487,7 +631,7 @@ export default function AgentsPage() {
     const res = await fetch(`/api/agents/${agent.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...agent, is_active: !agent.is_active }),
+      body: JSON.stringify({ is_active: !agent.is_active }),
     });
     const updated = await res.json();
     setAgents(prev => prev.map(a => a.id === updated.id ? updated : a));
@@ -505,23 +649,27 @@ export default function AgentsPage() {
       });
       if (!res.ok) throw new Error("Generation failed");
       const config = await res.json();
-      setModal({
-        mode: "create",
-        agent: {
-          id: "",
-          name: config.name ?? "",
+
+      const createRes = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: config.name ?? "Generated Agent",
           description: config.description ?? "",
           system_prompt: config.system_prompt ?? "You are a helpful assistant.",
           model: "claude-haiku-4-5-20251001",
+          provider: "anthropic",
           appearance: {
             ...DEFAULT_APPEARANCE,
             ...(config.appearance ?? {}),
           },
           starter_questions: config.starter_questions ?? [],
-          is_active: true,
-          created_at: "",
-        },
+        }),
       });
+      const created = await createRes.json();
+      if (created.id) {
+        router.push(`/agents/${created.id}`);
+      }
     } catch (e) {
       setAiError(e instanceof Error ? e.message : "Generation failed");
     } finally {
@@ -536,7 +684,7 @@ export default function AgentsPage() {
         subtitle="Create embeddable chatbots for your website"
         action={
           <button
-            onClick={() => setModal({ mode: "create" })}
+            onClick={() => router.push("/agents/new")}
             className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
           >
             <Plus size={14} /> New Agent
@@ -544,7 +692,27 @@ export default function AgentsPage() {
         }
       />
 
-      <main className="flex-1 overflow-auto px-8 py-6 space-y-6">
+      <main className="flex-1 overflow-auto px-8 py-6 space-y-8">
+        {/* Templates Section */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-sm font-bold text-gray-900">Pre-built Templates</h2>
+            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">
+              {TEMPLATES.length} templates
+            </span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+            {TEMPLATES.map((template, i) => (
+              <TemplateCard
+                key={i}
+                template={template}
+                onUse={() => handleUseTemplate(template, i)}
+                loading={templateLoading === i}
+              />
+            ))}
+          </div>
+        </div>
+
         {/* AI Generation Card */}
         <div className="bg-gradient-to-r from-violet-600 to-purple-700 rounded-2xl p-5 text-white">
           <div className="flex items-center gap-2 mb-3">
@@ -552,14 +720,20 @@ export default function AgentsPage() {
             <h2 className="text-sm font-bold">Generate with AI</h2>
           </div>
           <p className="text-xs text-violet-200 mb-4">
-            Describe your chatbot and AI will configure it for you — system prompt, starter questions, and appearance.
+            Describe your chatbot and AI will configure it for you — system prompt, starter
+            questions, and appearance.
           </p>
 
           <div className="flex gap-2 mb-3">
             <textarea
               value={aiPrompt}
               onChange={e => setAiPrompt(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleGenerate();
+                }
+              }}
               placeholder="e.g. A friendly customer support bot for a project management SaaS..."
               rows={2}
               className="flex-1 text-sm bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 placeholder-violet-300 text-white outline-none focus:bg-white/20 resize-none"
@@ -574,7 +748,6 @@ export default function AgentsPage() {
             </button>
           </div>
 
-          {/* Example chips */}
           <div className="flex flex-wrap gap-2">
             {EXAMPLE_PROMPTS.map(p => (
               <button
@@ -595,58 +768,57 @@ export default function AgentsPage() {
         </div>
 
         {/* Agents Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-52 bg-white border border-gray-200 rounded-2xl animate-pulse" />
-            ))}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-gray-900">
+              Your Agents
+              {agents.length > 0 && (
+                <span className="ml-2 text-xs font-medium text-gray-400">
+                  ({agents.length})
+                </span>
+              )}
+            </h2>
           </div>
-        ) : agents.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-violet-100">
-              <Bot size={28} className="text-violet-500" />
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-52 bg-white border border-gray-200 rounded-2xl animate-pulse" />
+              ))}
             </div>
-            <h2 className="text-base font-semibold text-gray-700 mb-2">No agents yet</h2>
-            <p className="text-sm text-gray-400 mb-2 max-w-sm mx-auto">
-              Create your first AI chatbot and embed it on any website. Configure its personality, knowledge, and appearance.
-            </p>
-            <button
-              onClick={() => setModal({ mode: "create" })}
-              className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors mx-auto"
-            >
-              <Plus size={14} /> Create your first agent
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {agents.map(agent => (
-              <AgentCard
-                key={agent.id}
-                agent={agent}
-                onEdit={() => setModal({ mode: "edit", agent })}
-                onDelete={() => handleDelete(agent.id)}
-                onEmbed={() => setEmbedAgent(agent)}
-                onToggle={() => handleToggle(agent)}
-              />
-            ))}
-            <button
-              onClick={() => setModal({ mode: "create" })}
-              className="border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-violet-300 hover:bg-violet-50/50 transition-all text-gray-400 hover:text-violet-500 min-h-[200px]"
-            >
-              <Plus size={22} />
-              <span className="text-xs font-medium">New agent</span>
-            </button>
-          </div>
-        )}
+          ) : agents.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-violet-100">
+                <Bot size={28} className="text-violet-500" />
+              </div>
+              <h2 className="text-base font-semibold text-gray-700 mb-2">No agents yet</h2>
+              <p className="text-sm text-gray-400 mb-2 max-w-sm mx-auto">
+                Use a template above or create a custom agent. Configure its personality, knowledge,
+                and appearance.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {agents.map(agent => (
+                <AgentCard
+                  key={agent.id}
+                  agent={agent}
+                  onConfigure={() => router.push(`/agents/${agent.id}`)}
+                  onDelete={() => handleDelete(agent.id)}
+                  onEmbed={() => setEmbedAgent(agent)}
+                  onToggle={() => handleToggle(agent)}
+                />
+              ))}
+              <button
+                onClick={() => router.push("/agents/new")}
+                className="border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-violet-300 hover:bg-violet-50/50 transition-all text-gray-400 hover:text-violet-500 min-h-[200px]"
+              >
+                <Plus size={22} />
+                <span className="text-xs font-medium">New agent</span>
+              </button>
+            </div>
+          )}
+        </div>
       </main>
-
-      {modal && (
-        <AgentModal
-          initial={modal.agent}
-          onSave={handleSave}
-          onClose={() => setModal(null)}
-        />
-      )}
 
       {embedAgent && (
         <EmbedModal
