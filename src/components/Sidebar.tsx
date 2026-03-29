@@ -16,7 +16,7 @@ import {
   CheckSquare, Bell, ImageIcon, BotMessageSquare, Plug,
   DatabaseZap, Leaf, Zap, Radio, Wifi, Server, SearchCode,
   FileCode, Lock, KeyRound, FileText, Image, QrCode,
-  Wind, Mic, Binary, Terminal, FolderUp,
+  Wind, Mic, Binary, Terminal, FolderUp, MessageSquareReply,
 } from "lucide-react";
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -31,7 +31,7 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; className?: str
   CheckSquare, Bell, ImageIcon, BotMessageSquare, Plug,
   DatabaseZap, Leaf, Zap, Radio, Wifi, Server, SearchCode,
   FileCode, Lock, KeyRound, FileText, Image, QrCode,
-  Wind, Mic, Binary, Terminal, FolderUp,
+  Wind, Mic, Binary, Terminal, FolderUp, MessageSquareReply,
 };
 
 const SUBCATEGORY_ORDER = [
@@ -64,6 +64,7 @@ const SUBCATEGORY_MAP: Record<string, string> = {
   action_get_variable:     "Flow Control",
   action_sub_workflow:     "Flow Control",
   action_webhook_response: "Flow Control",
+  action_agent_reply:      "Flow Control",
   action_merge:            "Flow Control",
   action_approval:         "Flow Control",
   action_notification:     "Flow Control",
