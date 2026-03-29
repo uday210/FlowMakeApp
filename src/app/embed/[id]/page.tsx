@@ -115,6 +115,8 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
     setStreamingText("");
 
     const apiMessages = nextMessages.map(m => ({ role: m.role, content: m.content }));
+    let accumulated = "";
+    let serverError = "";
 
     try {
       const res = await fetch(`/api/agents/${agentId}/chat`, {
@@ -123,50 +125,56 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
         body: JSON.stringify({ messages: apiMessages }),
       });
 
-      if (!res.ok) throw new Error("Chat request failed");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error ?? `Request failed (${res.status})`);
+      }
       if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let accumulated = "";
 
-      while (true) {
+      outer: while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
+        for (const line of chunk.split("\n")) {
           if (!line.startsWith("data: ")) continue;
           const payload = line.slice(6).trim();
-          if (payload === "[DONE]") break;
+          if (payload === "[DONE]") break outer;
           try {
             const parsed = JSON.parse(payload);
-            if (parsed.text) {
-              accumulated += parsed.text;
-              setStreamingText(accumulated);
-            }
-          } catch {
-            // skip malformed
-          }
+            if (parsed.error) { serverError = parsed.error; }
+            if (parsed.text) { accumulated += parsed.text; setStreamingText(accumulated); }
+          } catch { /* skip malformed */ }
         }
       }
 
+      const finalContent = accumulated || (serverError ? `Error: ${serverError}` : "Sorry, I couldn't generate a response.");
+      const finalMessages: Message[] = [
+        ...nextMessages,
+        { role: "assistant", content: finalContent, timestamp: new Date() },
+      ];
+      setMessages(finalMessages);
+      setStreamingText("");
+
+      // Save to conversation history
+      fetch(`/api/agents/${agentId}/conversations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: finalMessages.map(m => ({ role: m.role, content: m.content })),
+          message_count: finalMessages.length,
+          source: "embed",
+        }),
+      }).catch(() => { /* non-critical */ });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
       setMessages(prev => [
         ...prev,
-        { role: "assistant", content: accumulated, timestamp: new Date() },
+        { role: "assistant", content: `Error: ${msg}`, timestamp: new Date() },
       ]);
       setStreamingText("");
-    } catch {
-      setMessages(prev => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Sorry, something went wrong. Please try again.",
-          timestamp: new Date(),
-        },
-      ]);
     } finally {
       setStreaming(false);
       setTimeout(() => inputRef.current?.focus(), 50);

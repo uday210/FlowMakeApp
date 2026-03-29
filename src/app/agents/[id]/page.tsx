@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   FileText, Cpu, Wrench, Palette, Code2, ChevronLeft,
   Loader2, X, Plus, Check, Copy, Send,
-  Lock, Info, ExternalLink, ChevronDown,
+  Lock, Info, ExternalLink, ChevronDown, History, MessageSquare, User, Bot,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,6 +63,16 @@ type WorkflowItem = {
 };
 
 type ChatMessage = { role: "user" | "assistant"; content: string; timestamp: Date };
+
+type ConversationRecord = {
+  id: string;
+  agent_id: string;
+  messages: { role: "user" | "assistant"; content: string }[];
+  message_count: number;
+  source: string;
+  started_at: string;
+  ended_at: string | null;
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -174,43 +184,70 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
 
     const apiMsgs = next.map(m => ({ role: m.role, content: m.content }));
 
+    let acc = "";
+    let serverError = "";
+
     try {
       const res = await fetch(`/api/agents/${chatbot.id}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: apiMsgs }),
       });
-      if (!res.ok || !res.body) throw new Error("Request failed");
+
+      if (!res.ok) {
+        // HTTP-level error (e.g. 500 with JSON body)
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error ?? `Request failed (${res.status})`);
+      }
+      if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let acc = "";
 
-      while (true) {
+      outer: while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
         for (const line of chunk.split("\n")) {
           if (!line.startsWith("data: ")) continue;
           const payload = line.slice(6).trim();
-          if (payload === "[DONE]") break;
+          if (payload === "[DONE]") break outer;
           try {
             const parsed = JSON.parse(payload);
+            if (parsed.error) { serverError = parsed.error; }
             if (parsed.text) { acc += parsed.text; setStreamingText(acc); }
-          } catch { /* ignore */ }
+          } catch { /* ignore malformed lines */ }
         }
       }
 
+      const finalContent = acc || (serverError ? `Error: ${serverError}` : "Sorry, I couldn't generate a response.");
+      const finalMessages: ChatMessage[] = [
+        ...next,
+        { role: "assistant", content: finalContent, timestamp: new Date() },
+      ];
+      setMessages(finalMessages);
+      setStreamingText("");
+
+      // Save conversation to history (only if there's at least one user + assistant exchange)
+      const saveMsgs = finalMessages.filter(m => m.role !== "assistant" || m.content !== (chatbot.appearance?.greetingMessage ?? "Hi! How can I help you today?"));
+      if (saveMsgs.some(m => m.role === "user")) {
+        fetch(`/api/agents/${chatbot.id}/conversations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: saveMsgs.map(m => ({ role: m.role, content: m.content })),
+            message_count: saveMsgs.length,
+            source: "preview",
+          }),
+        }).catch(() => { /* non-critical */ });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
       setMessages(prev => [
         ...prev,
-        { role: "assistant", content: acc, timestamp: new Date() },
+        { role: "assistant", content: `Error: ${msg}`, timestamp: new Date() },
       ]);
       setStreamingText("");
-    } catch {
-      setMessages(prev => [
-        ...prev,
-        { role: "assistant", content: "Sorry, something went wrong.", timestamp: new Date() },
-      ]);
     } finally {
       setStreaming(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -1138,7 +1175,116 @@ function EmbedTab({ chatbot }: { chatbot: Chatbot }) {
 
 // ─── Main Editor Page ─────────────────────────────────────────────────────────
 
-type TabId = "overview" | "model" | "tools" | "branding" | "embed";
+type TabId = "overview" | "model" | "tools" | "branding" | "embed" | "history";
+
+// ─── History Tab ──────────────────────────────────────────────────────────────
+
+function HistoryTab({ agentId }: { agentId: string }) {
+  const [conversations, setConversations] = useState<ConversationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/agents/${agentId}/conversations`)
+      .then(r => r.json())
+      .then(d => setConversations(Array.isArray(d) ? d : []))
+      .catch(() => setConversations([]))
+      .finally(() => setLoading(false));
+  }, [agentId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 size={16} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (conversations.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+        <MessageSquare size={28} className="text-gray-300 mb-3" />
+        <p className="text-xs font-semibold text-gray-600">No conversations yet</p>
+        <p className="text-[11px] text-gray-400 mt-1">
+          Conversations from the preview and embed will appear here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mb-3">
+        {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
+      </p>
+      {conversations.map(conv => {
+        const isOpen = expanded === conv.id;
+        const firstUserMsg = conv.messages.find(m => m.role === "user");
+        const date = new Date(conv.started_at);
+        const dateStr = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        const timeStr = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+        const userCount = conv.messages.filter(m => m.role === "user").length;
+
+        return (
+          <div key={conv.id} className="border border-gray-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setExpanded(isOpen ? null : conv.id)}
+              className="w-full text-left px-3 py-2.5 flex items-start gap-2.5 hover:bg-gray-50 transition-colors"
+            >
+              <MessageSquare size={13} className="text-violet-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-medium text-gray-800 truncate">
+                  {firstUserMsg?.content ?? "No messages"}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] text-gray-400">{dateStr} · {timeStr}</span>
+                  <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                    {userCount} msg{userCount !== 1 ? "s" : ""}
+                  </span>
+                  <span className="text-[10px] bg-violet-50 text-violet-500 px-1.5 py-0.5 rounded-full capitalize">
+                    {conv.source}
+                  </span>
+                </div>
+              </div>
+              <ChevronDown
+                size={12}
+                className={`text-gray-400 flex-shrink-0 mt-1 transition-transform ${isOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {isOpen && (
+              <div className="border-t border-gray-100 bg-gray-50 px-3 py-3 space-y-2 max-h-64 overflow-y-auto">
+                {conv.messages.map((msg, i) => (
+                  <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    {msg.role === "assistant" && (
+                      <div className="w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Bot size={10} className="text-violet-600" />
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-[11px] leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-violet-600 text-white rounded-br-sm"
+                          : "bg-white border border-gray-200 text-gray-700 rounded-bl-sm"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                    {msg.role === "user" && (
+                      <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <User size={10} className="text-gray-600" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "Overview", icon: <FileText size={14} /> },
@@ -1146,6 +1292,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "tools", label: "Tools", icon: <Wrench size={14} /> },
   { id: "branding", label: "Branding", icon: <Palette size={14} /> },
   { id: "embed", label: "Embed", icon: <Code2 size={14} /> },
+  { id: "history", label: "History", icon: <History size={14} /> },
 ];
 
 export default function AgentEditorPage({
@@ -1404,6 +1551,9 @@ export default function AgentEditorPage({
             )}
             {activeTab === "embed" && (
               <EmbedTab chatbot={chatbot} />
+            )}
+            {activeTab === "history" && agentId && (
+              <HistoryTab agentId={agentId} />
             )}
           </div>
         </div>
