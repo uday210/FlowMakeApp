@@ -660,7 +660,7 @@ function ToolsTab({
   const [loadingWorkflows, setLoadingWorkflows] = useState(true);
 
   useEffect(() => {
-    fetch("/api/workflows")
+    fetch("/api/workflows?agent_callable=true")
       .then(r => r.json())
       .then(d => setWorkflows(Array.isArray(d) ? d : []))
       .catch(() => setWorkflows([]))
@@ -711,7 +711,7 @@ function ToolsTab({
       <div>
         <h3 className="text-xs font-semibold text-gray-900 mb-0.5">Connect Workflows</h3>
         <p className="text-[11px] text-gray-400">
-          Your agent can trigger these workflows when users ask.
+          Only workflows with an <span className="font-medium text-violet-600">Agent Invoke</span> trigger are shown here.
         </p>
       </div>
 
@@ -728,9 +728,13 @@ function ToolsTab({
           <Loader2 size={16} className="animate-spin text-gray-400" />
         </div>
       ) : workflows.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">
-          <p className="text-xs font-medium">No workflows found.</p>
-          <p className="text-[11px] mt-1">Create one first from the Workflows section.</p>
+        <div className="text-center py-8 text-gray-400 px-2">
+          <p className="text-xs font-medium text-gray-700">No agent-callable workflows found.</p>
+          <p className="text-[11px] mt-1 leading-relaxed">
+            To expose a workflow as a tool, add an{" "}
+            <span className="font-semibold text-violet-600">Agent Invoke</span> trigger node as the
+            first step of your workflow.
+          </p>
         </div>
       ) : (
         <div className="space-y-3">

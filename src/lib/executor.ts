@@ -55,6 +55,8 @@ async function executeNodeOnce(
       case "trigger_form":
       case "trigger_email_inbound":
       case "trigger_rss_poll":
+      case "trigger_agent":
+        // trigger_agent: the AI agent's tool-call input becomes the trigger data
         output = ctx.triggerData;
         break;
 

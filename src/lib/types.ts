@@ -1,5 +1,6 @@
 export type NodeType =
   | "trigger_manual"
+  | "trigger_agent"
   | "trigger_webhook"
   | "trigger_schedule"
   | "trigger_interval"

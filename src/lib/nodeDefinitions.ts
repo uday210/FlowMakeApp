@@ -15,6 +15,41 @@ const SF_CONFIG_FIELDS = [
 export const NODE_DEFINITIONS: NodeDefinition[] = [
   // ── Triggers ──────────────────────────────────────────────────────────────────
   {
+    type: "trigger_agent",
+    label: "Agent Invoke",
+    description: "Start this workflow when an AI agent calls it as a tool. Only these workflows appear in the Agent Tools section.",
+    category: "trigger",
+    color: "#6d28d9",
+    icon: "Bot",
+    defaultConfig: {
+      tool_name: "",
+      tool_description: "",
+      input_description: "",
+    },
+    configFields: [
+      {
+        key: "tool_name",
+        label: "Tool Name",
+        type: "text",
+        placeholder: "lookup_customer, send_notification, fetch_report…",
+        required: true,
+      },
+      {
+        key: "tool_description",
+        label: "What does this workflow do?",
+        type: "textarea",
+        placeholder: "Describe clearly what this workflow does so the AI agent knows when to invoke it. e.g. \"Looks up a customer record by email and returns their account details.\"",
+        required: true,
+      },
+      {
+        key: "input_description",
+        label: "What input does it expect?",
+        type: "textarea",
+        placeholder: "Describe the input the agent should provide. e.g. \"email: the customer's email address, reason: why the lookup is needed\"",
+      },
+    ],
+  },
+  {
     type: "trigger_manual",
     label: "Manual Trigger",
     description: "Start workflow manually with a button click",
