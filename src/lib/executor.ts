@@ -27,6 +27,24 @@ async function executeNodeOnce(
     }
     const config = effectiveConfig;
 
+    // ── Shared interpolation helper (available to ALL node cases) ──────────────
+    // Resolves {{node_id.field}} and {{secret.NAME}} placeholders.
+    const allData: Record<string, unknown> = { ...ctx.triggerData, ...ctx.nodeOutputs };
+    const interpolate = (str: string): string => {
+      if (!str) return str;
+      return str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
+        const trimmed = path.trim();
+        if (trimmed.startsWith("secret.")) {
+          return ctx.secrets[trimmed.slice(7)] ?? "";
+        }
+        const val = trimmed.split(".").reduce<unknown>((o, k) => {
+          if (o && typeof o === "object") return (o as Record<string, unknown>)[k];
+          return undefined;
+        }, allData);
+        return val !== undefined ? String(val) : "";
+      });
+    };
+
     switch (type) {
       case "trigger_manual":
       case "trigger_webhook":
@@ -42,18 +60,6 @@ async function executeNodeOnce(
 
 
       case "action_http": {
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
-        const interpolate = (str: string) =>
-          str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
-            const val = path.trim().split(".").reduce<unknown>((o, k) => {
-              if (o && typeof o === "object") return (o as Record<string, unknown>)[k];
-              return undefined;
-            }, allData);
-            if (val !== undefined) return String(val);
-            // {{secret.NAME}} resolution
-            if (path.trim().startsWith("secret.")) { const sName = path.trim().slice(7); return ctx.secrets[sName] ?? ""; }
-            return "";
-          });
 
         const url = interpolate(config.url as string);
         if (!url) throw new Error("URL is required");
@@ -87,7 +93,9 @@ async function executeNodeOnce(
 
       case "action_email": {
         // Legacy stub — use action_smtp, action_sendgrid, action_resend, etc. for real sending
-        const { to, subject, body } = config as { to: string; subject: string; body: string };
+        const to = interpolate(config.to as string);
+        const subject = interpolate(config.subject as string);
+        const body = interpolate(config.body as string);
         if (!to || !subject) throw new Error("To and Subject are required");
         console.log(`[Email stub] To: ${to}, Subject: ${subject}\n${body}`);
         output = { sent: true, to, subject, simulated: true };
@@ -95,8 +103,8 @@ async function executeNodeOnce(
       }
 
       case "action_slack": {
-        const webhookUrl = config.webhook_url as string;
-        const message = config.message as string;
+        const webhookUrl = interpolate(config.webhook_url as string);
+        const message = interpolate(config.message as string);
         if (!webhookUrl) throw new Error("Slack webhook URL is required");
         const res = await fetch(webhookUrl, {
           method: "POST",
@@ -146,8 +154,8 @@ async function executeNodeOnce(
       case "action_openai": {
         const apiKey = config.api_key as string;
         const model = (config.model as string) || "gpt-4o-mini";
-        const prompt = config.prompt as string;
-        const system = (config.system as string) || "";
+        const prompt = interpolate(config.prompt as string);
+        const system = interpolate((config.system as string) || "");
         if (!apiKey) throw new Error("OpenAI API key is required");
         if (!prompt) throw new Error("Prompt is required");
         const messages = [];
@@ -365,18 +373,6 @@ async function executeNodeOnce(
       case "action_sendgrid": {
         const apiKey = config.api_key as string;
         const from = config.from as string;
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
-        const interpolate = (str: string) =>
-          str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
-            const val = path.trim().split(".").reduce<unknown>((o, k) => {
-              if (o && typeof o === "object") return (o as Record<string, unknown>)[k];
-              return undefined;
-            }, allData);
-            if (val !== undefined) return String(val);
-            // {{secret.NAME}} resolution
-            if (path.trim().startsWith("secret.")) { const sName = path.trim().slice(7); return ctx.secrets[sName] ?? ""; }
-            return "";
-          });
         const to = interpolate(config.to as string);
         const subject = interpolate(config.subject as string);
         const bodyText = interpolate((config.body as string) || "");
@@ -524,18 +520,6 @@ async function executeNodeOnce(
 
       case "action_smtp": {
         const nodemailer = await import("nodemailer");
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
-        const interpolate = (str: string) =>
-          str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
-            const val = path.trim().split(".").reduce<unknown>((o, k) => {
-              if (o && typeof o === "object") return (o as Record<string, unknown>)[k];
-              return undefined;
-            }, allData);
-            if (val !== undefined) return String(val);
-            // {{secret.NAME}} resolution
-            if (path.trim().startsWith("secret.")) { const sName = path.trim().slice(7); return ctx.secrets[sName] ?? ""; }
-            return "";
-          });
         const host = config.host as string;
         const port = Number(config.port) || 587;
         const secure = config.secure === "true";
@@ -627,8 +611,8 @@ async function executeNodeOnce(
       case "action_claude": {
         const apiKey = config.api_key as string;
         const model = (config.model as string) || "claude-haiku-4-5-20251001";
-        const prompt = config.prompt as string;
-        const system = config.system as string;
+        const prompt = interpolate(config.prompt as string);
+        const system = interpolate((config.system as string) || "");
         if (!apiKey) throw new Error("Anthropic API key is required");
         if (!prompt) throw new Error("Prompt is required");
         const body: Record<string, unknown> = { model, max_tokens: 1024, messages: [{ role: "user", content: prompt }] };
