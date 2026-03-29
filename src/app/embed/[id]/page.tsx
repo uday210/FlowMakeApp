@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
+import MarkdownMessage from "@/components/MarkdownMessage";
 
 type Appearance = {
   primaryColor: string;
@@ -274,7 +275,7 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
               }`}
             >
               <div
-                className="px-4 py-2.5 text-sm leading-relaxed"
+                className="px-4 py-2.5"
                 style={{
                   backgroundColor: msg.role === "user" ? userBubbleBg : botBubbleBg,
                   color: msg.role === "user" ? userBubbleText : botBubbleText,
@@ -288,7 +289,11 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
                     msg.role === "assistant" ? "1px solid rgba(0,0,0,0.06)" : undefined,
                 }}
               >
-                {msg.content}
+                {msg.role === "assistant" ? (
+                  <MarkdownMessage content={msg.content} textColor="text-inherit" />
+                ) : (
+                  <span className="text-sm leading-relaxed">{msg.content}</span>
+                )}
               </div>
               <span className="text-[10px] text-gray-400 px-1">
                 {formatTime(msg.timestamp)}
@@ -311,7 +316,7 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
             </div>
             <div className="max-w-[80%]">
               <div
-                className="text-sm leading-relaxed px-4 py-2.5"
+                className="px-4 py-2.5"
                 style={{
                   backgroundColor: botBubbleBg,
                   color: botBubbleText,
@@ -320,11 +325,7 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
                   border: "1px solid rgba(0,0,0,0.06)",
                 }}
               >
-                {streamingText}
-                <span
-                  className="inline-block w-0.5 h-4 ml-0.5 align-middle animate-pulse"
-                  style={{ backgroundColor: primaryColor }}
-                />
+                <MarkdownMessage content={streamingText} textColor="text-inherit" isStreaming />
               </div>
             </div>
           </div>

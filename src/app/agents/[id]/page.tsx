@@ -7,6 +7,7 @@ import {
   Loader2, X, Plus, Check, Copy, Send,
   Lock, Info, ExternalLink, ChevronDown, History, MessageSquare, User, Bot,
 } from "lucide-react";
+import MarkdownMessage from "@/components/MarkdownMessage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -314,7 +315,7 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
                 </div>
               )}
               <div
-                className="max-w-[75%] px-3 py-2 text-xs leading-relaxed"
+                className="max-w-[75%] px-3 py-2"
                 style={{
                   backgroundColor: msg.role === "user" ? userBubbleBg : botBubbleBg,
                   color: msg.role === "user" ? userBubbleText : botBubbleText,
@@ -326,7 +327,11 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
                   border: msg.role === "assistant" ? "1px solid rgba(0,0,0,0.06)" : undefined,
                 }}
               >
-                {msg.content}
+                {msg.role === "assistant" ? (
+                  <MarkdownMessage content={msg.content} textColor="text-inherit" />
+                ) : (
+                  <span className="text-xs leading-relaxed">{msg.content}</span>
+                )}
               </div>
             </div>
           ))}
@@ -369,7 +374,7 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
                 {appearance.avatar ?? "🤖"}
               </div>
               <div
-                className="max-w-[75%] px-3 py-2 text-xs leading-relaxed"
+                className="max-w-[75%] px-3 py-2"
                 style={{
                   backgroundColor: botBubbleBg,
                   color: botBubbleText,
@@ -377,11 +382,7 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
                   borderRadius: `${borderRadius}px ${borderRadius}px ${borderRadius}px 4px`,
                 }}
               >
-                {streamingText}
-                <span
-                  className="inline-block w-0.5 h-3 ml-0.5 align-middle animate-pulse"
-                  style={{ backgroundColor: primaryColor }}
-                />
+                <MarkdownMessage content={streamingText} textColor="text-inherit" isStreaming />
               </div>
             </div>
           )}
