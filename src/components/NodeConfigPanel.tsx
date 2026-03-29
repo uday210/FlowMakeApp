@@ -385,21 +385,30 @@ function FieldInput({
   }, {});
 
   const dropdown = dropdownOpen && filtered.length > 0 && (
-    <div className="absolute z-50 left-0 top-full mt-0.5 w-full min-w-[220px] max-h-52 overflow-y-auto bg-white border border-violet-200 rounded-lg shadow-xl text-xs">
+    <div className="absolute z-50 left-0 top-full mt-0.5 w-full min-w-[260px] max-h-64 overflow-y-auto bg-white border border-violet-200 rounded-lg shadow-xl text-xs">
       {Object.entries(grouped).map(([group, items]) => (
         <div key={group}>
-          <div className="px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-gray-400 bg-gray-50 sticky top-0 border-b border-gray-100">{group}</div>
+          <div className="px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-violet-600 bg-violet-50 sticky top-0 border-b border-violet-100 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
+            {group}
+          </div>
           {items.map((s) => {
             const idx = filtered.indexOf(s);
+            const [nodePart, fieldPart] = s.label.split(" → ");
             return (
               <button
                 key={s.value}
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); insertSuggestion(s.value); }}
-                className={`w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-violet-50 transition-colors ${idx === selectedIdx ? "bg-violet-50" : ""}`}
+                className={`w-full text-left px-3 py-2 flex flex-col gap-0.5 hover:bg-violet-50 transition-colors border-b border-gray-50 last:border-0 ${idx === selectedIdx ? "bg-violet-50" : ""}`}
               >
-                <span className="font-mono text-[10px] text-violet-700 truncate flex-1">{`{{${s.value}}}`}</span>
-                <span className="text-gray-400 text-[9px] whitespace-nowrap flex-shrink-0">{s.label.split(" → ")[1] ?? s.label}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] text-violet-700 font-semibold">{`{{${s.value}}}`}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">{nodePart}</span>
+                  {fieldPart && <span className="text-[9px] text-gray-400">{fieldPart}</span>}
+                </div>
               </button>
             );
           })}
@@ -694,14 +703,13 @@ function UserTableConfig({
       .finally(() => setLoadingTables(false));
   }, []);
 
-  // When table or action changes, reset mappings to column list
+  // When table/action changes OR columns finish loading — rehydrate mappings from saved config.data
   useEffect(() => {
     if (!columns.length) return;
-    // Try to rehydrate from existing config.data JSON
     let existing: Record<string, string> = {};
     try { existing = JSON.parse(config.data ?? "{}"); } catch { /**/ }
     setMappings(columns.map(c => ({ column: c.name, value: existing[c.name] ?? "" })));
-  }, [tableId, action]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tableId, action, columns.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rehydrate filters from config.filter
   useEffect(() => {
@@ -714,7 +722,7 @@ function UserTableConfig({
       });
       setFilters(rows.length ? rows : [{ column: "", operator: "=", value: "" }]);
     } catch { setFilters([{ column: "", operator: "=", value: "" }]); }
-  }, [tableId, action]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tableId, action, columns.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync data JSON when mappings change
   useEffect(() => {
@@ -965,18 +973,24 @@ function VariableInput({
         }}
       />
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 left-0 top-full mt-0.5 w-56 max-h-40 overflow-y-auto bg-white border border-teal-200 rounded-lg shadow-xl text-[10px]">
-          {filtered.map((s, i) => (
-            <button
-              key={s.value}
-              type="button"
-              onMouseDown={e => { e.preventDefault(); insert(s.value); }}
-              className={`w-full text-left px-2.5 py-1.5 flex justify-between gap-2 hover:bg-teal-50 ${i === selIdx ? "bg-teal-50" : ""}`}
-            >
-              <span className="font-mono text-teal-700 truncate">{`{{${s.value}}}`}</span>
-              <span className="text-gray-400 whitespace-nowrap">{s.label.split(" → ")[1] ?? s.label}</span>
-            </button>
-          ))}
+        <div className="absolute z-50 left-0 top-full mt-0.5 w-64 max-h-52 overflow-y-auto bg-white border border-teal-200 rounded-lg shadow-xl text-[10px]">
+          {filtered.map((s, i) => {
+            const [nodePart, fieldPart] = s.label.split(" → ");
+            return (
+              <button
+                key={s.value}
+                type="button"
+                onMouseDown={e => { e.preventDefault(); insert(s.value); }}
+                className={`w-full text-left px-2.5 py-2 flex flex-col gap-0.5 hover:bg-teal-50 border-b border-gray-50 last:border-0 ${i === selIdx ? "bg-teal-50" : ""}`}
+              >
+                <span className="font-mono text-teal-700 font-semibold truncate">{`{{${s.value}}}`}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">{nodePart}</span>
+                  {fieldPart && <span className="text-gray-400">{fieldPart}</span>}
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1181,6 +1195,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
           <div>
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Form Fields</p>
             <FormFieldBuilder
+              key={node?.id}
               value={config.fields ?? "[]"}
               onChange={(v) => setConfig((prev) => ({ ...prev, fields: v }))}
             />
@@ -1190,6 +1205,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
         {/* User Table Config for action_user_table */}
         {nodeData.type === "action_user_table" && (
           <UserTableConfig
+            key={node?.id}
             config={config}
             onChange={(patch) => setConfig((prev) => ({ ...prev, ...patch }))}
             suggestions={suggestions}
