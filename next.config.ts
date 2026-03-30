@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
     "mongodb",
     "pdfkit",
     "sharp",
+    "pdf-parse",
+    "pdfjs-dist",
   ],
 };
 
