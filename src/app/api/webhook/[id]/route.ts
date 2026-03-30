@@ -84,8 +84,9 @@ export async function POST(
     }
   }
 
-  // Execute workflow
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  // Execute workflow — derive base URL from the incoming request so it works on any host
+  const reqUrl = new URL(request.url);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${reqUrl.protocol}//${reqUrl.host}`;
   const res = await fetch(`${baseUrl}/api/execute/${id}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -121,7 +122,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const reqUrl = new URL(_request.url);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${reqUrl.protocol}//${reqUrl.host}`;
   return NextResponse.json({
     message: "Webhook endpoint ready",
     workflow_id: id,
