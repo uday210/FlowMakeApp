@@ -84,9 +84,10 @@ export async function POST(
     }
   }
 
-  // Execute workflow — derive base URL from the incoming request so it works on any host
-  const reqUrl = new URL(request.url);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${reqUrl.protocol}//${reqUrl.host}`;
+  // Execute workflow — derive base URL from forwarded headers (works behind Railway/Vercel proxies)
+  const fwdProto = headers["x-forwarded-proto"]?.split(",")[0] ?? "https";
+  const fwdHost  = headers["x-forwarded-host"]  ?? headers["host"] ?? "localhost:3000";
+  const baseUrl  = process.env.NEXT_PUBLIC_APP_URL || `${fwdProto}://${fwdHost}`;
   const res = await fetch(`${baseUrl}/api/execute/${id}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -122,8 +123,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const reqUrl = new URL(_request.url);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${reqUrl.protocol}//${reqUrl.host}`;
+  const h = Object.fromEntries(_request.headers.entries());
+  const fwdProto = h["x-forwarded-proto"]?.split(",")[0] ?? "https";
+  const fwdHost  = h["x-forwarded-host"] ?? h["host"] ?? "localhost:3000";
+  const baseUrl  = process.env.NEXT_PUBLIC_APP_URL || `${fwdProto}://${fwdHost}`;
   return NextResponse.json({
     message: "Webhook endpoint ready",
     workflow_id: id,
