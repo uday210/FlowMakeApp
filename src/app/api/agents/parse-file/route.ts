@@ -24,13 +24,12 @@ export async function POST(req: Request) {
 
     if (name.endsWith(".pdf")) {
       polyfillForPdfParse();
-      // Use the internal module directly to avoid test-file side-effects
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (
-        buf: Buffer,
-        opts?: Record<string, unknown>
-      ) => Promise<{ text: string }>;
-      const result = await pdfParse(buffer, { max: 0 }); // max:0 = parse all pages
+      const { PDFParse } = require("pdf-parse") as {
+        PDFParse: new (opts: { data: Buffer }) => { getText(): Promise<{ text: string }> };
+      };
+      const parser = new PDFParse({ data: buffer });
+      const result = await parser.getText();
       text = result.text;
     } else {
       // All other formats — decode as UTF-8 text
