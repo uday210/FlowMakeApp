@@ -4,12 +4,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type { NodeData, ConfigField, Connection, UserTable } from "@/lib/types";
 import { NODE_DEF_MAP } from "@/lib/nodeDefinitions";
-import { X, Copy, Check, Plus, Trash2, GripVertical, ChevronDown, AlertCircle, Table2 } from "lucide-react";
+import { X, Copy, Check, Plus, Trash2, GripVertical, ChevronDown, AlertCircle, Table2, HelpCircle, ChevronRight } from "lucide-react";
+import { NODE_HELP_GUIDES } from "@/lib/nodeHelpGuides";
 
 // ─── Node output fields map ────────────────────────────────────────────────────
 // Maps node types to the output fields they produce, shown as autocomplete suggestions.
 
 const NODE_OUTPUT_FIELDS: Record<string, { field: string; label: string }[]> = {
+  trigger_agent:        [{ field: "message", label: "User message" }, { field: "session_id", label: "Session ID" }],
   trigger_manual:       [{ field: "triggered_at", label: "Trigger timestamp" }],
   trigger_webhook:      [{ field: "body", label: "Request body" }, { field: "headers", label: "Request headers" }, { field: "method", label: "HTTP method" }, { field: "query", label: "Query params" }],
   trigger_form:         [{ field: "name", label: "Name field" }, { field: "email", label: "Email field" }, { field: "message", label: "Message field" }, { field: "submitted_at", label: "Submit time" }],
@@ -64,6 +66,7 @@ const NODE_OUTPUT_FIELDS: Record<string, { field: string; label: string }[]> = {
   action_set_variable:  [{ field: "name", label: "Variable name" }, { field: "value", label: "Variable value" }],
   action_get_variable:  [{ field: "value", label: "Variable value" }, { field: "found", label: "Was found" }],
   action_if_else:       [{ field: "result", label: "Condition result" }, { field: "branch", label: "Branch (true/false)" }],
+  action_switch:        [{ field: "matched_case", label: "Matched case" }, { field: "value", label: "Input value" }],
   action_iterator:      [{ field: "item", label: "Current item" }, { field: "index", label: "Current index" }, { field: "total", label: "Total items" }],
   action_sub_workflow:  [{ field: "output", label: "Sub-workflow output" }, { field: "status", label: "Sub-workflow status" }],
   action_approval:      [{ field: "approved", label: "Was approved" }, { field: "approver", label: "Approver email" }, { field: "comment", label: "Comment" }],
@@ -89,8 +92,13 @@ const NODE_OUTPUT_FIELDS: Record<string, { field: string; label: string }[]> = {
   action_ftp:           [{ field: "path", label: "Remote path" }, { field: "size", label: "File size" }],
   action_sftp:          [{ field: "path", label: "Remote path" }, { field: "size", label: "File size" }],
   action_kafka:         [{ field: "offset", label: "Message offset" }, { field: "partition", label: "Partition" }],
+  action_mqtt:          [{ field: "topic", label: "Topic" }, { field: "message", label: "Message" }, { field: "ok", label: "Success flag" }],
+  action_rabbitmq:      [{ field: "ok", label: "Success flag" }, { field: "message_count", label: "Message count" }],
+  action_nats:          [{ field: "ok", label: "Success flag" }, { field: "subject", label: "Subject" }],
   action_elasticsearch: [{ field: "hits", label: "Search hits" }, { field: "total", label: "Total matches" }, { field: "id", label: "Document ID" }],
+  action_user_table:    [{ field: "rows", label: "Query rows" }, { field: "count", label: "Row count" }, { field: "inserted", label: "Insert success" }, { field: "id", label: "Inserted row ID" }, { field: "data", label: "Inserted row data" }, { field: "updated", label: "Update success" }, { field: "affected_rows", label: "Rows affected" }, { field: "deleted", label: "Delete success" }],
   action_webhook_response: [{ field: "sent", label: "Response sent" }],
+  action_agent_reply:   [{ field: "reply", label: "Agent reply text" }],
   action_merge:         [{ field: "merged", label: "Merged outputs" }],
   action_delay:         [{ field: "delayed_ms", label: "Actual delay ms" }],
   action_filter:        [{ field: "passed", label: "Filter passed" }],
@@ -501,6 +509,13 @@ function parseFormFields(raw: string): FormFieldDef[] {
 function FormFieldBuilder({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [fields, setFields] = useState<FormFieldDef[]>(() => parseFormFields(value));
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  // Sync when parent's config loads asynchronously (fields start empty, then value arrives)
+  useEffect(() => {
+    if (fields.length === 0 && value && value !== "[]") {
+      setFields(parseFormFields(value));
+    }
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync outward on change
   const syncOut = useCallback((updated: FormFieldDef[]) => {
@@ -1008,6 +1023,75 @@ interface Props {
   allEdges?: Edge[];
 }
 
+// ─── Node Help Panel ──────────────────────────────────────────────────────────
+
+function NodeHelpPanel({ type }: { type: string }) {
+  const [open, setOpen] = useState(false);
+  const guide = NODE_HELP_GUIDES[type];
+  if (!guide) return null;
+
+  return (
+    <div className="border border-blue-100 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-blue-50 hover:bg-blue-100 transition-colors"
+      >
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-600">
+          <HelpCircle size={11} /> How to use this node
+        </span>
+        <ChevronRight size={11} className={`text-blue-400 transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+      {open && (
+        <div className="px-3 py-3 space-y-3 bg-white">
+          <p className="text-[11px] text-gray-600 leading-relaxed">{guide.summary}</p>
+
+          <div>
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Setup</p>
+            <ol className="space-y-1">
+              {guide.steps.map((step, i) => (
+                <li key={i} className="flex gap-2 text-[11px] text-gray-600">
+                  <span className="text-blue-400 font-semibold flex-shrink-0">{i + 1}.</span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {guide.tips && guide.tips.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Tips</p>
+              <ul className="space-y-1">
+                {guide.tips.map((tip, i) => (
+                  <li key={i} className="flex gap-1.5 text-[11px] text-gray-500">
+                    <span className="text-amber-400 flex-shrink-0">•</span>
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {guide.outputFields && guide.outputFields.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Output Fields</p>
+              <div className="space-y-1">
+                {guide.outputFields.map(f => (
+                  <div key={f.field} className="flex gap-2 items-start">
+                    <code className="text-[10px] bg-gray-100 text-violet-700 px-1.5 py-0.5 rounded font-mono flex-shrink-0">
+                      {"{{"}{f.field}{"}}"}
+                    </code>
+                    <span className="text-[11px] text-gray-500">{f.description}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, allNodes = [], allEdges = [] }: Props) {
   const [label, setLabel] = useState("");
   const [config, setConfig] = useState<Record<string, string>>({});
@@ -1028,7 +1112,9 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
       setLabel(nodeData.label);
       const cfg: Record<string, string> = {};
       for (const f of def?.configFields || []) {
-        cfg[f.key] = String(nodeData.config[f.key] ?? f.options?.[0]?.value ?? "");
+        const raw = nodeData.config[f.key] ?? f.options?.[0]?.value ?? "";
+        // If the value is an object/array (e.g. JSONB from Supabase), serialize it back to JSON string
+        cfg[f.key] = (typeof raw === "object" && raw !== null) ? JSON.stringify(raw) : String(raw);
       }
       if (nodeData.type === "trigger_schedule") {
         cfg.cron = String(nodeData.config.cron ?? "0 9 * * *");
@@ -1255,6 +1341,11 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
 
         {def.configFields.length === 0 && !isSchedule && nodeData.type !== "trigger_webhook" && nodeData.type !== "action_user_table" && (
           <p className="text-xs text-gray-400 text-center py-4">No configuration needed for this node.</p>
+        )}
+
+        {/* Help Guide */}
+        {NODE_HELP_GUIDES[nodeData.type] && (
+          <NodeHelpPanel type={nodeData.type} />
         )}
       </div>
 

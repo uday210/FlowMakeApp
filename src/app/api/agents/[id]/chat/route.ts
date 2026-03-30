@@ -71,12 +71,21 @@ function getApiKey(provider: string, agentKey: string): string {
   }
 }
 
+type BehaviorConfig = {
+  temperature_locked?: boolean;
+  response_format?: "auto" | "markdown" | "json" | "plain";
+  language?: string;
+  guardrails?: string[];
+  max_response_words?: number;
+};
+
 function buildSystemPrompt(
   systemPrompt: string,
   knowledgeBase: string,
   connectedWorkflows: ConnectedWorkflow[],
   provider: string,
-  retrievedContext = ""
+  retrievedContext = "",
+  behavior: BehaviorConfig = {}
 ): string {
   let prompt = "";
 
@@ -89,6 +98,20 @@ function buildSystemPrompt(
   }
 
   prompt += systemPrompt;
+
+  // Behavior rules
+  const rules: string[] = [];
+  if (behavior.response_format === "json") rules.push("You MUST respond with valid JSON only. No prose, no markdown fences.");
+  if (behavior.response_format === "plain") rules.push("You MUST respond in plain text only. No markdown formatting.");
+  if (behavior.response_format === "markdown") rules.push("You MUST format your response using Markdown.");
+  if (behavior.language?.trim()) rules.push(`You MUST always respond in ${behavior.language.trim()}, regardless of the language the user writes in.`);
+  if (behavior.max_response_words && behavior.max_response_words > 0) rules.push(`Your response MUST be at most ${behavior.max_response_words} words.`);
+  if (behavior.guardrails?.length) {
+    rules.push(...behavior.guardrails.map(g => `Rule: ${g}`));
+  }
+  if (rules.length > 0) {
+    prompt += `\n\n## Behavior Rules (MUST follow)\n${rules.map(r => `- ${r}`).join("\n")}`;
+  }
 
   // For non-Anthropic providers, inject workflow info into system prompt
   if (provider !== "anthropic") {
@@ -145,6 +168,7 @@ async function streamAnthropic(
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
     _retrievedContext?: string;
+    behavior?: BehaviorConfig;
   },
   messages: ChatMessage[],
   origin: string
@@ -155,12 +179,14 @@ async function streamAnthropic(
   const Anthropic = (await import("@anthropic-ai/sdk")).default;
   const client = new Anthropic({ apiKey });
 
+  const behavior = chatbot.behavior ?? {};
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     chatbot.connected_workflows,
     "anthropic",
-    chatbot._retrievedContext
+    chatbot._retrievedContext,
+    behavior
   );
 
   const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
@@ -189,7 +215,7 @@ async function streamAnthropic(
           const requestParams: import("@anthropic-ai/sdk/resources").MessageCreateParamsStreaming = {
             model: chatbot.model ?? "claude-haiku-4-5-20251001",
             max_tokens: chatbot.max_tokens ?? 1024,
-            temperature: chatbot.temperature ?? 0.7,
+            temperature: behavior.temperature_locked ? 0 : (chatbot.temperature ?? 0.7),
             system: systemPrompt,
             messages: currentMessages,
             stream: true,
@@ -328,6 +354,7 @@ async function streamOpenAI(
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
     _retrievedContext?: string;
+    behavior?: BehaviorConfig;
   },
   messages: ChatMessage[],
   origin: string
@@ -339,12 +366,14 @@ async function streamOpenAI(
   const client = new OpenAI({ apiKey });
 
   // Use clean system prompt without INVOKE_WORKFLOW injection
+  const behavior = chatbot.behavior ?? {};
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     [],   // pass empty — tools are declared natively below
     "openai",
-    chatbot._retrievedContext
+    chatbot._retrievedContext,
+    behavior
   );
 
   type OAIMessage = import("openai/resources").ChatCompletionMessageParam;
@@ -381,7 +410,7 @@ async function streamOpenAI(
           const stream = await client.chat.completions.create({
             model: chatbot.model ?? "gpt-4o-mini",
             max_tokens: chatbot.max_tokens ?? 1024,
-            temperature: chatbot.temperature ?? 0.7,
+            temperature: behavior.temperature_locked ? 0 : (chatbot.temperature ?? 0.7),
             messages: currentMessages,
             stream: true,
             ...(tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
@@ -479,6 +508,7 @@ async function streamGroq(
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
     _retrievedContext?: string;
+    behavior?: BehaviorConfig;
   },
   messages: ChatMessage[],
   origin: string
@@ -489,12 +519,14 @@ async function streamGroq(
   const Groq = (await import("groq-sdk")).default;
   const client = new Groq({ apiKey });
 
+  const behavior = chatbot.behavior ?? {};
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     [],
     "groq",
-    chatbot._retrievedContext
+    chatbot._retrievedContext,
+    behavior
   );
 
   type GroqMessage = import("groq-sdk/resources/chat/completions").ChatCompletionMessageParam;
@@ -532,7 +564,7 @@ async function streamGroq(
           const stream = await client.chat.completions.create({
             model: chatbot.model ?? "llama-3.1-8b-instant",
             max_tokens: chatbot.max_tokens ?? 1024,
-            temperature: chatbot.temperature ?? 0.7,
+            temperature: behavior.temperature_locked ? 0 : (chatbot.temperature ?? 0.7),
             messages: currentMessages,
             stream: true,
             ...(tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
@@ -621,6 +653,7 @@ async function streamGemini(
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
     _retrievedContext?: string;
+    behavior?: BehaviorConfig;
   },
   messages: ChatMessage[]
 ): Promise<ReadableStream> {
@@ -630,20 +663,30 @@ async function streamGemini(
   const { GoogleGenerativeAI } = await import("@google/generative-ai");
   const genAI = new GoogleGenerativeAI(apiKey);
 
+  const behavior = chatbot.behavior ?? {};
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     chatbot.connected_workflows,
     "gemini",
-    chatbot._retrievedContext
+    chatbot._retrievedContext,
+    behavior
   );
 
+  const GEMINI_ALIASES: Record<string, string> = {
+    "gemini-1.5-flash": "gemini-2.0-flash",
+    "gemini-1.5-pro": "gemini-2.0-flash",
+    "gemini-pro": "gemini-2.0-flash",
+  };
+  const rawGeminiModel = chatbot.model ?? "gemini-2.0-flash";
+  const resolvedGeminiModel = GEMINI_ALIASES[rawGeminiModel] ?? rawGeminiModel;
+
   const model = genAI.getGenerativeModel({
-    model: chatbot.model ?? "gemini-1.5-flash",
+    model: resolvedGeminiModel,
     systemInstruction: systemPrompt,
     generationConfig: {
       maxOutputTokens: chatbot.max_tokens ?? 1024,
-      temperature: chatbot.temperature ?? 0.7,
+      temperature: behavior.temperature_locked ? 0 : (chatbot.temperature ?? 0.7),
     },
   });
 
@@ -694,6 +737,7 @@ async function streamMistral(
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
     _retrievedContext?: string;
+    behavior?: BehaviorConfig;
   },
   messages: ChatMessage[]
 ): Promise<ReadableStream> {
@@ -703,12 +747,14 @@ async function streamMistral(
   const { Mistral } = await import("@mistralai/mistralai");
   const client = new Mistral({ apiKey });
 
+  const behavior = chatbot.behavior ?? {};
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     chatbot.connected_workflows,
     "mistral",
-    chatbot._retrievedContext
+    chatbot._retrievedContext,
+    behavior
   );
 
   const mistralMessages = [
@@ -719,7 +765,7 @@ async function streamMistral(
   const stream = await client.chat.stream({
     model: chatbot.model ?? "mistral-small-latest",
     maxTokens: chatbot.max_tokens ?? 1024,
-    temperature: chatbot.temperature ?? 0.7,
+    temperature: behavior.temperature_locked ? 0 : (chatbot.temperature ?? 0.7),
     messages: mistralMessages,
   });
 

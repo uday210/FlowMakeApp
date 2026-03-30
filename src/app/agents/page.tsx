@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import AppShell, { PageHeader } from "@/components/AppShell";
 import {
   Plus, Trash2, Loader2, X, Check, Copy, Bot,
-  AlertCircle, Sparkles, Code2, ToggleLeft, ToggleRight,
-  Settings, Zap,
+  AlertCircle, Sparkles, Code2, Settings, Zap,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -385,7 +384,8 @@ function EmbedModal({ agent, onClose }: { agent: Chatbot; onClose: () => void })
   const [tab, setTab] = useState<"iframe" | "script">("iframe");
   const [copied, setCopied] = useState(false);
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const [origin, setOrigin] = useState("");
+  useEffect(() => { setOrigin(window.location.origin); }, []);
 
   const iframeCode = `<iframe
   src="${origin}/embed/${agent.id}"
@@ -472,91 +472,109 @@ function AgentCard({
   onEmbed,
   onToggle,
   onConfigure,
+  onClone,
 }: {
   agent: Chatbot;
   onDelete: () => void;
   onEmbed: () => void;
   onToggle: () => void;
   onConfigure: () => void;
+  onClone: () => void;
 }) {
   const provider = agent.provider ?? "anthropic";
   const providerInfo = PROVIDER_COLORS[provider as Provider] ?? PROVIDER_COLORS.anthropic;
   const avatar = agent.appearance?.avatar ?? "🤖";
   const primaryColor = agent.appearance?.primaryColor ?? "#7c3aed";
   const connectedCount = (agent.connected_workflows ?? []).filter(w => w.enabled).length;
+  // Shorten model name for display (e.g. "claude-haiku-4-5-20251001" → "claude-haiku-4-5")
+  const shortModel = agent.model?.replace(/-\d{8,}$/, "").replace(/^(claude|gpt|gemini|llama|mistral)-/, m => m) ?? "";
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all group">
+    <div className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-gray-300 transition-all flex flex-col h-full">
+      {/* Header */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-            style={{ backgroundColor: primaryColor + "1a" }}
+            style={{ backgroundColor: primaryColor + "18" }}
           >
             {avatar}
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-gray-900 truncate">{agent.name}</h3>
+            <h3 className="text-sm font-semibold text-gray-900 truncate leading-tight">{agent.name}</h3>
             {agent.description && (
-              <p className="text-xs text-gray-400 truncate mt-0.5">{agent.description}</p>
+              <p className="text-[11px] text-gray-400 truncate mt-0.5 leading-tight">{agent.description}</p>
             )}
           </div>
         </div>
+        {/* Active toggle */}
         <button
           onClick={onToggle}
           title={agent.is_active ? "Deactivate" : "Activate"}
-          className={`flex-shrink-0 transition-colors ${agent.is_active ? "text-violet-600" : "text-gray-300"}`}
+          className="flex-shrink-0 ml-2"
         >
-          {agent.is_active ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
+          <div className={`w-9 h-5 rounded-full transition-colors relative ${agent.is_active ? "bg-violet-500" : "bg-gray-200"}`}>
+            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${agent.is_active ? "left-4" : "left-0.5"}`} />
+          </div>
         </button>
       </div>
 
       {/* Badges */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
         <span
-          className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
           style={{ backgroundColor: providerInfo.bg }}
         >
           {providerInfo.icon} {providerInfo.text}
         </span>
-        <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-2 py-0.5 rounded-full truncate max-w-[120px]">
-          {agent.model}
+        <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-2 py-0.5 rounded-full font-mono">
+          {shortModel}
         </span>
         {connectedCount > 0 && (
-          <span className="text-[10px] bg-amber-50 text-amber-600 font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span className="text-[10px] bg-amber-50 text-amber-600 font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
             <Zap size={9} />
             {connectedCount} flow{connectedCount !== 1 ? "s" : ""}
           </span>
         )}
         {agent.starter_questions?.length > 0 && (
-          <span className="text-[10px] bg-blue-50 text-blue-500 font-medium px-2 py-0.5 rounded-full">
-            {agent.starter_questions.length} starter{agent.starter_questions.length !== 1 ? "s" : ""}
+          <span className="text-[10px] bg-blue-50 text-blue-500 font-semibold px-2 py-0.5 rounded-full">
+            {agent.starter_questions.length} starters
           </span>
         )}
       </div>
 
-      {/* System prompt preview */}
-      <p className="text-xs text-gray-500 line-clamp-2 mb-4 leading-relaxed">
-        {agent.system_prompt}
-      </p>
+      {/* System prompt preview — fixed height so all cards align */}
+      <div className="flex-1 mb-4">
+        <p className="text-[11px] text-gray-400 line-clamp-3 leading-relaxed">
+          {agent.system_prompt || <span className="italic">No system prompt set</span>}
+        </p>
+      </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+      <div className="flex items-center gap-1 pt-3 border-t border-gray-100">
         <button
           onClick={onConfigure}
-          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all"
+          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-all"
         >
           <Settings size={12} /> Configure
         </button>
         <button
           onClick={onEmbed}
-          className="flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:text-violet-800 px-3 py-1.5 rounded-lg hover:bg-violet-50 transition-all"
+          className="flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:text-violet-800 px-2.5 py-1.5 rounded-lg hover:bg-violet-50 transition-all"
         >
           <Code2 size={12} /> Embed
         </button>
         <button
+          onClick={onClone}
+          title="Duplicate agent"
+          className="flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-violet-600 px-2 py-1.5 rounded-lg hover:bg-violet-50 transition-all"
+        >
+          <Copy size={12} />
+        </button>
+        <button
           onClick={onDelete}
-          className="ml-auto flex items-center gap-1.5 text-xs font-medium text-gray-300 hover:text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all"
+          title="Delete agent"
+          className="ml-auto flex items-center gap-1 text-xs font-medium text-gray-300 hover:text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-all"
         >
           <Trash2 size={12} />
         </button>
@@ -625,6 +643,31 @@ export default function AgentsPage() {
     if (!confirm("Delete this agent? This cannot be undone.")) return;
     await fetch(`/api/agents/${id}`, { method: "DELETE" });
     setAgents(prev => prev.filter(a => a.id !== id));
+  };
+
+  const handleClone = async (agent: Chatbot) => {
+    const res = await fetch("/api/agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `Copy of ${agent.name}`,
+        description: agent.description,
+        system_prompt: agent.system_prompt,
+        knowledge_base: agent.knowledge_base,
+        provider: agent.provider,
+        model: agent.model,
+        temperature: agent.temperature,
+        max_tokens: agent.max_tokens,
+        appearance: agent.appearance,
+        starter_questions: agent.starter_questions,
+        connected_workflows: [],
+        is_active: false,
+      }),
+    });
+    if (res.ok) {
+      const cloned = await res.json();
+      setAgents(prev => [cloned, ...prev]);
+    }
   };
 
   const handleToggle = async (agent: Chatbot) => {
@@ -797,7 +840,7 @@ export default function AgentsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
               {agents.map(agent => (
                 <AgentCard
                   key={agent.id}
@@ -806,15 +849,9 @@ export default function AgentsPage() {
                   onDelete={() => handleDelete(agent.id)}
                   onEmbed={() => setEmbedAgent(agent)}
                   onToggle={() => handleToggle(agent)}
+                  onClone={() => handleClone(agent)}
                 />
               ))}
-              <button
-                onClick={() => router.push("/agents/new")}
-                className="border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-violet-300 hover:bg-violet-50/50 transition-all text-gray-400 hover:text-violet-500 min-h-[200px]"
-              >
-                <Plus size={22} />
-                <span className="text-xs font-medium">New agent</span>
-              </button>
             </div>
           )}
         </div>

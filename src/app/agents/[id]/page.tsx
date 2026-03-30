@@ -6,7 +6,8 @@ import {
   FileText, Cpu, Wrench, Palette, Code2, ChevronLeft,
   Loader2, X, Plus, Check, Copy, Send,
   Lock, Info, ExternalLink, ChevronDown, History, MessageSquare, User, Bot,
-  Paperclip, File, Trash2,
+  Paperclip, File, Trash2, Shield, Sliders, Server, Monitor,
+  Globe, ToggleLeft, ToggleRight, AlertTriangle,
 } from "lucide-react";
 //import { useRef } from "react";
 import MarkdownMessage from "@/components/MarkdownMessage";
@@ -31,6 +32,9 @@ type Appearance = {
   position: "bottom-right" | "bottom-left" | "inline";
   windowWidth: number;
   borderRadius: number;
+  launcherColor: string;
+  launcherSize: "sm" | "md" | "lg";
+  launcherLabel: string;
 };
 
 type ConnectedWorkflow = {
@@ -55,6 +59,8 @@ type Chatbot = {
   appearance: Appearance;
   starter_questions: string[];
   connected_workflows: ConnectedWorkflow[];
+  behavior: BehaviorConfig;
+  mcp_tools: MCPTool[];
   is_active: boolean;
   created_at: string;
 };
@@ -75,6 +81,30 @@ type ConversationRecord = {
   source: string;
   started_at: string;
   ended_at: string | null;
+  session_id?: string;
+  metadata?: {
+    user_agent?: string;
+    language?: string;
+    screen?: string;
+    timezone?: string;
+    referrer?: string;
+  };
+};
+
+type BehaviorConfig = {
+  temperature_locked: boolean;
+  response_format: "auto" | "markdown" | "json" | "plain";
+  language: string;
+  guardrails: string[];
+  max_response_words: number;
+};
+
+type MCPTool = {
+  id: string;
+  name: string;
+  server_url: string;
+  description: string;
+  enabled: boolean;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -99,9 +129,10 @@ const PROVIDER_MODELS: Record<Provider, { value: string; label: string }[]> = {
     { value: "gpt-4-turbo", label: "GPT-4 Turbo (Powerful)" },
   ],
   gemini: [
-    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Fast)" },
-    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (Balanced)" },
-    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Latest)" },
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Fast)" },
+    { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite (Lightweight)" },
+    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Legacy)" },
+    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (Legacy)" },
   ],
   groq: [
     { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Fast)" },
@@ -137,6 +168,9 @@ const DEFAULT_APPEARANCE: Appearance = {
   position: "bottom-right",
   windowWidth: 400,
   borderRadius: 16,
+  launcherColor: "#7c3aed",
+  launcherSize: "md",
+  launcherLabel: "",
 };
 
 // ─── Live Chat Preview ────────────────────────────────────────────────────────
@@ -234,6 +268,13 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
       // Save conversation to history (only if there's at least one user + assistant exchange)
       const saveMsgs = finalMessages.filter(m => m.role !== "assistant" || m.content !== (chatbot.appearance?.greetingMessage ?? "Hi! How can I help you today?"));
       if (saveMsgs.some(m => m.role === "user")) {
+        const sessionMeta = {
+          user_agent: navigator.userAgent,
+          language: navigator.language,
+          screen: `${screen.width}x${screen.height}`,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          referrer: document.referrer || undefined,
+        };
         fetch(`/api/agents/${chatbot.id}/conversations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -241,6 +282,7 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
             messages: saveMsgs.map(m => ({ role: m.role, content: m.content })),
             message_count: saveMsgs.length,
             source: "preview",
+            metadata: sessionMeta,
           }),
         }).catch(() => { /* non-critical */ });
       }
@@ -1135,6 +1177,130 @@ function BrandingTab({
           </div>
         </div>
       </div>
+
+      {/* Launcher Button */}
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Launcher Button
+        </h3>
+        <div className="space-y-4">
+          {/* Launcher Color */}
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-gray-600">Button Color</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={appearance.launcherColor ?? appearance.primaryColor ?? "#7c3aed"}
+                onChange={e => setAppearance({ launcherColor: e.target.value })}
+                className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white"
+              />
+              <span className="text-[11px] font-mono text-gray-400 w-16">
+                {appearance.launcherColor ?? appearance.primaryColor}
+              </span>
+            </div>
+          </div>
+
+          {/* Launcher Size */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-2 block">Button Size</label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { value: "sm", label: "Small", px: "44px" },
+                { value: "md", label: "Medium", px: "56px" },
+                { value: "lg", label: "Large", px: "68px" },
+              ] as const).map(({ value, label, px }) => (
+                <button
+                  key={value}
+                  onClick={() => setAppearance({ launcherSize: value })}
+                  className={`py-1.5 px-2 text-[11px] font-medium rounded-lg border transition-all ${
+                    (appearance.launcherSize ?? "md") === value
+                      ? "border-violet-400 bg-violet-50 text-violet-700"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  {label}
+                  <span className="block text-[10px] opacity-60">{px}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Launcher Label */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
+              Button Label <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input
+              value={appearance.launcherLabel ?? ""}
+              onChange={e => setAppearance({ launcherLabel: e.target.value })}
+              placeholder="e.g. Chat with us"
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              When set, shows a pill with your label next to the bubble.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Launcher bubble preview */}
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-2 block">Launcher Button Preview</label>
+        <p className="text-[11px] text-gray-400 mb-3">How the chat bubble looks when collapsed on your website.</p>
+        <div className="relative bg-gray-100 rounded-xl h-28 overflow-hidden">
+          {/* Fake website content */}
+          <div className="absolute inset-0 p-3 space-y-1.5">
+            <div className="h-2 w-2/3 bg-gray-300 rounded" />
+            <div className="h-2 w-1/2 bg-gray-200 rounded" />
+            <div className="h-2 w-3/4 bg-gray-200 rounded" />
+          </div>
+          {/* Launcher bubble — matches exactly what the script renders */}
+          {(() => {
+            const lColor = appearance.launcherColor || appearance.primaryColor || "#7c3aed";
+            const lSize = appearance.launcherSize === "sm" ? 34 : appearance.launcherSize === "lg" ? 50 : 42;
+            const lLabel = appearance.launcherLabel?.trim();
+            return (
+              <div
+                className="absolute bottom-3 flex items-center gap-1.5 cursor-pointer select-none"
+                style={{
+                  right: appearance.position === "bottom-left" ? "auto" : "12px",
+                  left: appearance.position === "bottom-left" ? "12px" : "auto",
+                }}
+              >
+                {lLabel && appearance.position !== "bottom-left" && (
+                  <div
+                    className="flex items-center px-2.5 py-1 rounded-full text-white text-[11px] font-semibold shadow-md"
+                    style={{ backgroundColor: lColor }}
+                  >
+                    {lLabel}
+                  </div>
+                )}
+                <div
+                  className="flex items-center justify-center rounded-full shadow-lg"
+                  style={{
+                    backgroundColor: lColor,
+                    width: lSize,
+                    height: lSize,
+                    fontSize: lSize * 0.46,
+                    lineHeight: 1,
+                    boxShadow: "0 4px 14px rgba(0,0,0,0.22)",
+                  }}
+                >
+                  {appearance.avatar || "🤖"}
+                </div>
+                {lLabel && appearance.position === "bottom-left" && (
+                  <div
+                    className="flex items-center px-2.5 py-1 rounded-full text-white text-[11px] font-semibold shadow-md"
+                    style={{ backgroundColor: lColor }}
+                  >
+                    {lLabel}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1147,7 +1313,8 @@ function EmbedTab({ chatbot }: { chatbot: Chatbot }) {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [domains, setDomains] = useState("");
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const [origin, setOrigin] = useState("");
+  useEffect(() => { setOrigin(window.location.origin); }, []);
   const embedUrl = `${origin}/embed/${chatbot.id}`;
 
   const iframeCode = `<iframe
@@ -1159,17 +1326,82 @@ function EmbedTab({ chatbot }: { chatbot: Chatbot }) {
   style="border-radius: ${chatbot.appearance?.borderRadius ?? 16}px; box-shadow: 0 4px 24px rgba(0,0,0,0.15);"
 ></iframe>`;
 
+  const side = chatbot.appearance?.position === "bottom-left" ? "left" : "right";
+  const primaryColor = chatbot.appearance?.primaryColor ?? "#7c3aed";
+  const launcherColor = chatbot.appearance?.launcherColor || primaryColor;
+  const avatar = chatbot.appearance?.avatar ?? "🤖";
+  const windowWidth = chatbot.appearance?.windowWidth ?? 400;
+  const borderRadius = chatbot.appearance?.borderRadius ?? 16;
+  const launcherSizePx = chatbot.appearance?.launcherSize === "sm" ? 44 : chatbot.appearance?.launcherSize === "lg" ? 68 : 56;
+  const launcherLabel = chatbot.appearance?.launcherLabel?.trim() ?? "";
+
   const scriptCode = `<script>
-  (function() {
-    var iframe = document.createElement('iframe');
-    iframe.src = '${embedUrl}';
-    iframe.width = '${chatbot.appearance?.windowWidth ?? 400}';
-    iframe.height = '600';
-    iframe.frameBorder = '0';
-    iframe.style.cssText = 'position:fixed;bottom:24px;${chatbot.appearance?.position === "bottom-left" ? "left" : "right"
-    }:24px;border-radius:${chatbot.appearance?.borderRadius ?? 16}px;box-shadow:0 4px 24px rgba(0,0,0,0.15);z-index:9999;';
-    document.body.appendChild(iframe);
-  })();
+(function(){
+  var src='${embedUrl}';
+  var color='${launcherColor}';
+  var side='${side}';
+  var br='${borderRadius}';
+  var w='${windowWidth}';
+  var avatar='${avatar}';
+  var btnSize=${launcherSizePx};
+  var label='${launcherLabel.replace(/'/g, "\\'")}';
+
+  var wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;'+side+':24px;bottom:24px;z-index:2147483647;display:flex;flex-direction:row;align-items:center;gap:8px;pointer-events:none;'+(side==='right'?'flex-direction:row-reverse;':'');
+
+  var fr=document.createElement('iframe');
+  fr.src=src;
+  fr.allow='clipboard-write';
+  fr.setAttribute('frameborder','0');
+  fr.style.cssText='position:fixed;'+side+':24px;bottom:'+(btnSize+36)+'px;width:'+w+'px;height:600px;border:none;border-radius:'+br+'px;box-shadow:0 8px 32px rgba(0,0,0,0.18);display:none;pointer-events:auto;transition:opacity 0.2s,transform 0.2s;opacity:0;transform:translateY(12px) scale(0.97);z-index:2147483646;';
+
+  var iconSize=Math.round(btnSize*0.43);
+  var closeSvg='<svg xmlns="http://www.w3.org/2000/svg" width="'+iconSize+'" height="'+iconSize+'" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+  var avatarHtml='<span style="font-size:'+Math.round(btnSize*0.4)+'px;line-height:1;">'+avatar+'</span>';
+
+  var btn=document.createElement('button');
+  btn.setAttribute('aria-label','Open chat');
+  btn.innerHTML=avatarHtml;
+  btn.style.cssText='width:'+btnSize+'px;height:'+btnSize+'px;border-radius:50%;background:'+color+';border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,0.25);transition:transform 0.2s,box-shadow 0.2s;flex-shrink:0;pointer-events:auto;';
+  btn.onmouseenter=function(){btn.style.transform='scale(1.08)';btn.style.boxShadow='0 6px 24px rgba(0,0,0,0.3)';};
+  btn.onmouseleave=function(){btn.style.transform='scale(1)';btn.style.boxShadow='0 4px 20px rgba(0,0,0,0.25)';};
+
+  var labelEl=null;
+  if(label){
+    labelEl=document.createElement('div');
+    labelEl.textContent=label;
+    labelEl.style.cssText='background:'+color+';color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.18);pointer-events:auto;cursor:pointer;font-family:inherit;';
+    labelEl.addEventListener('click',function(){isOpen?close():open();});
+  }
+
+  var isOpen=false;
+  function open(){
+    isOpen=true;
+    fr.style.display='block';
+    setTimeout(function(){fr.style.opacity='1';fr.style.transform='translateY(0) scale(1)';},10);
+    btn.innerHTML=closeSvg;
+    if(labelEl)labelEl.style.display='none';
+    btn.setAttribute('aria-label','Close chat');
+  }
+  function close(){
+    isOpen=false;
+    fr.style.opacity='0';
+    fr.style.transform='translateY(12px) scale(0.97)';
+    setTimeout(function(){if(!isOpen)fr.style.display='none';},200);
+    btn.innerHTML=avatarHtml;
+    if(labelEl)labelEl.style.display='';
+    btn.setAttribute('aria-label','Open chat');
+  }
+  btn.addEventListener('click',function(){isOpen?close():open();});
+  window.addEventListener('message',function(e){if(e.data==='fm-minimize'&&isOpen)close();});
+
+  if(labelEl&&side==='left')wrap.appendChild(btn);
+  wrap.appendChild(labelEl||document.createTextNode(''));
+  if(labelEl&&side!=='left')wrap.appendChild(btn);
+  if(!labelEl)wrap.appendChild(btn);
+  document.body.appendChild(fr);
+  document.body.appendChild(wrap);
+})();
 </script>`;
 
   const code = tab === "iframe" ? iframeCode : scriptCode;
@@ -1264,9 +1496,267 @@ function EmbedTab({ chatbot }: { chatbot: Chatbot }) {
   );
 }
 
+// ─── Tab: Behavior ────────────────────────────────────────────────────────────
+
+function BehaviorTab({
+  chatbot,
+  onChange,
+}: {
+  chatbot: Chatbot;
+  onChange: (updates: Partial<Chatbot>) => void;
+}) {
+  const [newGuardrail, setNewGuardrail] = useState("");
+  const behavior: BehaviorConfig = chatbot.behavior ?? {
+    temperature_locked: false,
+    response_format: "auto",
+    language: "",
+    guardrails: [],
+    max_response_words: 0,
+  };
+
+  const set = (updates: Partial<BehaviorConfig>) =>
+    onChange({ behavior: { ...behavior, ...updates } });
+
+  const addGuardrail = () => {
+    const g = newGuardrail.trim();
+    if (!g) return;
+    set({ guardrails: [...(behavior.guardrails ?? []), g] });
+    setNewGuardrail("");
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex gap-2">
+        <Shield size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
+        <p className="text-[11px] text-amber-700 leading-relaxed">
+          Behavior controls add deterministic rules on top of your model settings. They are injected into the system prompt automatically.
+        </p>
+      </div>
+
+      {/* Temperature lock */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-gray-800">Lock temperature to 0</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">Forces fully deterministic responses. Overrides the model temperature setting.</p>
+        </div>
+        <button
+          onClick={() => set({ temperature_locked: !behavior.temperature_locked })}
+          className={`flex-shrink-0 mt-0.5 transition-colors ${behavior.temperature_locked ? "text-violet-600" : "text-gray-300"}`}
+        >
+          {behavior.temperature_locked
+            ? <ToggleRight size={22} />
+            : <ToggleLeft size={22} />}
+        </button>
+      </div>
+
+      {/* Response format */}
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
+          <Sliders size={11} className="inline mr-1" />Response Format
+        </label>
+        <select
+          value={behavior.response_format ?? "auto"}
+          onChange={e => set({ response_format: e.target.value as BehaviorConfig["response_format"] })}
+          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400 bg-white"
+        >
+          <option value="auto">Auto (let the model decide)</option>
+          <option value="markdown">Always Markdown</option>
+          <option value="plain">Always Plain Text</option>
+          <option value="json">Always JSON</option>
+        </select>
+        {behavior.response_format === "json" && (
+          <p className="text-[10px] text-amber-600 mt-1">The agent will be instructed to respond with valid JSON only.</p>
+        )}
+      </div>
+
+      {/* Language */}
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
+          <Globe size={11} className="inline mr-1" />Force Response Language
+        </label>
+        <input
+          value={behavior.language ?? ""}
+          onChange={e => set({ language: e.target.value })}
+          placeholder="e.g. English, Spanish, French (leave blank for auto)"
+          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400"
+        />
+      </div>
+
+      {/* Max words */}
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Max Response Words</label>
+        <input
+          type="number"
+          min={0}
+          value={behavior.max_response_words ?? 0}
+          onChange={e => set({ max_response_words: parseInt(e.target.value) || 0 })}
+          placeholder="0 = no limit"
+          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400"
+        />
+        <p className="text-[10px] text-gray-400 mt-1">Set to 0 for no limit.</p>
+      </div>
+
+      {/* Guardrails */}
+      <div>
+        <label className="text-xs font-semibold text-gray-600 mb-1 block">
+          <AlertTriangle size={11} className="inline mr-1" />Guardrails
+        </label>
+        <p className="text-[11px] text-gray-400 mb-2">Rules the agent must always follow (e.g. "Never discuss competitors", "Always recommend contacting support").</p>
+        <div className="space-y-1.5 mb-2">
+          {(behavior.guardrails ?? []).map((g, i) => (
+            <div key={i} className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5">
+              <span className="text-[11px] text-red-700 flex-1">{g}</span>
+              <button
+                onClick={() => set({ guardrails: behavior.guardrails.filter((_, j) => j !== i) })}
+                className="text-red-300 hover:text-red-600 flex-shrink-0"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={newGuardrail}
+            onChange={e => setNewGuardrail(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addGuardrail(); } }}
+            placeholder="Add a guardrail rule..."
+            className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400"
+          />
+          <button
+            onClick={addGuardrail}
+            disabled={!newGuardrail.trim()}
+            className="px-3 py-2 bg-violet-600 text-white rounded-xl text-xs font-semibold hover:bg-violet-700 disabled:opacity-40"
+          >
+            <Plus size={13} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab: MCP Tools ───────────────────────────────────────────────────────────
+
+function MCPTab({
+  chatbot,
+  onChange,
+}: {
+  chatbot: Chatbot;
+  onChange: (updates: Partial<Chatbot>) => void;
+}) {
+  const tools: MCPTool[] = chatbot.mcp_tools ?? [];
+  const [form, setForm] = useState({ name: "", server_url: "", description: "" });
+  const [adding, setAdding] = useState(false);
+
+  const addTool = () => {
+    if (!form.name.trim() || !form.server_url.trim()) return;
+    const newTool: MCPTool = {
+      id: crypto.randomUUID(),
+      name: form.name.trim(),
+      server_url: form.server_url.trim(),
+      description: form.description.trim(),
+      enabled: true,
+    };
+    onChange({ mcp_tools: [...tools, newTool] });
+    setForm({ name: "", server_url: "", description: "" });
+    setAdding(false);
+  };
+
+  const toggleTool = (id: string) =>
+    onChange({ mcp_tools: tools.map(t => t.id === id ? { ...t, enabled: !t.enabled } : t) });
+
+  const removeTool = (id: string) =>
+    onChange({ mcp_tools: tools.filter(t => t.id !== id) });
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-xs font-semibold text-gray-900 mb-0.5">External MCP Tools</h3>
+        <p className="text-[11px] text-gray-400">
+          Connect MCP (Model Context Protocol) servers to extend your agent with external tools like search, code execution, or custom APIs.
+        </p>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-2">
+        <Server size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
+        <p className="text-[11px] text-blue-700 leading-relaxed">
+          The agent will call MCP tools as needed during conversations. Each tool call is executed server-side.
+        </p>
+      </div>
+
+      {tools.length === 0 && !adding ? (
+        <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
+          <Server size={24} className="text-gray-300 mx-auto mb-2" />
+          <p className="text-xs font-medium text-gray-500">No MCP tools configured</p>
+          <p className="text-[11px] text-gray-400 mt-1">Add an MCP server to extend your agent&apos;s capabilities.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {tools.map(tool => (
+            <div key={tool.id} className={`border rounded-xl p-3 transition-all ${tool.enabled ? "border-violet-200 bg-violet-50" : "border-gray-200 bg-white"}`}>
+              <div className="flex items-start gap-2">
+                <button onClick={() => toggleTool(tool.id)} className={`flex-shrink-0 mt-0.5 transition-colors ${tool.enabled ? "text-violet-600" : "text-gray-300"}`}>
+                  {tool.enabled ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-900">{tool.name}</p>
+                  <p className="text-[10px] text-gray-400 font-mono truncate">{tool.server_url}</p>
+                  {tool.description && <p className="text-[11px] text-gray-500 mt-0.5">{tool.description}</p>}
+                </div>
+                <button onClick={() => removeTool(tool.id)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {adding ? (
+        <div className="border border-violet-200 rounded-xl p-3 space-y-2 bg-violet-50/50">
+          <input
+            value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            placeholder="Tool name (e.g. web_search)"
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 bg-white"
+          />
+          <input
+            value={form.server_url}
+            onChange={e => setForm(f => ({ ...f, server_url: e.target.value }))}
+            placeholder="MCP server URL (e.g. https://mcp.example.com)"
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 bg-white font-mono text-xs"
+          />
+          <input
+            value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            placeholder="Description (optional)"
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 bg-white"
+          />
+          <div className="flex gap-2">
+            <button onClick={addTool} disabled={!form.name.trim() || !form.server_url.trim()}
+              className="flex-1 py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-40">
+              Add Tool
+            </button>
+            <button onClick={() => { setAdding(false); setForm({ name: "", server_url: "", description: "" }); }}
+              className="px-3 py-2 border border-gray-200 text-gray-500 text-xs rounded-lg hover:bg-gray-50">
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-500 hover:border-violet-300 hover:text-violet-600 transition-colors">
+          <Plus size={13} /> Add MCP Tool
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Editor Page ─────────────────────────────────────────────────────────
 
-type TabId = "overview" | "model" | "tools" | "branding" | "embed" | "history";
+type TabId = "overview" | "model" | "tools" | "behavior" | "mcp" | "branding" | "embed" | "history";
 
 // ─── History Tab ──────────────────────────────────────────────────────────────
 
@@ -1344,29 +1834,69 @@ function HistoryTab({ agentId }: { agentId: string }) {
             </button>
 
             {isOpen && (
-              <div className="border-t border-gray-100 bg-gray-50 px-3 py-3 space-y-2 max-h-64 overflow-y-auto">
-                {conv.messages.map((msg, i) => (
-                  <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    {msg.role === "assistant" && (
-                      <div className="w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Bot size={10} className="text-violet-600" />
+              <div className="border-t border-gray-100 bg-gray-50 px-3 py-3 space-y-3">
+                {/* Session metadata */}
+                {conv.metadata && Object.keys(conv.metadata).length > 0 && (
+                  <div className="bg-white border border-gray-100 rounded-lg p-2 space-y-1">
+                    <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Session Details</p>
+                    {conv.metadata.screen && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                        <Monitor size={9} className="text-gray-400" />
+                        <span>Screen: {conv.metadata.screen}</span>
                       </div>
                     )}
-                    <div
-                      className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-[11px] leading-relaxed ${msg.role === "user"
-                          ? "bg-violet-600 text-white rounded-br-sm"
-                          : "bg-white border border-gray-200 text-gray-700 rounded-bl-sm"
-                        }`}
-                    >
-                      {msg.content}
-                    </div>
-                    {msg.role === "user" && (
-                      <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <User size={10} className="text-gray-600" />
+                    {conv.metadata.timezone && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                        <Globe size={9} className="text-gray-400" />
+                        <span>Timezone: {conv.metadata.timezone}</span>
+                      </div>
+                    )}
+                    {conv.metadata.language && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                        <Globe size={9} className="text-gray-400" />
+                        <span>Language: {conv.metadata.language}</span>
+                      </div>
+                    )}
+                    {conv.metadata.referrer && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                        <ExternalLink size={9} className="text-gray-400" />
+                        <span className="truncate">From: {conv.metadata.referrer}</span>
+                      </div>
+                    )}
+                    {conv.metadata.user_agent && (
+                      <div className="flex items-start gap-1.5 text-[10px] text-gray-500">
+                        <Monitor size={9} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                        <span className="line-clamp-2">{conv.metadata.user_agent}</span>
                       </div>
                     )}
                   </div>
-                ))}
+                )}
+
+                {/* Messages */}
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {conv.messages.map((msg, i) => (
+                    <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                      {msg.role === "assistant" && (
+                        <div className="w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Bot size={10} className="text-violet-600" />
+                        </div>
+                      )}
+                      <div
+                        className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-[11px] leading-relaxed ${msg.role === "user"
+                            ? "bg-violet-600 text-white rounded-br-sm"
+                            : "bg-white border border-gray-200 text-gray-700 rounded-bl-sm"
+                          }`}
+                      >
+                        {msg.content}
+                      </div>
+                      {msg.role === "user" && (
+                        <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <User size={10} className="text-gray-600" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1377,12 +1907,14 @@ function HistoryTab({ agentId }: { agentId: string }) {
 }
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "overview", label: "Overview", icon: <FileText size={14} /> },
-  { id: "model", label: "Model", icon: <Cpu size={14} /> },
-  { id: "tools", label: "Tools", icon: <Wrench size={14} /> },
-  { id: "branding", label: "Branding", icon: <Palette size={14} /> },
-  { id: "embed", label: "Embed", icon: <Code2 size={14} /> },
-  { id: "history", label: "History", icon: <History size={14} /> },
+  { id: "overview", label: "Overview", icon: <FileText size={13} /> },
+  { id: "model", label: "Model", icon: <Cpu size={13} /> },
+  { id: "tools", label: "Tools", icon: <Wrench size={13} /> },
+  { id: "behavior", label: "Behavior", icon: <Shield size={13} /> },
+  { id: "mcp", label: "MCP", icon: <Server size={13} /> },
+  { id: "branding", label: "Branding", icon: <Palette size={13} /> },
+  { id: "embed", label: "Embed", icon: <Code2 size={13} /> },
+  { id: "history", label: "History", icon: <History size={13} /> },
 ];
 
 export default function AgentEditorPage({
@@ -1632,6 +2164,12 @@ export default function AgentEditorPage({
             )}
             {activeTab === "tools" && (
               <ToolsTab chatbot={chatbot} onChange={handleChange} />
+            )}
+            {activeTab === "behavior" && (
+              <BehaviorTab chatbot={chatbot} onChange={handleChange} />
+            )}
+            {activeTab === "mcp" && (
+              <MCPTab chatbot={chatbot} onChange={handleChange} />
             )}
             {activeTab === "branding" && (
               <BrandingTab chatbot={chatbot} onChange={handleChange} />

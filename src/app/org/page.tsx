@@ -121,9 +121,9 @@ export default function OrgDashboard() {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Generate fake 30-day sparkline data
+  // Generate deterministic 30-day sparkline data (no Math.random — avoids hydration mismatch)
   const dailyUsageData = Array.from({ length: 30 }, (_, i) =>
-    Math.max(0, Math.round(Math.sin(i * 0.4) * 3 + Math.random() * 4))
+    Math.max(0, Math.round(Math.sin(i * 0.4) * 3 + Math.abs(Math.sin(i * 1.3)) * 4))
   );
 
   useEffect(() => {

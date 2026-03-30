@@ -53,12 +53,12 @@ export default function BaseNode({ data, selected }: NodeProps) {
       className="flex flex-col items-center select-none cursor-pointer group"
       style={{ width: 110 }}
     >
-      {/* Input handle */}
+      {/* Input handle — centered on the circle edge */}
       {!isTrigger && (
         <Handle
           type="target"
           position={Position.Left}
-          style={{ top: "36px", left: "-6px", backgroundColor: circleColor } as React.CSSProperties}
+          style={{ top: "30px", left: "13px", backgroundColor: circleColor } as React.CSSProperties}
           className="!w-3 !h-3 !border-2 !border-white !rounded-full"
         />
       )}
@@ -128,12 +128,12 @@ export default function BaseNode({ data, selected }: NodeProps) {
         <>
           <Handle
             type="source" id="true" position={Position.Right}
-            style={{ top: "26px", right: "-6px", backgroundColor: "#22c55e" } as React.CSSProperties}
+            style={{ top: "20px", right: "13px", backgroundColor: "#22c55e" } as React.CSSProperties}
             className="!w-3 !h-3 !border-2 !border-white !rounded-full"
           />
           <Handle
             type="source" id="false" position={Position.Right}
-            style={{ top: "50px", right: "-6px", backgroundColor: "#f87171" } as React.CSSProperties}
+            style={{ top: "44px", right: "13px", backgroundColor: "#f87171" } as React.CSSProperties}
             className="!w-3 !h-3 !border-2 !border-white !rounded-full"
           />
           <div className="absolute flex flex-col gap-4" style={{ right: "6px", top: "14px" }}>
@@ -150,14 +150,14 @@ export default function BaseNode({ data, selected }: NodeProps) {
               return (
                 <Handle
                   key={k} type="source" id={k} position={Position.Right}
-                  style={{ top: `${offset}px`, right: "-6px", backgroundColor: "#f59e0b" } as React.CSSProperties}
+                  style={{ top: `${offset}px`, right: "13px", backgroundColor: "#f59e0b" } as React.CSSProperties}
                   className="!w-3 !h-3 !border-2 !border-white !rounded-full"
                 />
               );
             })}
           <Handle
             type="source" id="default" position={Position.Right}
-            style={{ top: "64px", right: "-6px", backgroundColor: "#94a3b8" } as React.CSSProperties}
+            style={{ top: "58px", right: "13px", backgroundColor: "#94a3b8" } as React.CSSProperties}
             className="!w-3 !h-3 !border-2 !border-white !rounded-full"
           />
         </>
@@ -165,7 +165,7 @@ export default function BaseNode({ data, selected }: NodeProps) {
         <Handle
           type="source"
           position={Position.Right}
-          style={{ top: "36px", right: "-6px", backgroundColor: circleColor } as React.CSSProperties}
+          style={{ top: "30px", right: "13px", backgroundColor: circleColor } as React.CSSProperties}
           className="!w-3 !h-3 !border-2 !border-white !rounded-full"
         />
       )}

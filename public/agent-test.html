@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Embed Tester</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f4f8;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      background: linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #38bdf8 100%);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 12px rgba(124,58,237,0.2);
+    }
+    .topbar-logo {
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .topbar h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    .topbar span {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      margin-left: 4px;
+    }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      height: calc(100vh - 56px);
+    }
+
+    /* ── Sidebar / code panel ── */
+    .sidebar {
+      background: #fff;
+      border-right: 1px solid #e8e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid #f0f0f6;
+    }
+    .sidebar-header h2 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 3px;
+    }
+    .sidebar-header p {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    textarea {
+      flex: 1;
+      resize: none;
+      border: none;
+      outline: none;
+      padding: 16px 20px;
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #374151;
+      background: #fafafa;
+      border-bottom: 1px solid #f0f0f6;
+    }
+    textarea::placeholder { color: #c4c4d4; }
+
+    .sidebar-actions {
+      padding: 14px 20px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #ec4899);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(124,58,237,0.25);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(124,58,237,0.35); }
+    .btn-primary:active { transform: none; }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #6b7280;
+      border: 1px solid #e5e7eb;
+    }
+    .btn-secondary:hover { background: #e9eaf0; color: #374151; }
+
+    /* ── Preview area ── */
+    .preview {
+      position: relative;
+      overflow: hidden;
+      background: #f8f8fc;
+    }
+
+    /* Fake website content */
+    .fake-site {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .fake-nav {
+      background: #fff;
+      border-bottom: 1px solid #e8e8f0;
+      padding: 14px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .fake-nav-logo { font-size: 16px; font-weight: 800; color: #1a1a2e; }
+    .fake-nav-links { display: flex; gap: 24px; }
+    .fake-nav-links a {
+      font-size: 13px;
+      color: #6b7280;
+      text-decoration: none;
+      cursor: default;
+    }
+    .fake-nav-cta {
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: default;
+    }
+
+    .fake-hero {
+      text-align: center;
+      padding: 80px 40px 60px;
+      background: linear-gradient(180deg, #fff 0%, #f4f4f8 100%);
+    }
+    .fake-hero-badge {
+      display: inline-block;
+      background: #ede9fe;
+      color: #7c3aed;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 99px;
+      margin-bottom: 18px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .fake-hero h1 {
+      font-size: 36px;
+      font-weight: 800;
+      color: #1a1a2e;
+      line-height: 1.2;
+      margin-bottom: 14px;
+      letter-spacing: -1px;
+    }
+    .fake-hero h1 span { color: #7c3aed; }
+    .fake-hero p {
+      font-size: 15px;
+      color: #6b7280;
+      max-width: 480px;
+      margin: 0 auto 32px;
+      line-height: 1.6;
+    }
+    .fake-hero-btns { display: flex; gap: 12px; justify-content: center; }
+    .fake-btn-dark {
+      background: #1a1a2e; color: #fff;
+      border: none; border-radius: 10px;
+      padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: default;
+    }
+    .fake-btn-outline {
+      background: transparent; color: #374151;
+      border: 1.5px solid #d1d5db; border-radius: 10px;
+      padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: default;
+    }
+
+    .fake-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      padding: 40px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .fake-card {
+      background: #fff;
+      border: 1px solid #e8e8f0;
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .fake-card-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .fake-card h3 { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+    .fake-card p  { font-size: 12px; color: #9ca3af; line-height: 1.5; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-state p { font-size: 13px; color: #9ca3af; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1a1a2e;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: transform 0.3s ease;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Injected embed lives here ── */
+    #embed-root { position: relative; }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-logo">⚡</div>
+  <h1>FlowMake <span>Agent Embed Tester</span></h1>
+</div>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Paste your embed code</h2>
+      <p>Supports &lt;script&gt; tags, &lt;iframe&gt; snippets, or raw HTML</p>
+    </div>
+
+    <textarea id="code-input" placeholder='<!-- Paste your agent embed code here, e.g.:
+
+<script>
+  (function() {
+    var btn = document.createElement("button");
+    ...
+  })();
+</script>
+
+or
+
+<iframe src="http://localhost:3000/embed/your-agent-id"
+  width="400" height="600"></iframe>
+
+Then click "Inject & Test" -->
+'></textarea>
+
+    <div class="sidebar-actions">
+      <button class="btn btn-primary" onclick="inject()">⚡ Inject &amp; Test</button>
+      <button class="btn btn-secondary" onclick="clearEmbed()">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview">
+    <!-- Fake website background -->
+    <div class="fake-site" id="fake-site">
+      <div class="fake-nav">
+        <div class="fake-nav-logo">Acme Inc.</div>
+        <div class="fake-nav-links">
+          <a href="#">Product</a>
+          <a href="#">Pricing</a>
+          <a href="#">About</a>
+          <a href="#">Blog</a>
+        </div>
+        <button class="fake-nav-cta">Get started</button>
+      </div>
+
+      <div class="fake-hero">
+        <div class="fake-hero-badge">✨ Now in beta</div>
+        <h1>Build things<br/><span>10× faster</span> than before</h1>
+        <p>The all-in-one platform for modern teams to ship, iterate, and grow without the overhead.</p>
+        <div class="fake-hero-btns">
+          <button class="fake-btn-dark">Start for free</button>
+          <button class="fake-btn-outline">See a demo →</button>
+        </div>
+      </div>
+
+      <div class="fake-cards">
+        <div class="fake-card">
+          <div class="fake-card-icon" style="background:#ede9fe;">🚀</div>
+          <h3>Fast by default</h3>
+          <p>Zero config, instant deploys, and a global edge network out of the box.</p>
+        </div>
+        <div class="fake-card">
+          <div class="fake-card-icon" style="background:#fce7f3;">🔐</div>
+          <h3>Secure &amp; compliant</h3>
+          <p>SOC 2 Type II certified. Your data never leaves your region.</p>
+        </div>
+        <div class="fake-card">
+          <div class="fake-card-icon" style="background:#e0f2fe;">📈</div>
+          <h3>Scales with you</h3>
+          <p>From side project to enterprise — no migration needed, ever.</p>
+        </div>
+      </div>
+
+      <!-- Embed injection point -->
+      <div id="embed-root"></div>
+    </div>
+
+    <!-- Empty hint (hides after inject) -->
+    <div class="empty-state" id="empty-hint">
+      <div class="icon">🤖</div>
+      <p>Paste your embed code on the left<br/>and click <strong>Inject &amp; Test</strong></p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  function showToast(msg, duration = 2500) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
+  }
+
+  function inject() {
+    const code = document.getElementById('code-input').value.trim();
+    if (!code) { showToast('⚠️ Paste your embed code first'); return; }
+
+    const root = document.getElementById('embed-root');
+    // Clear previous inject
+    root.innerHTML = '';
+
+    // Create a wrapper div and set innerHTML to parse the HTML
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = code;
+
+    // Move all non-script nodes first, then execute scripts
+    Array.from(wrapper.childNodes).forEach(node => {
+      if (node.nodeName !== 'SCRIPT') {
+        root.appendChild(node.cloneNode(true));
+      }
+    });
+
+    // Re-create and append script tags so they execute
+    Array.from(wrapper.querySelectorAll('script')).forEach(oldScript => {
+      const newScript = document.createElement('script');
+      Array.from(oldScript.attributes).forEach(attr => {
+        newScript.setAttribute(attr.name, attr.value);
+      });
+      newScript.textContent = oldScript.textContent;
+      document.body.appendChild(newScript);
+    });
+
+    document.getElementById('empty-hint').style.display = 'none';
+    showToast('✅ Embed injected! Check the preview →');
+  }
+
+  function clearEmbed() {
+    document.getElementById('embed-root').innerHTML = '';
+    document.getElementById('code-input').value = '';
+    document.getElementById('empty-hint').style.display = 'block';
+    showToast('🗑️ Cleared');
+  }
+
+  // Ctrl/Cmd + Enter to inject
+  document.getElementById('code-input').addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') inject();
+  });
+</script>
+</body>
+</html>

@@ -154,27 +154,33 @@ async function executeNodeOnce(
       }
 
       case "action_openai": {
-        const apiKey = config.api_key as string;
+        const oaApiKey = (String(config.api_key || "").trim()) || process.env.OPENAI_API_KEY || "";
+        if (!oaApiKey) throw new Error("OpenAI API key is required (set it on the node or via OPENAI_API_KEY env var)");
         const model = (config.model as string) || "gpt-4o-mini";
         const prompt = interpolate(config.prompt as string);
         const system = interpolate((config.system as string) || "");
-        if (!apiKey) throw new Error("OpenAI API key is required");
         if (!prompt) throw new Error("Prompt is required");
         const messages = [];
         if (system) messages.push({ role: "system", content: system });
         messages.push({ role: "user", content: prompt });
+        const oaBody: Record<string, unknown> = {
+          model,
+          messages,
+          max_tokens: config.max_tokens ? Number(config.max_tokens) : 1024,
+          temperature: config.temperature !== undefined ? Number(config.temperature) : 0.7,
+        };
+        if (String(config.json_mode) === "true") oaBody.response_format = { type: "json_object" };
         const res = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({ model, messages }),
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${oaApiKey}` },
+          body: JSON.stringify(oaBody),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error?.message || `OpenAI error ${res.status}`);
         const reply = data.choices?.[0]?.message?.content ?? "";
-        output = { reply, model, usage: data.usage };
+        let parsed: unknown = reply;
+        if (String(config.json_mode) === "true") { try { parsed = JSON.parse(reply); } catch { /* keep raw */ } }
+        output = { reply, parsed, model, usage: data.usage };
         break;
       }
 
@@ -1126,7 +1132,10 @@ async function executeNodeOnce(
               if (o && typeof o === "object") return (o as Record<string, unknown>)[k];
               return undefined;
             }, allData);
-            if (val !== undefined) return String(val);
+            if (val !== undefined) {
+              if (typeof val === "object" && val !== null) return JSON.stringify(val);
+              return String(val);
+            }
             // {{secret.NAME}} resolution
             if (path.trim().startsWith("secret.")) { const sName = path.trim().slice(7); return ctx.secrets[sName] ?? ""; }
             return "";
@@ -2723,8 +2732,18 @@ async function executeNodeOnce(
             return "";
           });
         const { GoogleGenerativeAI } = await import("@google/generative-ai");
-        const genAI = new GoogleGenerativeAI(String(config.api_key || ""));
-        const model = genAI.getGenerativeModel({ model: String(config.model || "gemini-1.5-flash") });
+        const gmApiKey = String(config.api_key || "").trim() || process.env.GOOGLE_API_KEY || "";
+        if (!gmApiKey) throw new Error("Google API key is required for Gemini node");
+        const genAI = new GoogleGenerativeAI(gmApiKey);
+        // Migrate deprecated model names to their current equivalents
+        const GEMINI_ALIASES: Record<string, string> = {
+          "gemini-1.5-flash": "gemini-2.0-flash",
+          "gemini-1.5-pro": "gemini-2.0-flash",
+          "gemini-pro": "gemini-2.0-flash",
+        };
+        const rawGmModel = String(config.model || "gemini-2.0-flash");
+        const gmModel = GEMINI_ALIASES[rawGmModel] ?? rawGmModel;
+        const model = genAI.getGenerativeModel({ model: gmModel });
         const prompt = gmInterp(String(config.prompt || ""));
         const systemPrompt = config.system_prompt ? gmInterp(String(config.system_prompt)) : "";
         const action = String(config.action || "generate");
@@ -2755,7 +2774,9 @@ async function executeNodeOnce(
             return "";
           });
         const Groq = (await import("groq-sdk")).default;
-        const groq = new Groq({ apiKey: String(config.api_key || "") });
+        const grApiKey = String(config.api_key || "").trim() || process.env.GROQ_API_KEY || "";
+        if (!grApiKey) throw new Error("Groq API key is required for Groq node");
+        const groq = new Groq({ apiKey: grApiKey });
         const messages: { role: "system" | "user"; content: string }[] = [];
         if (config.system_prompt) messages.push({ role: "system", content: grInterp(String(config.system_prompt)) });
         messages.push({ role: "user", content: grInterp(String(config.prompt || "")) });
@@ -2786,7 +2807,9 @@ async function executeNodeOnce(
             return "";
           });
         const { Mistral } = await import("@mistralai/mistralai");
-        const mistral = new Mistral({ apiKey: String(config.api_key || "") });
+        const msApiKey = String(config.api_key || "").trim() || process.env.MISTRAL_API_KEY || "";
+        if (!msApiKey) throw new Error("Mistral API key is required for Mistral node");
+        const mistral = new Mistral({ apiKey: msApiKey });
         const msgs: { role: "system" | "user"; content: string }[] = [];
         if (config.system_prompt) msgs.push({ role: "system", content: msInterp(String(config.system_prompt)) });
         msgs.push({ role: "user", content: msInterp(String(config.prompt || "")) });

@@ -45,7 +45,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           onClick={() => router.push("/")}
           className="mb-4 p-2 hover:bg-white/10 rounded-xl transition-colors"
         >
-          <div className="w-8 h-8 bg-violet-500 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--gradient-brand)" }}>
             <Zap size={18} className="text-white" />
           </div>
         </button>
@@ -60,9 +60,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               title={label}
               className={`group relative flex flex-col items-center gap-1 w-14 py-2 rounded-xl transition-all ${
                 active
-                  ? "bg-violet-600 text-white"
+                  ? "text-white"
                   : "text-white/50 hover:bg-white/10 hover:text-white"
               }`}
+              style={active ? { background: "var(--gradient-brand)" } : undefined}
             >
               <Icon size={18} />
               <span className="text-[9px] font-medium leading-none">{label.split(" ")[0]}</span>

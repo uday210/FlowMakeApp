@@ -1,8 +1,38 @@
 @import "tailwindcss";
 
+/* ── Brand palette extracted from app icon ─────────────────────────────────
+   Icon gradient: Violet (#7C3AED) → Pink (#EC4899) → Cyan (#38BDF8)
+   ─────────────────────────────────────────────────────────────────────── */
 :root {
+  /* Core */
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Primary – violet (icon top) */
+  --brand-50:  #f5f3ff;
+  --brand-100: #ede9fe;
+  --brand-200: #ddd6fe;
+  --brand-300: #c4b5fd;
+  --brand-400: #a78bfa;
+  --brand-500: #8b5cf6;
+  --brand-600: #7c3aed;
+  --brand-700: #6d28d9;
+  --brand-800: #5b21b6;
+  --brand-900: #4c1d95;
+
+  /* Accent pink (icon bottom-left) */
+  --accent-pink-400: #f472b6;
+  --accent-pink-500: #ec4899;
+  --accent-pink-600: #db2777;
+
+  /* Accent cyan (icon bottom-right) */
+  --accent-cyan-400: #38bdf8;
+  --accent-cyan-500: #06b6d4;
+  --accent-cyan-600: #0891b2;
+
+  /* Icon gradient (re-usable) */
+  --gradient-brand: linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #38bdf8 100%);
+  --gradient-brand-subtle: linear-gradient(135deg, #ede9fe 0%, #fce7f3 50%, #e0f2fe 100%);
 }
 
 @theme inline {
@@ -10,17 +40,52 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Remap indigo → brand violet so all indigo-* classes use brand colors */
+  --color-indigo-50:  #f5f3ff;
+  --color-indigo-100: #ede9fe;
+  --color-indigo-200: #ddd6fe;
+  --color-indigo-300: #c4b5fd;
+  --color-indigo-400: #a78bfa;
+  --color-indigo-500: #8b5cf6;
+  --color-indigo-600: #7c3aed;
+  --color-indigo-700: #6d28d9;
+  --color-indigo-800: #5b21b6;
+  --color-indigo-900: #4c1d95;
+
+  /* Remap violet → brand violet (same scale) */
+  --color-violet-50:  #f5f3ff;
+  --color-violet-100: #ede9fe;
+  --color-violet-200: #ddd6fe;
+  --color-violet-300: #c4b5fd;
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+  --color-violet-700: #6d28d9;
+  --color-violet-800: #5b21b6;
+  --color-violet-900: #4c1d95;
+
+  /* Remap purple → brand violet (same scale) */
+  --color-purple-50:  #f5f3ff;
+  --color-purple-100: #ede9fe;
+  --color-purple-200: #ddd6fe;
+  --color-purple-300: #c4b5fd;
+  --color-purple-400: #a78bfa;
+  --color-purple-500: #8b5cf6;
+  --color-purple-600: #7c3aed;
+  --color-purple-700: #6d28d9;
+  --color-purple-800: #5b21b6;
+  --color-purple-900: #4c1d95;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
 }
+
+/* ── Scrollbar styling ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ddd6fe; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #a78bfa; }

@@ -93,6 +93,26 @@ export async function POST(
   });
 
   const data = await res.json();
+
+  // If a Webhook Response node ran, return its configured body directly
+  const webhookResponseLog = data?.logs?.find(
+    (l: { node_label?: string; status?: string; output?: { status?: number; body?: string } }) =>
+      l.node_label === "Webhook Response" && l.status === "success"
+  );
+  if (webhookResponseLog?.output) {
+    const { status: httpStatus = 200, body: responseBody = "" } = webhookResponseLog.output;
+    // Try to detect if body is JSON
+    let parsed: unknown = undefined;
+    try { parsed = JSON.parse(responseBody); } catch { /* not JSON */ }
+    if (parsed !== undefined) {
+      return NextResponse.json(parsed, { status: Number(httpStatus) });
+    }
+    return new Response(responseBody, {
+      status: Number(httpStatus),
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
+
   return NextResponse.json(data, { status: res.status });
 }
 

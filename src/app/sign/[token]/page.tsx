@@ -80,7 +80,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
             // Pre-fill date fields
             const initial: Record<string, string> = {};
             myFields.forEach((f) => {
-              if (f.type === "date") initial[f.id] = new Date().toLocaleDateString();
+              if (f.type === "date") initial[f.id] = new Date().toISOString().slice(0, 10);
             });
             setFieldValues(initial);
           }

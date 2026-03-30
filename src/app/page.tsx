@@ -20,6 +20,7 @@ import {
   Sparkles,
   ArrowRight,
   X,
+  Copy,
 } from "lucide-react";
 
 function WorkflowCard({
@@ -27,6 +28,7 @@ function WorkflowCard({
   onDelete,
   onRun,
   onToggleActive,
+  onClone,
   isRunning,
   runStatus,
 }: {
@@ -34,6 +36,7 @@ function WorkflowCard({
   onDelete: (id: string) => void;
   onRun: (id: string) => void;
   onToggleActive: (id: string, active: boolean) => void;
+  onClone: (id: string) => void;
   isRunning: boolean;
   runStatus?: "success" | "failed";
 }) {
@@ -129,6 +132,13 @@ function WorkflowCard({
           {workflow.is_active ? <><PauseCircle size={10} /> Pause</> : <><PlayCircle size={10} /> Activate</>}
         </button>
         <div className="flex-1" />
+        <button
+          onClick={() => onClone(workflow.id)}
+          title="Clone"
+          className="p-1.5 text-gray-300 hover:text-violet-500 hover:bg-violet-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+        >
+          <Copy size={12} />
+        </button>
         <button
           onClick={() => onDelete(workflow.id)}
           className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
@@ -351,6 +361,26 @@ export default function Dashboard() {
     setWorkflows((prev) => prev.filter((w) => w.id !== id));
   };
 
+  const handleClone = async (id: string) => {
+    const wf = workflows.find(w => w.id === id);
+    if (!wf) return;
+    const res = await fetch("/api/workflows", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `Copy of ${wf.name}`,
+        description: wf.description,
+        nodes: wf.nodes,
+        edges: wf.edges,
+        is_active: false,
+      }),
+    });
+    if (res.ok) {
+      const cloned = await res.json();
+      setWorkflows(prev => [cloned, ...prev]);
+    }
+  };
+
   const handleToggleActive = async (id: string, active: boolean) => {
     setWorkflows((prev) => prev.map((w) => (w.id === id ? { ...w, is_active: active } : w)));
     await fetch(`/api/workflows/${id}`, {
@@ -456,6 +486,7 @@ export default function Dashboard() {
                 onDelete={handleDelete}
                 onRun={handleRun}
                 onToggleActive={handleToggleActive}
+                onClone={handleClone}
                 isRunning={runningId === wf.id}
                 runStatus={runResults[wf.id]}
               />
