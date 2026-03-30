@@ -41,7 +41,11 @@ export async function POST(
 
   // Fetch workflow to check trigger type and config
   const supabase = createServerClient();
-  const { data: workflow } = await supabase.from("workflows").select("nodes").eq("id", id).single();
+  const { data: workflow } = await supabase.from("workflows").select("nodes, is_active").eq("id", id).single();
+
+  if (workflow?.is_active === false) {
+    return NextResponse.json({ error: "Workflow is inactive" }, { status: 503 });
+  }
 
   if (workflow) {
     const triggerNode = (workflow.nodes as WorkflowNode[]).find(
