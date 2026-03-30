@@ -18,7 +18,6 @@ import {
   BarChart3,
   Shield,
   RefreshCw,
-  Slack,
   Star,
 } from "lucide-react";
 

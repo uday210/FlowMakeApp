@@ -566,9 +566,9 @@ async function streamGroq(
             max_tokens: chatbot.max_tokens ?? 1024,
             temperature: behavior.temperature_locked ? 0 : (chatbot.temperature ?? 0.7),
             messages: currentMessages,
-            stream: true,
+            stream: true as const,
             ...(tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
-          } as Parameters<typeof client.chat.completions.create>[0]);
+          } as Parameters<typeof client.chat.completions.create>[0]) as AsyncIterable<import("groq-sdk/resources/chat/completions").ChatCompletionChunk>;
 
           let accText = "";
           let finishReason = "";
