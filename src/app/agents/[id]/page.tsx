@@ -8,7 +8,7 @@ import {
   Lock, Info, ExternalLink, ChevronDown, History, MessageSquare, User, Bot,
   Paperclip, File, Trash2,
 } from "lucide-react";
-import { useRef } from "react";
+//import { useRef } from "react";
 import MarkdownMessage from "@/components/MarkdownMessage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -457,39 +457,55 @@ function OverviewTab({
   onChange: (updates: Partial<Chatbot>) => void;
 }) {
   const [newQ, setNewQ] = useState("");
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [knowledgeFiles, setKnowledgeFiles] = useState<{ filename: string; chunks: number }[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [deletingFile, setDeletingFile] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load existing knowledge files from DB
+  useEffect(() => {
+    fetch(`/api/agents/${chatbot.id}/knowledge`)
+      .then(r => r.json())
+      .then(d => setKnowledgeFiles(d.files ?? []))
+      .catch(() => {});
+  }, [chatbot.id]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Reset input so same file can be re-uploaded
     e.target.value = "";
 
     setUploading(true);
     try {
-      let text = "";
-      if (file.name.toLowerCase().endsWith(".pdf")) {
-        // Server-side parsing for PDF
-        const form = new FormData();
-        form.append("file", file);
-        const res = await fetch("/api/agents/parse-file", { method: "POST", body: form });
-        if (!res.ok) throw new Error((await res.json()).error ?? "Parse failed");
-        const result = await res.json();
-        text = result.text as string;
-      } else {
-        // Client-side for .txt, .md, .csv, .json
-        text = await file.text();
-      }
-      const separator = chatbot.knowledge_base ? "\n\n" : "";
-      const header = `--- ${file.name} ---\n`;
-      onChange({ knowledge_base: chatbot.knowledge_base + separator + header + text.trim() });
-      setUploadedFiles(prev => [...prev, file.name]);
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/agents/${chatbot.id}/knowledge`, { method: "POST", body: form });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
+      const result = await res.json() as { filename: string; chunks_created: number };
+      setKnowledgeFiles(prev => {
+        const filtered = prev.filter(f => f.filename !== result.filename);
+        return [...filtered, { filename: result.filename, chunks: result.chunks_created }];
+      });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to read file");
+      alert(err instanceof Error ? err.message : "Failed to upload file");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDeleteFile = async (filename: string) => {
+    setDeletingFile(filename);
+    try {
+      const res = await fetch(
+        `/api/agents/${chatbot.id}/knowledge?filename=${encodeURIComponent(filename)}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error((await res.json()).error ?? "Delete failed");
+      setKnowledgeFiles(prev => prev.filter(f => f.filename !== filename));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete file");
+    } finally {
+      setDeletingFile(null);
     }
   };
 
@@ -551,7 +567,7 @@ function OverviewTab({
             className="flex items-center gap-1 text-[10px] font-semibold text-violet-600 hover:text-violet-800 disabled:opacity-50 transition-colors"
           >
             {uploading
-              ? <><Loader2 size={10} className="animate-spin" /> Parsing...</>
+              ? <><Loader2 size={10} className="animate-spin" /> Embedding...</>
               : <><Paperclip size={10} /> Upload file</>
             }
           </button>
@@ -564,30 +580,40 @@ function OverviewTab({
           />
         </div>
         <p className="text-[11px] text-gray-400 mb-1.5">
-          Prepended to the system prompt. Supports .txt, .md, .csv, .json, .pdf
+          Files are chunked &amp; embedded as vectors — only relevant chunks are retrieved per query.
+          Supports .txt, .md, .csv, .json, .pdf
         </p>
-        <textarea
-          value={chatbot.knowledge_base}
-          onChange={e => onChange({ knowledge_base: e.target.value })}
-          rows={5}
-          placeholder="Add FAQs, product info, or paste/upload any context your agent should know..."
-          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
-        />
-        {uploadedFiles.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {uploadedFiles.map((name, i) => (
-              <span key={i} className="flex items-center gap-1 text-[10px] bg-violet-50 text-violet-600 border border-violet-100 px-2 py-0.5 rounded-full">
-                <File size={9} /> {name}
+
+        {/* Uploaded files list */}
+        {knowledgeFiles.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {knowledgeFiles.map(f => (
+              <span key={f.filename} className="flex items-center gap-1 text-[10px] bg-violet-50 text-violet-700 border border-violet-100 px-2 py-0.5 rounded-full">
+                <File size={9} />
+                {f.filename}
+                <span className="text-violet-400 ml-0.5">({f.chunks} chunks)</span>
                 <button
-                  onClick={() => setUploadedFiles(prev => prev.filter((_, j) => j !== i))}
-                  className="ml-0.5 text-violet-400 hover:text-violet-700"
+                  onClick={() => handleDeleteFile(f.filename)}
+                  disabled={deletingFile === f.filename}
+                  className="ml-0.5 text-violet-400 hover:text-red-500 disabled:opacity-50"
                 >
-                  <X size={9} />
+                  {deletingFile === f.filename ? <Loader2 size={9} className="animate-spin" /> : <X size={9} />}
                 </button>
               </span>
             ))}
           </div>
         )}
+
+        <textarea
+          value={chatbot.knowledge_base}
+          onChange={e => onChange({ knowledge_base: e.target.value })}
+          rows={4}
+          placeholder="Paste additional context here (always included in every prompt)..."
+          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
+        />
+        <p className="text-[10px] text-gray-400 mt-1">
+          Text above is always appended to the prompt. Use uploaded files for large documents.
+        </p>
       </div>
 
       <div>
@@ -853,11 +879,10 @@ function ToolsTab({
             return (
               <div
                 key={wf.id}
-                className={`border rounded-xl p-3 transition-all ${
-                  isEnabled
+                className={`border rounded-xl p-3 transition-all ${isEnabled
                     ? "border-violet-300 bg-violet-50"
                     : "border-gray-200 bg-white"
-                }`}
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <input
@@ -941,11 +966,10 @@ function BrandingTab({
                 <button
                   key={emoji}
                   onClick={() => setAppearance({ avatar: emoji })}
-                  className={`w-8 h-8 rounded-lg text-base flex items-center justify-center transition-all ${
-                    appearance.avatar === emoji
+                  className={`w-8 h-8 rounded-lg text-base flex items-center justify-center transition-all ${appearance.avatar === emoji
                       ? "bg-violet-100 ring-2 ring-violet-400"
                       : "bg-gray-100 hover:bg-gray-200"
-                  }`}
+                    }`}
                 >
                   {emoji}
                 </button>
@@ -1007,11 +1031,10 @@ function BrandingTab({
                 <button
                   key={pos}
                   onClick={() => setAppearance({ position: pos })}
-                  className={`py-1.5 px-2 text-[11px] font-medium rounded-lg border transition-all ${
-                    appearance.position === pos
+                  className={`py-1.5 px-2 text-[11px] font-medium rounded-lg border transition-all ${appearance.position === pos
                       ? "border-violet-400 bg-violet-50 text-violet-700"
                       : "border-gray-200 text-gray-500 hover:border-gray-300"
-                  }`}
+                    }`}
                 >
                   {pos === "bottom-right" ? "↘ Right" : pos === "bottom-left" ? "↙ Left" : "Inline"}
                 </button>
@@ -1062,14 +1085,12 @@ function BrandingTab({
             <label className="text-xs text-gray-600">Show &quot;Powered by FlowMake&quot;</label>
             <button
               onClick={() => setAppearance({ showBranding: !appearance.showBranding })}
-              className={`w-10 h-5 rounded-full transition-all relative ${
-                appearance.showBranding ? "bg-violet-600" : "bg-gray-200"
-              }`}
+              className={`w-10 h-5 rounded-full transition-all relative ${appearance.showBranding ? "bg-violet-600" : "bg-gray-200"
+                }`}
             >
               <span
-                className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
-                  appearance.showBranding ? "left-5" : "left-0.5"
-                }`}
+                className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${appearance.showBranding ? "left-5" : "left-0.5"
+                  }`}
               />
             </button>
           </div>
@@ -1145,8 +1166,7 @@ function EmbedTab({ chatbot }: { chatbot: Chatbot }) {
     iframe.width = '${chatbot.appearance?.windowWidth ?? 400}';
     iframe.height = '600';
     iframe.frameBorder = '0';
-    iframe.style.cssText = 'position:fixed;bottom:24px;${
-      chatbot.appearance?.position === "bottom-left" ? "left" : "right"
+    iframe.style.cssText = 'position:fixed;bottom:24px;${chatbot.appearance?.position === "bottom-left" ? "left" : "right"
     }:24px;border-radius:${chatbot.appearance?.borderRadius ?? 16}px;box-shadow:0 4px 24px rgba(0,0,0,0.15);z-index:9999;';
     document.body.appendChild(iframe);
   })();
@@ -1195,9 +1215,8 @@ function EmbedTab({ chatbot }: { chatbot: Chatbot }) {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-all ${
-                tab === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-              }`}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-all ${tab === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
             >
               {t === "iframe" ? "iFrame" : "Script Tag"}
             </button>
@@ -1334,11 +1353,10 @@ function HistoryTab({ agentId }: { agentId: string }) {
                       </div>
                     )}
                     <div
-                      className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-[11px] leading-relaxed ${
-                        msg.role === "user"
+                      className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-[11px] leading-relaxed ${msg.role === "user"
                           ? "bg-violet-600 text-white rounded-br-sm"
                           : "bg-white border border-gray-200 text-gray-700 rounded-bl-sm"
-                      }`}
+                        }`}
                     >
                       {msg.content}
                     </div>
@@ -1540,16 +1558,14 @@ export default function AgentEditorPage({
         <div className="flex items-center gap-2 flex-1">
           <span className="text-sm font-semibold text-gray-900 truncate">{chatbot.name}</span>
           <span
-            className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${
-              chatbot.is_active
+            className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${chatbot.is_active
                 ? "bg-green-100 text-green-700"
                 : "bg-gray-100 text-gray-500"
-            }`}
+              }`}
           >
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                chatbot.is_active ? "bg-green-500" : "bg-gray-400"
-              }`}
+              className={`w-1.5 h-1.5 rounded-full ${chatbot.is_active ? "bg-green-500" : "bg-gray-400"
+                }`}
             />
             {chatbot.is_active ? "Active" : "Inactive"}
           </span>
@@ -1595,11 +1611,10 @@ export default function AgentEditorPage({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-all border-b-2 ${
-                  activeTab === tab.id
+                className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-all border-b-2 ${activeTab === tab.id
                     ? "border-violet-500 text-violet-600"
                     : "border-transparent text-gray-400 hover:text-gray-600"
-                }`}
+                  }`}
               >
                 {tab.icon}
                 {tab.label}

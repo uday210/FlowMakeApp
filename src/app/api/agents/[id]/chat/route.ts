@@ -2,6 +2,43 @@ import { createServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+// ─── RAG: embed query + retrieve top chunks ───────────────────────────────────
+
+async function retrieveRelevantChunks(
+  agentId: string,
+  query: string
+): Promise<string> {
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!openaiKey) return "";
+
+  // Embed the user's query
+  const embRes = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openaiKey}`,
+    },
+    body: JSON.stringify({ model: "text-embedding-3-small", input: query }),
+  });
+  if (!embRes.ok) return "";
+  const embData = await embRes.json() as { data: { embedding: number[] }[] };
+  const embedding = embData.data[0]?.embedding;
+  if (!embedding) return "";
+
+  // Vector similarity search via Supabase RPC
+  const supabase = createServerClient();
+  const { data, error } = await supabase.rpc("match_knowledge_chunks", {
+    p_agent_id: agentId,
+    p_embedding: `[${embedding.join(",")}]`,
+    p_limit: 5,
+  });
+  if (error || !data?.length) return "";
+
+  return (data as { content: string; filename: string; similarity: number }[])
+    .map((c) => `[${c.filename}]\n${c.content}`)
+    .join("\n\n---\n\n");
+}
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -38,11 +75,16 @@ function buildSystemPrompt(
   systemPrompt: string,
   knowledgeBase: string,
   connectedWorkflows: ConnectedWorkflow[],
-  provider: string
+  provider: string,
+  retrievedContext = ""
 ): string {
   let prompt = "";
 
-  if (knowledgeBase && knowledgeBase.trim()) {
+  // RAG: inject only the semantically relevant chunks for this query
+  if (retrievedContext.trim()) {
+    prompt += `## Relevant Knowledge\nUse the following retrieved context to answer the user's question. Only use information that is relevant.\n\n${retrievedContext.trim()}\n\n`;
+  } else if (knowledgeBase && knowledgeBase.trim()) {
+    // Fallback: no embeddings uploaded — use raw text as before
     prompt += `## Knowledge Base\n${knowledgeBase.trim()}\n\n`;
   }
 
@@ -102,6 +144,7 @@ async function streamAnthropic(
     system_prompt: string;
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
+    _retrievedContext?: string;
   },
   messages: ChatMessage[],
   origin: string
@@ -116,7 +159,8 @@ async function streamAnthropic(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     chatbot.connected_workflows,
-    "anthropic"
+    "anthropic",
+    chatbot._retrievedContext
   );
 
   const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
@@ -283,6 +327,7 @@ async function streamOpenAI(
     system_prompt: string;
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
+    _retrievedContext?: string;
   },
   messages: ChatMessage[],
   origin: string
@@ -298,7 +343,8 @@ async function streamOpenAI(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     [],   // pass empty — tools are declared natively below
-    "openai"
+    "openai",
+    chatbot._retrievedContext
   );
 
   type OAIMessage = import("openai/resources").ChatCompletionMessageParam;
@@ -432,6 +478,7 @@ async function streamGroq(
     system_prompt: string;
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
+    _retrievedContext?: string;
   },
   messages: ChatMessage[],
   origin: string
@@ -446,7 +493,8 @@ async function streamGroq(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     [],
-    "groq"
+    "groq",
+    chatbot._retrievedContext
   );
 
   type GroqMessage = import("groq-sdk/resources/chat/completions").ChatCompletionMessageParam;
@@ -572,6 +620,7 @@ async function streamGemini(
     system_prompt: string;
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
+    _retrievedContext?: string;
   },
   messages: ChatMessage[]
 ): Promise<ReadableStream> {
@@ -585,7 +634,8 @@ async function streamGemini(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     chatbot.connected_workflows,
-    "gemini"
+    "gemini",
+    chatbot._retrievedContext
   );
 
   const model = genAI.getGenerativeModel({
@@ -643,6 +693,7 @@ async function streamMistral(
     system_prompt: string;
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
+    _retrievedContext?: string;
   },
   messages: ChatMessage[]
 ): Promise<ReadableStream> {
@@ -656,7 +707,8 @@ async function streamMistral(
     chatbot.system_prompt,
     chatbot.knowledge_base,
     chatbot.connected_workflows,
-    "mistral"
+    "mistral",
+    chatbot._retrievedContext
   );
 
   const mistralMessages = [
@@ -725,25 +777,34 @@ export async function POST(
   const origin = new URL(req.url).origin;
   const provider: string = chatbot.provider ?? "anthropic";
 
+  // RAG: retrieve relevant knowledge chunks for the latest user message
+  const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+  const retrievedContext = lastUserMsg
+    ? await retrieveRelevantChunks(id, lastUserMsg.content).catch(() => "")
+    : "";
+
+  // Inject retrieved context into chatbot object so stream functions can use it
+  const chatbotWithContext = { ...chatbot, _retrievedContext: retrievedContext };
+
   try {
     let stream: ReadableStream;
 
     switch (provider) {
       case "openai":
-        stream = await streamOpenAI(chatbot, messages, origin);
+        stream = await streamOpenAI(chatbotWithContext, messages, origin);
         break;
       case "groq":
-        stream = await streamGroq(chatbot, messages, origin);
+        stream = await streamGroq(chatbotWithContext, messages, origin);
         break;
       case "gemini":
-        stream = await streamGemini(chatbot, messages);
+        stream = await streamGemini(chatbotWithContext, messages);
         break;
       case "mistral":
-        stream = await streamMistral(chatbot, messages);
+        stream = await streamMistral(chatbotWithContext, messages);
         break;
       case "anthropic":
       default:
-        stream = await streamAnthropic(chatbot, messages, origin);
+        stream = await streamAnthropic(chatbotWithContext, messages, origin);
         break;
     }
 
