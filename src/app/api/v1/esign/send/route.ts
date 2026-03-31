@@ -34,6 +34,7 @@ import { NextResponse } from "next/server";
 import { getApiKeyContext } from "@/lib/apiAuth";
 import { getBaseUrl } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
+import { sendEmail, renderEmailTemplate } from "@/lib/emailSender";
 
 export const dynamic = "force-dynamic";
 
@@ -52,11 +53,13 @@ export async function POST(request: Request) {
     signers,
     mode,
     callback_url,
+    email_template_id,
   } = body as {
     document_id: string;
     signers: { email: string; name?: string; order?: number; role?: string; metadata?: Record<string, unknown> }[];
     mode?: "sequential" | "parallel";
     callback_url?: string;
+    email_template_id?: string;
   };
 
   if (!document_id) return NextResponse.json({ error: "document_id is required" }, { status: 400 });
@@ -132,11 +135,37 @@ export async function POST(request: Request) {
     await admin.from("esign_documents").update({ status: "sent" }).eq("id", document_id);
   }
 
+  // Send emails to pending signers if a template is attached
+  if (email_template_id) {
+    const baseUrl = getBaseUrl(request);
+    for (const signer of results.filter((r) => r.status === "pending")) {
+      const rendered = await renderEmailTemplate(email_template_id, {
+        signer_name:    signer.name || signer.email,
+        signer_email:   signer.email,
+        document_title: doc.name,
+        signing_url:    signer.signing_url ?? "",
+        org_name:       auth.orgId,
+      });
+      if (rendered) {
+        await sendEmail({
+          orgId:    auth.orgId,
+          to:       signer.email,
+          toName:   signer.name,
+          subject:  rendered.subject || `Please sign: ${doc.name}`,
+          htmlBody: rendered.htmlBody,
+          plainBody: rendered.plainBody,
+        });
+      }
+    }
+    void baseUrl; // used in signing_url construction above
+  }
+
   return NextResponse.json({
     session_id: sessionId,
     document_id,
     document_name: doc.name,
     mode: effectiveMode,
     signers: results,
+    emails_sent: !!email_template_id,
   }, { status: 201 });
 }

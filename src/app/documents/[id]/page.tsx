@@ -74,6 +74,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [showStatus, setShowStatus]       = useState(false);
   const [sendSuccess, setSendSuccess]     = useState<{ email: string; url: string | null; order: number }[]>([]);
   const [copiedId, setCopiedId]           = useState<string | null>(null);
+  const [emailTemplates, setEmailTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [emailTemplateId, setEmailTemplateId] = useState<string>("");
   const [addingRecipient, setAddingRecipient] = useState(false);
   const [newEmail, setNewEmail]           = useState("");
   const [newName, setNewName]             = useState("");
@@ -98,6 +100,12 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    fetch("/api/email-templates")
+      .then((r) => r.json())
+      .then((d) => setEmailTemplates(Array.isArray(d) ? d.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })) : []));
+  }, []);
 
   // Esc cancels active tool
   useEffect(() => {
@@ -131,7 +139,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     const res  = await fetch(`/api/documents/${id}/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signers: valid }),
+      body: JSON.stringify({ signers: valid, email_template_id: emailTemplateId || undefined }),
     });
     const data = await res.json();
     setSending(false);
@@ -248,6 +256,18 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
         >
           {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} Save
         </button>
+
+        <select
+          value={emailTemplateId}
+          onChange={(e) => setEmailTemplateId(e.target.value)}
+          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white outline-none focus:ring-2 focus:ring-indigo-500 max-w-[160px]"
+          title="Optionally attach an email template — signers will be emailed automatically"
+        >
+          <option value="">✉ No email (URL only)</option>
+          {emailTemplates.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
 
         <button
           onClick={handleSend} disabled={sending}

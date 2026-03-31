@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgContext, getBaseUrl } from "@/lib/auth";
+import { sendEmail, renderEmailTemplate } from "@/lib/emailSender";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +11,9 @@ export async function POST(request: Request, { params }: Params) {
   const ctx = await getOrgContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { signers } = await request.json() as {
+  const { signers, email_template_id } = await request.json() as {
     signers: { email: string; name: string; order?: number }[];
+    email_template_id?: string;
   };
 
   if (!signers || signers.length === 0) {
@@ -55,17 +57,43 @@ export async function POST(request: Request, { params }: Params) {
     requests.push(req);
   }
 
-  await ctx.admin.from("esign_documents").update({ status: "sent" }).eq("id", id).eq("org_id", ctx.orgId);
+  if (!doc.is_template) {
+    await ctx.admin.from("esign_documents").update({ status: "sent" }).eq("id", id).eq("org_id", ctx.orgId);
+  }
 
   const baseUrl = getBaseUrl(request);
-  return NextResponse.json({
-    success: true,
-    requests: requests.map((r) => ({
-      id: r.id,
-      signer_email: r.signer_email,
-      signing_order: r.signing_order,
-      status: r.status,
-      signing_url: r.status === "pending" ? `${baseUrl}/sign/${r.token}` : null,
-    })),
-  });
+  const results = requests.map((r) => ({
+    id: r.id,
+    signer_email: r.signer_email,
+    signer_name: r.signer_name,
+    signing_order: r.signing_order,
+    status: r.status,
+    signing_url: r.status === "pending" ? `${baseUrl}/sign/${r.token}` : null,
+  }));
+
+  // Send emails to pending signers if a template is attached
+  if (email_template_id) {
+    const pendingSigners = results.filter((r) => r.status === "pending");
+    for (const signer of pendingSigners) {
+      const rendered = await renderEmailTemplate(email_template_id, {
+        signer_name:    signer.signer_name || signer.signer_email,
+        signer_email:   signer.signer_email,
+        document_title: doc.name,
+        signing_url:    signer.signing_url ?? "",
+        org_name:       ctx.orgId,
+      });
+      if (rendered) {
+        await sendEmail({
+          orgId:    ctx.orgId,
+          to:       signer.signer_email,
+          toName:   signer.signer_name,
+          subject:  rendered.subject || `Please sign: ${doc.name}`,
+          htmlBody: rendered.htmlBody,
+          plainBody: rendered.plainBody,
+        });
+      }
+    }
+  }
+
+  return NextResponse.json({ success: true, requests: results, emails_sent: !!email_template_id });
 }
