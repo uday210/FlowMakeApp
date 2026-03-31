@@ -29,7 +29,7 @@ export async function PUT(request: Request, { params }: Params) {
   const body = await request.json();
   const { data, error } = await ctx.admin
     .from("esign_documents")
-    .update({ name: body.name, page_count: body.page_count, status: body.status })
+    .update({ name: body.name, page_count: body.page_count, status: body.status, is_template: body.is_template ?? false })
     .eq("id", id)
     .eq("org_id", ctx.orgId)
     .select()
