@@ -107,6 +107,17 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-refresh status every 10s so signing events appear without manual refresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch(`/api/documents/${id}/status`)
+        .then(r => r.json())
+        .then(d => { if (d.requests) setSignerRequests(d.requests); })
+        .catch(() => {});
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [id]);
+
   useEffect(() => {
     fetch("/api/email-templates")
       .then((r) => r.json())

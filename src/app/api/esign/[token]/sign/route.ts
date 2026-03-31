@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import { sendEmail, renderEmailTemplate } from "@/lib/emailSender";
+import { getBaseUrl } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -59,19 +62,60 @@ export async function POST(
   // ── Activate next signer in sequence ──────────────────────────────────────
   if (req.document_id) {
     const nextOrder = (req.signing_order ?? 1) + 1;
-    const { data: nextSigner } = await supabase
+
+    let nextSignerQuery = supabase
       .from("esign_requests")
-      .select("id, token")
+      .select("id, token, signer_email, signer_name")
       .eq("document_id", req.document_id)
       .eq("signing_order", nextOrder)
-      .eq("status", "waiting")
-      .single();
+      .eq("status", "waiting");
+
+    if (req.session_id) {
+      nextSignerQuery = nextSignerQuery.eq("session_id", req.session_id);
+    }
+
+    const { data: nextSigner } = await nextSignerQuery.single();
 
     if (nextSigner) {
       await supabase
         .from("esign_requests")
         .update({ status: "pending" })
         .eq("id", nextSigner.id);
+
+      // Send email to next signer if document has an email template configured
+      try {
+        const admin = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        const { data: doc } = await admin
+          .from("esign_documents")
+          .select("name, email_template_id, org_id")
+          .eq("id", req.document_id)
+          .single();
+
+        if (doc?.email_template_id && doc?.org_id) {
+          const baseUrl = getBaseUrl(request);
+          const signingUrl = `${baseUrl}/sign/${nextSigner.token}`;
+          const rendered = await renderEmailTemplate(doc.email_template_id, {
+            signer_name:    nextSigner.signer_name || nextSigner.signer_email,
+            signer_email:   nextSigner.signer_email,
+            document_title: doc.name,
+            signing_url:    signingUrl,
+            org_name:       doc.org_id,
+          });
+          if (rendered) {
+            await sendEmail({
+              orgId:    doc.org_id,
+              to:       nextSigner.signer_email,
+              toName:   nextSigner.signer_name,
+              subject:  rendered.subject || `Please sign: ${doc.name}`,
+              htmlBody: rendered.htmlBody,
+              plainBody: rendered.plainBody,
+            });
+          }
+        }
+      } catch { /* Non-fatal — don't block signing if email fails */ }
     }
   }
 
