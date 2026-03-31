@@ -76,6 +76,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [copiedId, setCopiedId]           = useState<string | null>(null);
   const [emailTemplates, setEmailTemplates] = useState<{ id: string; name: string }[]>([]);
   const [emailTemplateId, setEmailTemplateId] = useState<string>("");
+  const [emailPreviewHtml, setEmailPreviewHtml] = useState<string | null>(null);
+  const [emailPreviewLoading, setEmailPreviewLoading] = useState(false);
   const [addingRecipient, setAddingRecipient] = useState(false);
   const [newEmail, setNewEmail]           = useState("");
   const [newName, setNewName]             = useState("");
@@ -106,6 +108,28 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
       .then((r) => r.json())
       .then((d) => setEmailTemplates(Array.isArray(d) ? d.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })) : []));
   }, []);
+
+  const handleEmailPreview = async () => {
+    if (!emailTemplateId) return;
+    setEmailPreviewLoading(true);
+    const res = await fetch(`/api/email-templates/${emailTemplateId}`);
+    const tmpl = await res.json();
+    // Interpolate sample variables so the preview feels real
+    const sampleVars: Record<string, string> = {
+      signer_name:    signers[0]?.name  || "Jane Smith",
+      signer_email:   signers[0]?.email || "jane@example.com",
+      document_title: doc?.name         || "Document",
+      signing_url:    `${window.location.origin}/sign/sample-token`,
+      org_name:       "Your Organization",
+      sender_name:    "Your Team",
+    };
+    let html: string = tmpl.html_body || "";
+    Object.entries(sampleVars).forEach(([k, v]) => {
+      html = html.replaceAll(`{{${k}}}`, v);
+    });
+    setEmailPreviewHtml(html);
+    setEmailPreviewLoading(false);
+  };
 
   // Esc cancels active tool
   useEffect(() => {
@@ -268,6 +292,18 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
             <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
+
+        {emailTemplateId && (
+          <button
+            onClick={handleEmailPreview}
+            disabled={emailPreviewLoading}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
+            title="Preview the email signers will receive"
+          >
+            {emailPreviewLoading ? <Loader2 size={11} className="animate-spin" /> : <Eye size={11} />}
+            Preview Email
+          </button>
+        )}
 
         <button
           onClick={handleSend} disabled={sending}
@@ -622,6 +658,33 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
           )}
         </div>
       </div>
+
+      {/* ── Email preview modal ── */}
+      {emailPreviewHtml && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <div>
+                <h2 className="font-semibold text-gray-800 text-sm">Email Preview</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Sample variables filled in — actual email uses real signer data</p>
+              </div>
+              <button onClick={() => setEmailPreviewHtml(null)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <iframe
+                srcDoc={emailPreviewHtml}
+                className="w-full border-0"
+                style={{ minHeight: 500 }}
+                sandbox="allow-same-origin"
+                title="Email Preview"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Send success modal ── */}
       {sendSuccess.length > 0 && (
