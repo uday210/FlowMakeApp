@@ -310,7 +310,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "action_set_variable",
     label: "Set Variable",
-    description: "Store a named value in workflow memory for later use",
+    description: "Store a value in memory. Use it in any later node as {{variables.yourName}}",
     category: "action",
     subcategory: "Flow Control",
     color: "#0891b2",

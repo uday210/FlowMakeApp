@@ -201,14 +201,31 @@ export const NODE_HELP_GUIDES: Record<string, NodeHelpGuide> = {
   },
 
   action_set_variable: {
-    summary: "Saves a value to a named workflow variable that can be retrieved later.",
-    steps: ["Set the variable name (e.g. counter, user_id).", "Set the value — can use merge fields like {{node1.id}}.", "Retrieve it later with a Get Variable node."],
-    tips: ["Variable names are scoped to this workflow run.", "Use variables to pass data between non-connected branches."],
+    summary: "Saves a named value into workflow memory. Any node that runs after this one can reference it using {{variables.yourName}}.",
+    steps: [
+      "Enter a Variable Name — use a short name with no spaces (e.g. customerEmail, orderId, recipientName).",
+      "Enter the Value — static text or a merge field from earlier nodes, e.g. {{trigger.email}}.",
+      "In any downstream node, reference this variable as {{variables.customerEmail}} — works in any text, subject, body, or URL field.",
+    ],
+    tips: [
+      "Example — Send Email Manually: Set Variable name=toEmail value={{trigger.email}} → Email node To={{variables.toEmail}}",
+      "You do NOT need a Get Variable node — just write {{variables.yourName}} directly in any field after this node runs.",
+      "Use multiple Set Variable nodes before a complex action to build up all the values you need.",
+      "Variables reset each workflow run — they are not persisted between executions.",
+    ],
   },
 
   action_get_variable: {
-    summary: "Retrieves a workflow variable previously set by a Set Variable node.",
-    steps: ["Enter the variable name to retrieve.", "The value is available as {{nodeId.value}}."],
+    summary: "Reads a workflow variable by name. Useful for conditional branching or logging. You usually don't need this — just write {{variables.yourName}} directly in any field.",
+    steps: [
+      "Enter the Variable Name set by a Set Variable node earlier in the flow.",
+      "Optionally enter a Default value returned if the variable was never set.",
+      "The value is available downstream as {{nodeId.value}}.",
+    ],
+    tips: [
+      "Skip this node when you just want to use the value — {{variables.yourName}} works directly in any text field.",
+      "Use Get Variable when you need to feed its value into an If/Else condition.",
+    ],
   },
 
   action_merge: {

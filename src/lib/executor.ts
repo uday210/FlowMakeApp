@@ -30,7 +30,7 @@ async function executeNodeOnce(
 
     // ── Shared interpolation helper (available to ALL node cases) ──────────────
     // Resolves {{node_id.field}} and {{secret.NAME}} placeholders.
-    const allData: Record<string, unknown> = { ...ctx.triggerData, ...ctx.nodeOutputs };
+    const allData: Record<string, unknown> = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
     const interpolate = (str: string): string => {
       if (!str) return str;
       return str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
@@ -186,7 +186,7 @@ async function executeNodeOnce(
       }
 
       case "action_logger": {
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const logLabel = (config.label as string) || "Logger";
         const includeAll = config.include_all !== "false";
         output = {
@@ -211,7 +211,7 @@ async function executeNodeOnce(
         if (!field) throw new Error("Field is required");
 
         // Resolve field value from previous node outputs or trigger data
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const fieldValue = field.split(".").reduce<unknown>((obj, key) => {
           if (obj && typeof obj === "object") return (obj as Record<string, unknown>)[key];
           return undefined;
@@ -239,7 +239,7 @@ async function executeNodeOnce(
         const value = config.value as string;
         if (!field) throw new Error("Field is required");
 
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const fieldValue = field.split(".").reduce<unknown>((obj, key) => {
           if (obj && typeof obj === "object") return (obj as Record<string, unknown>)[key];
           return undefined;
@@ -263,7 +263,7 @@ async function executeNodeOnce(
         const field = config.field as string;
         if (!field) throw new Error("Field is required");
 
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const fieldValue = String(field.split(".").reduce<unknown>((obj, key) => {
           if (obj && typeof obj === "object") return (obj as Record<string, unknown>)[key];
           return undefined;
@@ -285,7 +285,7 @@ async function executeNodeOnce(
         const template = config.template as string;
         if (!template) throw new Error("Template is required");
         // Simple {{key}} interpolation from previous outputs + trigger data
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolated = template.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
           const val = path.trim().split(".").reduce<unknown>((obj, key) => {
             if (obj && typeof obj === "object") return (obj as Record<string, unknown>)[key];
@@ -419,7 +419,7 @@ async function executeNodeOnce(
       case "action_resend": {
         const apiKey = config.api_key as string;
         const from = config.from as string;
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -455,7 +455,7 @@ async function executeNodeOnce(
         const domain = config.domain as string;
         const from = config.from as string;
         const region = (config.region as string) || "us";
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -499,7 +499,7 @@ async function executeNodeOnce(
       case "action_postmark": {
         const serverToken = config.server_token as string;
         const from = config.from as string;
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1193,7 +1193,7 @@ async function executeNodeOnce(
       // ── Flow Control ──────────────────────────────────────────────────────────
 
       case "action_iterator": {
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const arrayPath = (config.array_path as string) || "";
         const maxItems = Math.min(Number(config.max_items) || 100, 1000);
         let items: unknown[] = [];
@@ -1213,7 +1213,7 @@ async function executeNodeOnce(
       }
 
       case "action_set_variable": {
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1244,7 +1244,7 @@ async function executeNodeOnce(
       case "action_sub_workflow": {
         const subId = config.workflow_id as string;
         if (!subId) throw new Error("Workflow ID is required");
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         let payload: Record<string, unknown> = {};
         if (config.payload) {
           try {
@@ -1274,7 +1274,7 @@ async function executeNodeOnce(
       }
 
       case "action_webhook_response": {
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1320,7 +1320,7 @@ async function executeNodeOnce(
       // ── Data Processing ───────────────────────────────────────────────────────
 
       case "action_code": {
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const code = (config.code as string) || "";
         if (!code.trim()) throw new Error("Code is required");
         try {
@@ -1335,7 +1335,7 @@ async function executeNodeOnce(
       }
 
       case "action_formatter": {
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const resolveVal = (v: string): unknown => {
           if (!v.includes("{{")) return v;
           return v.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
@@ -1389,7 +1389,7 @@ async function executeNodeOnce(
       }
 
       case "action_csv_parse": {
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1420,7 +1420,7 @@ async function executeNodeOnce(
       }
 
       case "action_csv_generate": {
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const delimiter = (config.delimiter as string) || ",";
         let data: unknown[];
         const raw = (config.data as string) || "";
@@ -1454,7 +1454,7 @@ async function executeNodeOnce(
 
       case "action_dalle": {
         const apiKey = config.api_key as string;
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1496,7 +1496,7 @@ async function executeNodeOnce(
         const orgId = ctx.orgId || "unknown";
         const storeName = (config.store as string) || "default";
         const action = config.action as string;
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1624,7 +1624,7 @@ async function executeNodeOnce(
           const d = await res.json();
           output = { events: d.items, count: d.items?.length ?? 0 };
         } else if (action === "create") {
-          const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+          const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
           const interpolate = (s: string) => s.replace(/\{\{([^}]+)\}\}/g, (_, p: string) => {
             const v = p.trim().split(".").reduce<unknown>((o, k) => o && typeof o === "object" ? (o as Record<string, unknown>)[k] : undefined, allData);
             return v !== undefined ? String(v) : "";
@@ -1659,7 +1659,7 @@ async function executeNodeOnce(
         const accessToken = config.access_token as string;
         const phoneNumberId = config.phone_number_id as string;
         if (!accessToken || !phoneNumberId) throw new Error("Access token and phone number ID are required");
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1708,7 +1708,7 @@ async function executeNodeOnce(
         });
         // Send email via nodemailer
         const nodemailer = await import("nodemailer");
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1740,7 +1740,7 @@ async function executeNodeOnce(
 
       case "action_notification": {
         const channel = (config.channel as string) || "slack";
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1779,7 +1779,7 @@ async function executeNodeOnce(
         const apiKey = config.api_key as string;
         if (!apiKey) throw new Error("Anthropic API key is required");
 
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -1958,7 +1958,7 @@ async function executeNodeOnce(
         const toolName = config.tool_name as string;
         if (!serverUrl || !toolName) throw new Error("Server URL and tool name are required");
 
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interpolate = (str: string) =>
           str.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
@@ -3310,7 +3310,7 @@ async function executeNodeOnce(
         if (!tableId) throw new Error("Table ID is required");
 
         // Interpolation helper
-        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const interp = (s: string) =>
           s.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
             const val = path.trim().split(".").reduce<unknown>((o, k) => {
