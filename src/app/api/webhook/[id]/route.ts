@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import type { WorkflowNode } from "@/lib/types";
+import { executeWorkflow } from "@/lib/executor";
+import type { WorkflowNode, WorkflowEdge } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -39,87 +40,123 @@ export async function POST(
   let body: Record<string, unknown> = {};
   try { body = JSON.parse(rawBody); } catch { body = { raw: rawBody }; }
 
-  // Fetch workflow to check trigger type and config
   const supabase = createServerClient();
-  const { data: workflow } = await supabase.from("workflows").select("nodes, is_active").eq("id", id).single();
 
-  if (workflow?.is_active === false) {
+  // Fetch full workflow
+  const { data: workflow, error: wfError } = await supabase
+    .from("workflows")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (wfError || !workflow) {
+    return NextResponse.json({ error: "Workflow not found" }, { status: 404 });
+  }
+
+  if (workflow.is_active === false) {
     return NextResponse.json({ error: "Workflow is inactive" }, { status: 503 });
   }
 
-  if (workflow) {
-    const triggerNode = (workflow.nodes as WorkflowNode[]).find(
-      (n) => n.data?.type?.startsWith("trigger_")
-    );
-    const triggerType = triggerNode?.data?.type;
-    const config = triggerNode?.data?.config ?? {};
+  const triggerNode = (workflow.nodes as WorkflowNode[]).find(
+    (n) => n.data?.type?.startsWith("trigger_")
+  );
+  const triggerType = triggerNode?.data?.type;
+  const config = triggerNode?.data?.config ?? {};
 
-    // GitHub signature verification
-    if (triggerType === "trigger_github_event") {
-      const secret = config.secret as string;
-      const ghSig = headers["x-hub-signature-256"] ?? "";
-      if (secret && ghSig) {
-        const valid = await verifyGithubSignature(rawBody, ghSig, secret);
-        if (!valid) return NextResponse.json({ error: "Invalid GitHub signature" }, { status: 401 });
-      }
-      // Filter by event type
-      const ghEvent = headers["x-github-event"] ?? "";
-      const filter = (config.events as string) || "any";
-      if (filter !== "any" && ghEvent !== filter) {
-        return NextResponse.json({ skipped: true, reason: `Event "${ghEvent}" filtered (expected "${filter}")` });
-      }
-      body = { ...body, _github_event: ghEvent };
+  // GitHub signature verification
+  if (triggerType === "trigger_github_event") {
+    const secret = config.secret as string;
+    const ghSig = headers["x-hub-signature-256"] ?? "";
+    if (secret && ghSig) {
+      const valid = await verifyGithubSignature(rawBody, ghSig, secret);
+      if (!valid) return NextResponse.json({ error: "Invalid GitHub signature" }, { status: 401 });
     }
+    const ghEvent = headers["x-github-event"] ?? "";
+    const filter = (config.events as string) || "any";
+    if (filter !== "any" && ghEvent !== filter) {
+      return NextResponse.json({ skipped: true, reason: `Event "${ghEvent}" filtered` });
+    }
+    body = { ...body, _github_event: ghEvent };
+  }
 
-    // Stripe signature verification
-    if (triggerType === "trigger_stripe") {
-      const secret = config.webhook_secret as string;
-      const stripeSig = headers["stripe-signature"] ?? "";
-      if (secret && stripeSig) {
-        const valid = await verifyStripeSignature(rawBody, stripeSig, secret);
-        if (!valid) return NextResponse.json({ error: "Invalid Stripe signature" }, { status: 401 });
-      }
-      // Filter by event type
-      const stripeEvent = body.type as string;
-      const filter = (config.event_type as string) || "any";
-      if (filter !== "any" && stripeEvent !== filter) {
-        return NextResponse.json({ skipped: true, reason: `Event "${stripeEvent}" filtered` });
-      }
+  // Stripe signature verification
+  if (triggerType === "trigger_stripe") {
+    const secret = config.webhook_secret as string;
+    const stripeSig = headers["stripe-signature"] ?? "";
+    if (secret && stripeSig) {
+      const valid = await verifyStripeSignature(rawBody, stripeSig, secret);
+      if (!valid) return NextResponse.json({ error: "Invalid Stripe signature" }, { status: 401 });
+    }
+    const stripeEvent = body.type as string;
+    const filter = (config.event_type as string) || "any";
+    if (filter !== "any" && stripeEvent !== filter) {
+      return NextResponse.json({ skipped: true, reason: `Event "${stripeEvent}" filtered` });
     }
   }
 
-  // Execute workflow — derive base URL from forwarded headers (works behind Railway/Vercel proxies)
-  const fwdProto = headers["x-forwarded-proto"]?.split(",")[0] ?? "https";
-  const fwdHost  = headers["x-forwarded-host"]  ?? headers["host"] ?? "localhost:3000";
-  const baseUrl  = process.env.NEXT_PUBLIC_APP_URL || `${fwdProto}://${fwdHost}`;
-  const res = await fetch(`${baseUrl}/api/execute/${id}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, _trigger: "webhook", _headers: headers }),
-  });
+  const triggerData = { ...body, _trigger: "webhook", _headers: headers };
 
-  const data = await res.json();
+  // Collect connection configs
+  const nodes = workflow.nodes as WorkflowNode[];
+  const connectionIds = [...new Set(
+    nodes.map((n) => n.data?.config?.connectionId as string | undefined).filter(Boolean) as string[]
+  )];
+  const connectionsMap: Record<string, Record<string, unknown>> = {};
+  if (connectionIds.length > 0) {
+    const { data: conns } = await supabase.from("connections").select("id, config").in("id", connectionIds);
+    for (const conn of conns ?? []) {
+      connectionsMap[conn.id] = conn.config as Record<string, unknown>;
+    }
+  }
 
-  // If a Webhook Response node ran, return its configured body directly
-  const webhookResponseLog = data?.logs?.find(
-    (l: { node_label?: string; status?: string; output?: { status?: number; body?: string } }) =>
-      l.node_label === "Webhook Response" && l.status === "success"
+  // Create execution record
+  const { data: execution } = await supabase
+    .from("executions")
+    .insert({ workflow_id: id, status: "running", trigger_data: triggerData, logs: [] })
+    .select()
+    .single();
+
+  // Run workflow directly (no HTTP self-call)
+  let finalStatus: "success" | "failed" = "success";
+  let ctx;
+  try {
+    ctx = await executeWorkflow(
+      workflow.nodes as WorkflowNode[],
+      workflow.edges as WorkflowEdge[],
+      triggerData,
+      connectionsMap,
+      id,
+      workflow.org_id as string | undefined
+    );
+    if (ctx.logs.some((l) => l.status === "error")) finalStatus = "failed";
+  } catch (err) {
+    finalStatus = "failed";
+    ctx = { logs: [{ node_id: "webhook", node_label: "Webhook", status: "error" as const, error: String(err), output: undefined }] };
+  }
+
+  if (execution) {
+    await supabase.from("executions").update({
+      status: finalStatus,
+      logs: ctx.logs,
+      finished_at: new Date().toISOString(),
+    }).eq("id", execution.id);
+  }
+
+  // If a Webhook Response node ran, return its configured body
+  const webhookResponseLog = ctx.logs.find(
+    (l) => l.node_label === "Webhook Response" && l.status === "success"
   );
   if (webhookResponseLog?.output) {
-    const { status: httpStatus = 200, body: responseBody = "" } = webhookResponseLog.output;
-    // Try to detect if body is JSON
-    let parsed: unknown = undefined;
+    const out = webhookResponseLog.output as { status?: number; body?: string };
+    const httpStatus = Number(out.status ?? 200);
+    const responseBody = out.body ?? "";
+    let parsed: unknown;
     try { parsed = JSON.parse(responseBody); } catch { /* not JSON */ }
-    if (parsed !== undefined) {
-      return NextResponse.json(parsed, { status: Number(httpStatus) });
-    }
-    return new Response(responseBody, {
-      status: Number(httpStatus),
-      headers: { "Content-Type": "text/plain" },
-    });
+    if (parsed !== undefined) return NextResponse.json(parsed, { status: httpStatus });
+    return new Response(responseBody, { status: httpStatus, headers: { "Content-Type": "text/plain" } });
   }
 
-  return NextResponse.json(data, { status: res.status });
+  return NextResponse.json({ status: finalStatus, logs: ctx.logs });
 }
 
 export async function GET(
@@ -127,10 +164,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const h = Object.fromEntries(_request.headers.entries());
-  const fwdProto = h["x-forwarded-proto"]?.split(",")[0] ?? "https";
-  const fwdHost  = h["x-forwarded-host"] ?? h["host"] ?? "localhost:3000";
-  const baseUrl  = process.env.NEXT_PUBLIC_APP_URL || `${fwdProto}://${fwdHost}`;
+  const h = _request.headers;
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
   return NextResponse.json({
     message: "Webhook endpoint ready",
     workflow_id: id,

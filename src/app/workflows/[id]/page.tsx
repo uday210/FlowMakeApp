@@ -513,7 +513,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
       {/* ── Top Bar ── */}
       <header className="flex items-center gap-3 px-4 h-14 border-b border-gray-200 bg-white z-20 flex-shrink-0">
         <button
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/workflows")}
           className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0"
         >
           <ArrowLeft size={16} />

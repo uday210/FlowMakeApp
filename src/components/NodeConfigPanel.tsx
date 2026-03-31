@@ -102,6 +102,7 @@ const NODE_OUTPUT_FIELDS: Record<string, { field: string; label: string }[]> = {
   action_merge:         [{ field: "merged", label: "Merged outputs" }],
   action_delay:         [{ field: "delayed_ms", label: "Actual delay ms" }],
   action_filter:        [{ field: "passed", label: "Filter passed" }],
+  action_logger:        [{ field: "label", label: "Log label" }, { field: "timestamp", label: "Timestamp" }, { field: "data", label: "Logged data" }],
 };
 
 // ─── Upstream node resolution ─────────────────────────────────────────────────
@@ -1099,13 +1100,18 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
   const [saved, setSaved] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [esignDocs, setEsignDocs] = useState<{ id: string; name: string }[]>([]);
+  const [secretNames, setSecretNames] = useState<string[]>([]);
 
   const nodeData = node?.data as unknown as NodeData | undefined;
   const def = nodeData ? NODE_DEF_MAP[nodeData.type] : null;
 
-  // Compute suggestions from upstream nodes
+  // Compute suggestions from upstream nodes + secrets
   const upstreamNodes = node ? getUpstreamNodes(node.id, allNodes, allEdges) : [];
-  const suggestions = buildSuggestions(upstreamNodes);
+  const baseSuggestions = buildSuggestions(upstreamNodes);
+  const suggestions: Suggestion[] = [
+    ...baseSuggestions,
+    ...secretNames.map((n) => ({ value: `secret.${n}`, label: `Secret: ${n}`, group: "Secrets" })),
+  ];
 
   useEffect(() => {
     if (nodeData) {
@@ -1128,6 +1134,15 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
       setConfig(cfg);
     }
   }, [node?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetch("/api/secrets")
+      .then((r) => r.json())
+      .then((data: { name: string }[]) => {
+        if (Array.isArray(data)) setSecretNames(data.map((s) => s.name));
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!def?.connectionType) return;

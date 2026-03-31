@@ -1,24 +1,37 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
+import { checkPlanLimit } from "@/lib/plan-limits";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data, error } = await ctx.admin
     .from("connections")
     .select("*")
+    .eq("org_id", ctx.orgId)
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
 
 export async function POST(request: Request) {
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const limitCheck = await checkPlanLimit(ctx.admin, ctx.orgId, "connections");
+  if (!limitCheck.allowed) {
+    return NextResponse.json(
+      { error: `Plan limit reached. Your ${limitCheck.plan} plan allows ${limitCheck.limit} connections. Upgrade to create more.` },
+      { status: 403 }
+    );
+  }
+
   const body = await request.json();
-  const { data, error } = await supabase
+  const { data, error } = await ctx.admin
     .from("connections")
-    .insert({ name: body.name, type: body.type, config: body.config ?? {} })
+    .insert({ name: body.name, type: body.type, config: body.config ?? {}, org_id: ctx.orgId })
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

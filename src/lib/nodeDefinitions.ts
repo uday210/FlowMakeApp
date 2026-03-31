@@ -247,6 +247,20 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
+    type: "action_logger",
+    label: "Logger",
+    description: "Log incoming data to the execution history for debugging",
+    category: "action",
+    subcategory: "Flow Control",
+    color: "#0ea5e9",
+    icon: "Terminal",
+    defaultConfig: { label: "", include_all: "true" },
+    configFields: [
+      { key: "label", label: "Log label (optional)", type: "text", placeholder: "e.g. After webhook input" },
+      { key: "include_all", label: "Log full input data", type: "select", options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }] },
+    ],
+  },
+  {
     type: "action_transform",
     label: "Transform",
     description: "Shape or extract data using a JSON template",

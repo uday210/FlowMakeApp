@@ -41,9 +41,12 @@ interface Props {
   fieldValues: Record<string, string>;
   onFieldClick: (fieldId: string) => void;
   onFieldValueChange: (fieldId: string, value: string) => void;
+  // Previous signers' fields shown as read-only overlays
+  readOnlyFields?: EsignField[];
+  readOnlyValues?: Record<string, string>;
 }
 
-export default function PDFSigningViewer({ fileUrl, fields, fieldValues, onFieldClick, onFieldValueChange }: Props) {
+export default function PDFSigningViewer({ fileUrl, fields, fieldValues, onFieldClick, onFieldValueChange, readOnlyFields = [], readOnlyValues = {} }: Props) {
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [pageDims, setPageDims] = useState<Record<number, { w: number; h: number }>>({});
@@ -84,6 +87,33 @@ export default function PDFSigningViewer({ fileUrl, fields, fieldValues, onField
               width={containerWidth}
               onRendered={(w, h) => setPageDims((p) => ({ ...p, [pageNum]: { w, h } }))}
             />
+
+            {/* Read-only overlays for previous signers */}
+            {readOnlyFields.filter((f) => f.page === pageNum).map((field) => {
+              const value = readOnlyValues[field.id];
+              const dim = pageDims[pageNum];
+              return (
+                <div
+                  key={`ro-${field.id}`}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `${field.x}%`,
+                    top: `${field.y}%`,
+                    width: `${field.width}%`,
+                    height: dim ? `${(field.height / 100) * dim.h}px` : `${field.height}%`,
+                    zIndex: 9,
+                  }}
+                >
+                  {value?.startsWith("data:image") ? (
+                    <img src={value} alt="prev-sig" className="max-h-full max-w-full object-contain p-0.5 opacity-80" />
+                  ) : value ? (
+                    <div className="w-full h-full flex items-center px-1 text-xs text-gray-600 bg-gray-50/70 border border-gray-200 rounded">
+                      {value}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
 
             {fields.filter((f) => f.page === pageNum).map((field) => {
               const Icon = FIELD_ICONS[field.type];

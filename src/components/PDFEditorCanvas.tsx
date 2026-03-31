@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import PDFPageCanvas from "./PDFPageCanvas";
-import { PenLine, Type, Calendar, AlignLeft, GripVertical } from "lucide-react";
+import { PenLine, Type, Calendar, AlignLeft, GripVertical, X } from "lucide-react";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
@@ -43,12 +43,14 @@ interface Props {
   onPlaceField: (page: number, x: number, y: number) => void;
   onUpdateField: (field: EsignField) => void;
   onSelectField: (id: string | null) => void;
+  onDeleteField?: (id: string) => void;
   onPageCountChange: (n: number) => void;
+  signerColors?: Record<string, string>;
 }
 
 export default function PDFEditorCanvas({
   fileUrl, fields, activeTool, selectedField,
-  onPlaceField, onUpdateField, onSelectField, onPageCountChange,
+  onPlaceField, onUpdateField, onSelectField, onDeleteField, onPageCountChange, signerColors = {},
 }: Props) {
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
@@ -66,6 +68,19 @@ export default function PDFEditorCanvas({
     if (containerRef.current) obs.observe(containerRef.current);
     return () => obs.disconnect();
   }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedField && onDeleteField) {
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        e.preventDefault();
+        onDeleteField(selectedField);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedField, onDeleteField]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,7 +144,7 @@ export default function PDFEditorCanvas({
 
             {fields.filter((f) => f.page === pageNum).map((field) => {
               const Icon = FIELD_ICONS[field.type];
-              const color = FIELD_COLORS[field.type];
+              const signerColor = signerColors[field.signer_email] || FIELD_COLORS[field.type];
               const isSelected = selectedField === field.id;
               return (
                 <div
@@ -140,19 +155,30 @@ export default function PDFEditorCanvas({
                   style={{
                     left: `${field.x}%`, top: `${field.y}%`,
                     width: `${field.width}%`, height: `${field.height}%`,
-                    border: `2px solid ${color}`,
-                    backgroundColor: `${color}33`,
+                    border: `2px ${isSelected ? "solid" : "dashed"} ${signerColor}`,
+                    backgroundColor: `${signerColor}22`,
                     borderRadius: 4, cursor: "move", zIndex: isSelected ? 20 : 10,
-                    boxShadow: isSelected ? `0 0 0 2px ${color}88` : undefined,
+                    boxShadow: isSelected ? `0 0 0 2px ${signerColor}55` : undefined,
                   }}
                 >
-                  <div className="flex items-center gap-1 px-1 h-full overflow-hidden pointer-events-none" style={{ color }}>
+                  <div className="flex items-center gap-1 px-1 h-full overflow-hidden pointer-events-none" style={{ color: signerColor }}>
                     <Icon size={10} className="flex-shrink-0" />
                     <span className="text-[9px] font-semibold truncate leading-none">{field.label}</span>
                     {field.signer_email && (
                       <span className="text-[8px] opacity-70 truncate ml-auto">{field.signer_email.split("@")[0]}</span>
                     )}
                   </div>
+                  {/* Delete button on hover */}
+                  {onDeleteField && (
+                    <button
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onDeleteField(field.id); }}
+                      className="absolute -top-2.5 -right-2.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-30"
+                    >
+                      <X size={8} />
+                    </button>
+                  )}
+                  {/* Resize handle */}
                   <div
                     onMouseDown={(e) => {
                       e.stopPropagation();
@@ -164,7 +190,7 @@ export default function PDFEditorCanvas({
                       window.addEventListener("mousemove", mm); window.addEventListener("mouseup", mu);
                     }}
                     className="absolute bottom-0 right-0 cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ color }}
+                    style={{ color: signerColor }}
                   >
                     <GripVertical size={10} />
                   </div>

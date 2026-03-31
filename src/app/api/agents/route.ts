@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
+import { checkPlanLimit } from "@/lib/plan-limits";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +23,13 @@ const DEFAULT_APPEARANCE = {
 };
 
 export async function GET() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data, error } = await ctx.admin
     .from("chatbots")
     .select("*")
+    .eq("org_id", ctx.orgId)
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -33,10 +37,20 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabase
+  const limitCheck = await checkPlanLimit(ctx.admin, ctx.orgId, "agents");
+  if (!limitCheck.allowed) {
+    return NextResponse.json(
+      { error: `Plan limit reached. Your ${limitCheck.plan} plan allows ${limitCheck.limit} AI agents. Upgrade to create more.` },
+      { status: 403 }
+    );
+  }
+
+  const body = await req.json();
+
+  const { data, error } = await ctx.admin
     .from("chatbots")
     .insert({
       name: body.name,
@@ -52,6 +66,7 @@ export async function POST(req: Request) {
       appearance: body.appearance ?? DEFAULT_APPEARANCE,
       starter_questions: body.starter_questions ?? [],
       is_active: body.is_active ?? true,
+      org_id: ctx.orgId,
     })
     .select()
     .single();

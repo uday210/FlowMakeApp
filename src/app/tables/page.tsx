@@ -637,16 +637,19 @@ export default function TablesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(tableData),
       });
-      const updated = await res.json();
-      setTables(prev => prev.map(t => t.id === updated.id ? updated : t));
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to update table");
+      // Refresh from DB to ensure we always show accurate saved state
+      load();
     } else {
       const res = await fetch("/api/tables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(tableData),
       });
-      const created = await res.json();
-      setTables(prev => [created, ...prev]);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to create table");
+      setTables(prev => [json, ...prev]);
     }
   };
 

@@ -16,6 +16,7 @@
     "@mistralai/mistralai": "^2.1.2",
     "@modelcontextprotocol/sdk": "^1.28.0",
     "@pinecone-database/pinecone": "^7.1.0",
+    "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.100.1",
     "@types/amqplib": "^0.10.8",
     "@types/ioredis": "^4.28.10",

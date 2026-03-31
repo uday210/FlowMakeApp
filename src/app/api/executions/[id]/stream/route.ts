@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { NextRequest, NextResponse } from "next/server";
+import { getOrgContext } from "@/lib/auth";
 
 const POLL_INTERVAL_MS = 500;
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -10,12 +10,15 @@ export async function GET(
 ) {
   const { id } = await context.params;
 
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { admin, orgId } = ctx;
   const encoder = new TextEncoder();
   let isClosed = false;
 
   const stream = new ReadableStream({
     async start(controller) {
-      const supabase = createServerClient();
       const startTime = Date.now();
 
       // Track how many log entries we've already sent
@@ -51,10 +54,11 @@ export async function GET(
         }
 
         try {
-          const { data: execution } = await supabase
+          const { data: execution } = await admin
             .from("executions")
-            .select("status, logs")
+            .select("status, logs, workflow_id, workflows!inner(org_id)")
             .eq("id", id)
+            .eq("workflows.org_id", orgId)
             .single();
 
           if (!execution) {

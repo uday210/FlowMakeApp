@@ -17,6 +17,7 @@ export type NodeType =
   | "action_openai"
   | "action_delay"
   | "action_filter"
+  | "action_logger"
   | "action_transform"
   | "action_github"
   | "action_notion"

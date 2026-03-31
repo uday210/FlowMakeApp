@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, use } from "react";
 import dynamic from "next/dynamic";
-import { CheckCircle, PenLine, Type, RotateCcw, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle, PenLine, Type, RotateCcw, Loader2, AlertCircle, Clock, User } from "lucide-react";
 
 const PDFSigningViewer = dynamic(() => import("@/components/PDFSigningViewer"), { ssr: false });
 
@@ -19,6 +19,16 @@ interface EsignField {
   required: boolean;
 }
 
+interface PreviousSignature {
+  signer_name: string;
+  signer_email: string;
+  signing_order: number;
+  fields_data: Record<string, string>;
+  signature_data: string | null;
+  signature_type: string | null;
+  signed_at: string;
+}
+
 interface EsignRequest {
   id: string;
   token: string;
@@ -27,8 +37,11 @@ interface EsignRequest {
   document_content: string;
   signer_email: string;
   signer_name: string;
+  signer_role: string | null;
   status: string;
   signed_at: string | null;
+  signing_order: number;
+  previous_signatures: PreviousSignature[];
 }
 
 type SignMode = "draw" | "type";
@@ -39,6 +52,8 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
   const [req, setReq] = useState<EsignRequest | null>(null);
   const [docFileUrl, setDocFileUrl] = useState<string | null>(null);
   const [fields, setFields] = useState<EsignField[]>([]);
+  const [readOnlyFields, setReadOnlyFields] = useState<EsignField[]>([]);
+  const [readOnlyValues, setReadOnlyValues] = useState<Record<string, string>>({});
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -59,8 +74,9 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
       .then(async (data: EsignRequest) => {
         setReq(data);
         if (data.status === "signed") { setDone(true); return; }
+        // waiting — don't load doc, just show the waiting screen
+        if (data.status === "waiting") return;
 
-        // If this request is linked to a document, load it
         if (data.document_id) {
           const [docRes, fieldsRes] = await Promise.all([
             fetch(`/api/documents/${data.document_id}`),
@@ -72,17 +88,49 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
           }
           if (fieldsRes.ok) {
             const allFields: EsignField[] = await fieldsRes.json();
-            // Show fields assigned to this signer OR unassigned fields (empty signer_email)
-            const myFields = allFields.filter(
-              (f) => !f.signer_email || f.signer_email === data.signer_email
-            );
+
+            // Fields for this signer only.
+            // Matches by email directly, OR by role (for template documents).
+            // If no fields have any signer assigned (old doc), fall back to all fields.
+            const hasAssignedFields = allFields.some((f) => f.signer_email);
+            const myFields = hasAssignedFields
+              ? allFields.filter((f) =>
+                  f.signer_email === data.signer_email ||
+                  (data.signer_role && f.signer_email === data.signer_role)
+                )
+              : allFields;
             setFields(myFields);
+
             // Pre-fill date fields
             const initial: Record<string, string> = {};
             myFields.forEach((f) => {
               if (f.type === "date") initial[f.id] = new Date().toISOString().slice(0, 10);
             });
             setFieldValues(initial);
+
+            // Build read-only overlays from previous signatures
+            if (data.previous_signatures?.length > 0) {
+              const prevEmails = new Set(data.previous_signatures.map((p) => p.signer_email));
+              const prevFields = allFields.filter((f) => f.signer_email && prevEmails.has(f.signer_email));
+              setReadOnlyFields(prevFields);
+
+              // Merge all previous field values
+              const prevValues: Record<string, string> = {};
+              for (const prev of data.previous_signatures) {
+                Object.assign(prevValues, prev.fields_data);
+                // If no fields_data but has a simple signature, apply to their signature fields
+                if (Object.keys(prev.fields_data).length === 0 && prev.signature_data &&
+                    (prev.signature_type === "draw" || prev.signature_type === "type")) {
+                  for (const f of prevFields) {
+                    if (f.signer_email === prev.signer_email &&
+                        (f.type === "signature" || f.type === "initials")) {
+                      prevValues[f.id] = prev.signature_data;
+                    }
+                  }
+                }
+              }
+              setReadOnlyValues(prevValues);
+            }
           }
         }
       })
@@ -143,7 +191,6 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
     return canvas.toDataURL("image/png");
   };
 
-  // For PDF mode: when a signature/initials field is clicked, we open the signature pad
   const handleFieldSign = (fieldId: string) => {
     setActiveFieldId(fieldId);
     hasDrawn.current = false;
@@ -165,14 +212,12 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
     const hasPdfFields = fields.length > 0;
 
     if (hasPdfFields) {
-      // Validate required fields
       const missing = fields.filter((f) => f.required && !fieldValues[f.id]);
       if (missing.length > 0) {
         setError(`Please complete all required fields: ${missing.map((f) => f.label).join(", ")}`);
         return;
       }
     } else {
-      // Simple signature pad mode
       if (mode === "draw" && !hasDrawn.current) { setError("Please draw your signature."); return; }
       if (mode === "type" && !typedName.trim()) { setError("Please type your name."); return; }
     }
@@ -180,7 +225,6 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
     setError("");
     setSubmitting(true);
 
-    // Auto-apply drawn/typed signature to any unsigned signature or initials fields
     let finalFieldValues = { ...fieldValues };
     if (hasPdfFields) {
       const sigImage = getSignatureData();
@@ -193,9 +237,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
       }
     }
 
-    const signatureData = hasPdfFields
-      ? JSON.stringify(finalFieldValues)
-      : getSignatureData();
+    const signatureData = hasPdfFields ? JSON.stringify(finalFieldValues) : getSignatureData();
 
     try {
       const res = await fetch(`/api/esign/${token}/sign`, {
@@ -217,6 +259,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
     }
   };
 
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Loader2 className="animate-spin text-gray-400" size={32} />
@@ -233,6 +276,42 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
     </div>
   );
 
+  // ── Waiting — not your turn yet ───────────────────────────────────────────────
+  if (req.status === "waiting") return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-10 max-w-md w-full text-center space-y-4">
+        <div className="w-14 h-14 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto">
+          <Clock className="text-amber-500" size={28} />
+        </div>
+        <h1 className="text-xl font-semibold text-gray-800">Waiting for previous signers</h1>
+        <p className="text-sm text-gray-500">
+          You are signer <strong>#{req.signing_order}</strong> on <strong>{req.document_title}</strong>.
+          You will receive a notification once it's your turn to sign.
+        </p>
+        {req.previous_signatures?.length > 0 && (
+          <div className="text-left border-t border-gray-100 pt-4 space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Signing progress</p>
+            {req.previous_signatures.map((p) => (
+              <div key={p.signer_email} className="flex items-center gap-2 text-sm">
+                <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
+                <span className="text-gray-700">{p.signer_name || p.signer_email}</span>
+                <span className="text-xs text-gray-400 ml-auto">
+                  {new Date(p.signed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center gap-2 text-sm">
+              <Clock size={14} className="text-amber-400 flex-shrink-0" />
+              <span className="text-gray-500 font-medium">You (#{req.signing_order})</span>
+              <span className="text-xs text-amber-500 ml-auto">Waiting</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Already signed ────────────────────────────────────────────────────────────
   if (done) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 max-w-md w-full text-center space-y-4">
@@ -246,6 +325,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
   );
 
   const hasPdfFields = fields.length > 0;
+  const prevSigners = req.previous_signatures ?? [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -256,12 +336,55 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
         </div>
         <div className="text-right">
           <p className="text-sm font-medium text-gray-800">{req.document_title}</p>
-          <p className="text-xs text-gray-400">Signing as {req.signer_email}</p>
+          <p className="text-xs text-gray-400">
+            Signer #{req.signing_order} · {req.signer_email}
+          </p>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
-        {/* Always show PDF if available, otherwise show text content */}
+
+        {/* Previous signers progress banner */}
+        {prevSigners.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 shadow-sm">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+              Signing Progress — Previous Signatures
+            </p>
+            <div className="space-y-2">
+              {prevSigners.map((p) => (
+                <div key={p.signer_email} className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle size={13} className="text-green-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-gray-800">{p.signer_name || p.signer_email}</span>
+                    <span className="text-xs text-gray-400 ml-2">{p.signer_email}</span>
+                  </div>
+                  <span className="text-xs text-gray-400 flex-shrink-0">
+                    Signed {new Date(p.signed_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                </div>
+              ))}
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <User size={13} className="text-indigo-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-gray-800">{req.signer_name || req.signer_email}</span>
+                  <span className="text-xs text-indigo-500 ml-2 font-semibold">← You</span>
+                </div>
+                <span className="text-xs text-indigo-500 font-semibold flex-shrink-0">Signing now</span>
+              </div>
+            </div>
+            {readOnlyFields.length > 0 && (
+              <p className="text-[11px] text-gray-400 mt-3 border-t border-gray-100 pt-2">
+                Previous signatures are shown as read-only overlays on the document below.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* PDF / document */}
         {docFileUrl ? (
           <PDFSigningViewer
             fileUrl={docFileUrl}
@@ -269,6 +392,8 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
             fieldValues={fieldValues}
             onFieldClick={handleFieldSign}
             onFieldValueChange={handleFieldValueChange}
+            readOnlyFields={readOnlyFields}
+            readOnlyValues={readOnlyValues}
           />
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -281,7 +406,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
           </div>
         )}
 
-        {/* Signature pad — always shown unless all fields are inline (pdf fields with no active field) */}
+        {/* Signature pad */}
         {(!hasPdfFields || activeFieldId) && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-semibold text-gray-700">

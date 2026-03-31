@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
 
 export async function GET(
   _req: NextRequest,
@@ -7,9 +7,14 @@ export async function GET(
 ) {
   try {
     const { id, versionId } = await context.params;
-    const supabase = createServerClient();
+    const ctx = await getOrgContext();
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data, error } = await supabase
+    // Verify workflow belongs to this org
+    const { data: wf } = await ctx.admin.from("workflows").select("id").eq("id", id).eq("org_id", ctx.orgId).single();
+    if (!wf) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const { data, error } = await ctx.admin
       .from("workflow_versions")
       .select("id, workflow_id, version_number, snapshot, created_at")
       .eq("workflow_id", id)

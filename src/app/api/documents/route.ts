@@ -1,22 +1,28 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data, error } = await ctx.admin
     .from("esign_documents")
     .select("*")
+    .eq("org_id", ctx.orgId)
     .order("created_at", { ascending: false });
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
 
 export async function POST(request: Request) {
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await request.json();
-  const { data, error } = await supabase
+  const { data, error } = await ctx.admin
     .from("esign_documents")
     .insert({
       name: body.name,
@@ -24,9 +30,11 @@ export async function POST(request: Request) {
       file_url: body.file_url,
       page_count: body.page_count || 1,
       status: "draft",
+      org_id: ctx.orgId,
     })
     .select()
     .single();
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }

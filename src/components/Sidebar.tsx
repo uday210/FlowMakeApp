@@ -58,6 +58,7 @@ const SUBCATEGORY_MAP: Record<string, string> = {
   action_switch:           "Flow Control",
   action_filter:           "Flow Control",
   action_delay:            "Flow Control",
+  action_logger:           "Flow Control",
   action_transform:        "Flow Control",
   action_iterator:         "Flow Control",
   action_set_variable:     "Flow Control",

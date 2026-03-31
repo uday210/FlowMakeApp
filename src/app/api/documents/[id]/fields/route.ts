@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,8 +7,14 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
   const { id } = await params;
-  const supabase = createServerClient();
-  const { data, error } = await supabase
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Verify document belongs to this org
+  const { data: doc } = await ctx.admin.from("esign_documents").select("id").eq("id", id).eq("org_id", ctx.orgId).single();
+  if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const { data, error } = await ctx.admin
     .from("esign_fields")
     .select("*")
     .eq("document_id", id)
@@ -19,15 +25,21 @@ export async function GET(_req: Request, { params }: Params) {
 
 export async function PUT(request: Request, { params }: Params) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Verify document belongs to this org
+  const { data: doc } = await ctx.admin.from("esign_documents").select("id").eq("id", id).eq("org_id", ctx.orgId).single();
+  if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const { fields } = await request.json() as { fields: Record<string, unknown>[] };
 
   // Replace all fields for this document
-  await supabase.from("esign_fields").delete().eq("document_id", id);
+  await ctx.admin.from("esign_fields").delete().eq("document_id", id);
 
   if (fields.length > 0) {
     const rows = fields.map((f) => ({ ...f, document_id: id }));
-    const { error } = await supabase.from("esign_fields").insert(rows);
+    const { error } = await ctx.admin.from("esign_fields").insert(rows);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

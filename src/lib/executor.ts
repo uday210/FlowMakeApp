@@ -6,6 +6,7 @@ export interface ExecutionContext {
   nodeOutputs: Record<string, unknown>;
   logs: ExecutionLog[];
   workflowId?: string;
+  orgId?: string;
   variables: Record<string, unknown>;
   secrets: Record<string, string>;
 }
@@ -181,6 +182,18 @@ async function executeNodeOnce(
         let parsed: unknown = reply;
         if (String(config.json_mode) === "true") { try { parsed = JSON.parse(reply); } catch { /* keep raw */ } }
         output = { reply, parsed, model, usage: data.usage };
+        break;
+      }
+
+      case "action_logger": {
+        const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
+        const logLabel = (config.label as string) || "Logger";
+        const includeAll = config.include_all !== "false";
+        output = {
+          label: logLabel,
+          timestamp: new Date().toISOString(),
+          ...(includeAll ? { data: allData } : {}),
+        };
         break;
       }
 
@@ -1344,7 +1357,8 @@ async function executeNodeOnce(
 
       case "action_data_store": {
         const supabase = createServerClient();
-        const workflowId = ctx.workflowId || "global";
+        const orgId = ctx.orgId || "unknown";
+        const storeName = (config.store as string) || "default";
         const action = config.action as string;
         const allData = { ...ctx.triggerData, ...ctx.nodeOutputs };
         const interpolate = (str: string) =>
@@ -1361,16 +1375,22 @@ async function executeNodeOnce(
         const key = interpolate(config.key as string || "");
         if (action === "set") {
           const value = interpolate(config.value as string || "");
-          await supabase.from("workflow_data_store").upsert({ workflow_id: workflowId, key, value }, { onConflict: "workflow_id,key" });
+          await supabase.from("workflow_data").upsert(
+            { org_id: orgId, store: storeName, key, value, updated_at: new Date().toISOString() },
+            { onConflict: "org_id,store,key" }
+          );
           output = { action: "set", key, value };
         } else if (action === "get") {
-          const { data } = await supabase.from("workflow_data_store").select("value").eq("workflow_id", workflowId).eq("key", key).single();
+          const { data } = await supabase.from("workflow_data").select("value")
+            .eq("org_id", orgId).eq("store", storeName).eq("key", key).single();
           output = { action: "get", key, value: data?.value ?? null, found: !!data };
         } else if (action === "delete") {
-          await supabase.from("workflow_data_store").delete().eq("workflow_id", workflowId).eq("key", key);
+          await supabase.from("workflow_data").delete()
+            .eq("org_id", orgId).eq("store", storeName).eq("key", key);
           output = { action: "delete", key };
         } else if (action === "list") {
-          const { data } = await supabase.from("workflow_data_store").select("key,value").eq("workflow_id", workflowId);
+          const { data } = await supabase.from("workflow_data").select("key,value")
+            .eq("org_id", orgId).eq("store", storeName);
           output = { action: "list", entries: data ?? [], count: data?.length ?? 0 };
         }
         break;
@@ -1763,13 +1783,13 @@ async function executeNodeOnce(
                 toolResult = await fn(allData, ctx.variables);
               } else if (toolName === "data_store_get") {
                 const supabase = createServerClient();
-                const { data } = await supabase.from("workflow_data_store")
-                  .select("value").eq("workflow_id", ctx.workflowId || "global").eq("key", toolInput.key as string).single();
+                const { data } = await supabase.from("workflow_data")
+                  .select("value").eq("org_id", ctx.orgId || "unknown").eq("store", "default").eq("key", toolInput.key as string).single();
                 toolResult = { key: toolInput.key, value: data?.value ?? null };
               } else if (toolName === "data_store_set") {
                 const supabase = createServerClient();
-                await supabase.from("workflow_data_store")
-                  .upsert({ workflow_id: ctx.workflowId || "global", key: toolInput.key as string, value: toolInput.value as string }, { onConflict: "workflow_id,key" });
+                await supabase.from("workflow_data")
+                  .upsert({ org_id: ctx.orgId || "unknown", store: "default", key: toolInput.key as string, value: toolInput.value as string, updated_at: new Date().toISOString() }, { onConflict: "org_id,store,key" });
                 toolResult = { key: toolInput.key, saved: true };
               } else {
                 toolResult = { error: `Unknown tool: ${toolName}` };
@@ -3318,13 +3338,16 @@ export async function executeWorkflow(
   edges: WorkflowEdge[],
   triggerData: Record<string, unknown> = {},
   connections: Record<string, Record<string, unknown>> = {},
-  workflowId?: string
+  workflowId?: string,
+  orgId?: string
 ): Promise<ExecutionContext> {
   // Load secrets from Supabase for {{secret.NAME}} interpolation
   let secrets: Record<string, string> = {};
   try {
     const supabase = createServerClient();
-    const { data } = await supabase.from("workflow_secrets").select("name, value");
+    let q = supabase.from("workflow_secrets").select("name, value");
+    if (orgId) q = q.eq("org_id", orgId);
+    const { data } = await q;
     if (data) secrets = Object.fromEntries(data.map((r: { name: string; value: string }) => [r.name, r.value]));
   } catch { /* secrets table may not exist yet */ }
 
@@ -3333,6 +3356,7 @@ export async function executeWorkflow(
     nodeOutputs: {},
     logs: [],
     workflowId,
+    orgId,
     variables: {},
     secrets,
   };

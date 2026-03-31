@@ -73,7 +73,8 @@ export async function POST(
       workflow.edges as WorkflowEdge[],
       triggerData,
       connectionsMap,
-      id
+      id,
+      workflow.org_id as string | undefined
     );
     const hasError = ctx.logs.some((l) => l.status === "error");
     if (hasError) finalStatus = "failed";

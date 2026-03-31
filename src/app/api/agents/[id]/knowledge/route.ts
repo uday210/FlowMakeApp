@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -59,9 +59,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabase
+  // Verify agent belongs to this org
+  const { data: agent } = await ctx.admin.from("chatbots").select("id").eq("id", id).eq("org_id", ctx.orgId).single();
+  if (!agent) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const { data, error } = await ctx.admin
     .from("agent_knowledge_chunks")
     .select("filename, chunk_index")
     .eq("agent_id", id)
@@ -85,6 +90,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
@@ -135,9 +142,12 @@ export async function POST(
     embeddings.push(...vecs);
   }
 
+  // Verify agent belongs to this org
+  const { data: agentCheck } = await ctx.admin.from("chatbots").select("id").eq("id", id).eq("org_id", ctx.orgId).single();
+  if (!agentCheck) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   // Delete existing chunks for this file (re-upload replaces)
-  const supabase = createServerClient();
-  await supabase
+  await ctx.admin
     .from("agent_knowledge_chunks")
     .delete()
     .eq("agent_id", id)
@@ -152,7 +162,7 @@ export async function POST(
     chunk_index: i,
   }));
 
-  const { error: insertError } = await supabase
+  const { error: insertError } = await ctx.admin
     .from("agent_knowledge_chunks")
     .insert(rows);
 
@@ -170,12 +180,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const url = new URL(req.url);
   const filename = url.searchParams.get("filename");
   if (!filename) return NextResponse.json({ error: "filename required" }, { status: 400 });
 
-  const supabase = createServerClient();
-  const { error } = await supabase
+  // Verify agent belongs to this org
+  const { data: agent } = await ctx.admin.from("chatbots").select("id").eq("id", id).eq("org_id", ctx.orgId).single();
+  if (!agent) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const { error } = await ctx.admin
     .from("agent_knowledge_chunks")
     .delete()
     .eq("agent_id", id)

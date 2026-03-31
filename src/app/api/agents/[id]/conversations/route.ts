@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,9 +8,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabase
+  // Verify agent belongs to this org
+  const { data: agent } = await ctx.admin.from("chatbots").select("id").eq("id", id).eq("org_id", ctx.orgId).single();
+  if (!agent) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const { data, error } = await ctx.admin
     .from("agent_conversations")
     .select("*")
     .eq("agent_id", id)
@@ -27,9 +32,14 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabase
+  // Verify agent belongs to this org
+  const { data: agent } = await ctx.admin.from("chatbots").select("id").eq("id", id).eq("org_id", ctx.orgId).single();
+  if (!agent) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const { data, error } = await ctx.admin
     .from("agent_conversations")
     .insert({
       agent_id: id,

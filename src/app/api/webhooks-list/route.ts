@@ -1,18 +1,24 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const supabase = createServerClient();
-  const { data: workflows, error } = await supabase
+export async function GET(request: Request) {
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: workflows, error } = await ctx.admin
     .from("workflows")
     .select("id, name, nodes")
+    .eq("org_id", ctx.orgId)
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const { headers } = request;
+  const proto = headers.get("x-forwarded-proto") ?? (headers.get("host")?.includes("localhost") ? "http" : "https");
+  const host = headers.get("x-forwarded-host") ?? headers.get("host") ?? "localhost:3000";
+  const appUrl = `${proto}://${host}`;
 
   const webhooks = (workflows ?? []).flatMap((wf: { id: string; name: string; nodes: unknown }) => {
     const nodes: Array<{ id: string; data: { type: string; label: string; config: Record<string, unknown> } }> =

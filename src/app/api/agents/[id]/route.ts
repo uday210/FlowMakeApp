@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +8,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabase
+  const { data, error } = await ctx.admin
     .from("chatbots")
     .select("*")
     .eq("id", id)
+    .eq("org_id", ctx.orgId)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 });
@@ -26,7 +28,8 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Build update object with only provided fields
   const updateData: Record<string, unknown> = {};
@@ -45,10 +48,11 @@ export async function PUT(
   if (body.starter_questions !== undefined) updateData.starter_questions = body.starter_questions;
   if (body.is_active !== undefined) updateData.is_active = body.is_active;
 
-  const { data, error } = await supabase
+  const { data, error } = await ctx.admin
     .from("chatbots")
     .update(updateData)
     .eq("id", id)
+    .eq("org_id", ctx.orgId)
     .select()
     .single();
 
@@ -61,9 +65,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { error } = await supabase.from("chatbots").delete().eq("id", id);
+  const { error } = await ctx.admin
+    .from("chatbots")
+    .delete()
+    .eq("id", id)
+    .eq("org_id", ctx.orgId);
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

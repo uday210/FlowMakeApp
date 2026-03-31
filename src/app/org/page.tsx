@@ -8,9 +8,19 @@ import {
   Receipt, Puzzle, Variable, Settings2, Bell, Bot,
   TrendingUp, AlertTriangle, CheckCircle2, Clock,
   ArrowRight, Zap, Sparkles, ChevronRight, RefreshCw,
-  Activity,
+  Activity, Globe, Loader2, Save, Infinity, KeyRound, Plug2,
+  Table2, Check, Crown,
 } from "lucide-react";
+import { PLAN_LIMITS, PLAN_LABELS, type PlanName, type ResourceKey } from "@/lib/plan-limits";
 import type { Execution } from "@/lib/types";
+
+interface Org {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  timezone: string;
+}
 
 // ─── Left Sidebar Nav ─────────────────────────────────────────────────────────
 
@@ -19,6 +29,7 @@ const ORG_NAV = [
     section: "Organization",
     items: [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { id: "settings", label: "Settings", icon: Settings2 },
       { id: "teams", label: "Teams", icon: Users },
       { id: "users", label: "Users", icon: UserCircle },
     ],
@@ -36,7 +47,6 @@ const ORG_NAV = [
     items: [
       { id: "installed-apps", label: "Installed apps", icon: Puzzle },
       { id: "variables", label: "Variables", icon: Variable },
-      { id: "scenario-props", label: "Scenario properties", icon: Settings2 },
       { id: "notifications", label: "Notification options", icon: Bell },
     ],
   },
@@ -114,12 +124,20 @@ interface WorkflowRow {
   updated_at: string;
 }
 
+type UsageData = {
+  plan: PlanName;
+  limits: Record<ResourceKey, number | null>;
+  usage: Record<ResourceKey, number>;
+};
+
 export default function OrgDashboard() {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState("dashboard");
   const [workflows, setWorkflows] = useState<WorkflowRow[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [org, setOrg] = useState<Org | null>(null);
+  const [usageData, setUsageData] = useState<UsageData | null>(null);
 
   // Generate deterministic 30-day sparkline data (no Math.random — avoids hydration mismatch)
   const dailyUsageData = Array.from({ length: 30 }, (_, i) =>
@@ -127,13 +145,9 @@ export default function OrgDashboard() {
   );
 
   useEffect(() => {
-    // Load scenarios
-    fetch("/api/workflows")
-      .then(r => r.json())
-      .then(d => setWorkflows(Array.isArray(d) ? d : []))
-      .catch(() => {});
-
-    // Load recent executions across all workflows
+    fetch("/api/org").then(r => r.json()).then(d => { if (d && !d.error) setOrg(d); }).catch(() => {});
+    fetch("/api/workflows").then(r => r.json()).then(d => setWorkflows(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/org/usage").then(r => r.json()).then(d => { if (!d.error) setUsageData(d); }).catch(() => {});
     setLoading(false);
   }, []);
 
@@ -150,15 +164,42 @@ export default function OrgDashboard() {
   resetDate.setMonth(resetDate.getMonth() + 1);
   const daysUntilReset = Math.ceil((resetDate.getTime() - Date.now()) / 86400000);
 
+  if (activeNav === "settings") {
+    return (
+      <AppShell>
+        <div className="flex h-full overflow-hidden">
+          <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} org={org} />
+          <OrgSettings org={org} onSaved={setOrg} />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (activeNav === "subscription") {
+    return (
+      <AppShell>
+        <div className="flex h-full overflow-hidden">
+          <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} org={org} />
+          <SubscriptionPanel
+            usageData={usageData}
+            org={org}
+            onUpgraded={(plan) => {
+              setOrg(prev => prev ? { ...prev, plan } : prev);
+              fetch("/api/org/usage").then(r => r.json()).then(d => { if (!d.error) setUsageData(d); });
+            }}
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
   if (activeNav !== "dashboard") {
     return (
       <AppShell>
         <div className="flex h-full">
-          <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} />
+          <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} org={org} />
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-gray-400 text-sm">This section is coming soon.</p>
-            </div>
+            <p className="text-gray-400 text-sm">This section is coming soon.</p>
           </div>
         </div>
       </AppShell>
@@ -169,7 +210,7 @@ export default function OrgDashboard() {
     <AppShell>
       <div className="flex h-full overflow-hidden">
         {/* Left org sidebar */}
-        <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} />
+        <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} org={org} />
 
         {/* Main content */}
         <div className="flex-1 overflow-y-auto bg-[#f8f9fc]">
@@ -187,7 +228,7 @@ export default function OrgDashboard() {
                 <RefreshCw size={14} />
               </button>
               <button
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/workflows")}
                 className="flex items-center gap-2 text-xs font-semibold bg-violet-600 text-white px-4 py-2 rounded-xl hover:bg-violet-700 transition-colors"
               >
                 <Zap size={13} />
@@ -233,6 +274,9 @@ export default function OrgDashboard() {
               />
             </div>
 
+            {/* ── Plan usage strip ── */}
+            {usageData && <PlanUsageStrip usageData={usageData} onManage={() => setActiveNav("subscription")} />}
+
             {/* ── Scenarios that require attention ── */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
@@ -246,7 +290,7 @@ export default function OrgDashboard() {
                   )}
                 </div>
                 <button
-                  onClick={() => router.push("/")}
+                  onClick={() => router.push("/workflows")}
                   className="text-xs text-violet-500 hover:text-violet-700 flex items-center gap-1 font-medium"
                 >
                   View all <ChevronRight size={12} />
@@ -306,7 +350,7 @@ export default function OrgDashboard() {
                     Connect Claude, OpenAI, or Gemini to your workflows with built-in tool use and memory.
                   </p>
                   <button
-                    onClick={() => router.push("/")}
+                    onClick={() => router.push("/workflows")}
                     className="mt-4 flex items-center gap-2 bg-white text-violet-700 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-violet-50 transition-colors shadow-sm"
                   >
                     <Bot size={15} />
@@ -356,7 +400,7 @@ export default function OrgDashboard() {
                   <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{totalScenarios}</span>
                 </div>
                 <button
-                  onClick={() => router.push("/")}
+                  onClick={() => router.push("/workflows")}
                   className="text-xs text-violet-500 hover:text-violet-700 flex items-center gap-1 font-medium"
                 >
                   Manage <ChevronRight size={12} />
@@ -368,7 +412,7 @@ export default function OrgDashboard() {
                   <Zap size={28} className="text-gray-200" />
                   <p className="text-sm font-medium text-gray-500">No scenarios yet</p>
                   <button
-                    onClick={() => router.push("/")}
+                    onClick={() => router.push("/workflows")}
                     className="mt-1 text-xs text-violet-500 hover:underline"
                   >
                     Create your first scenario →
@@ -402,7 +446,7 @@ export default function OrgDashboard() {
                   {workflows.length > 8 && (
                     <div className="px-6 py-3 text-center">
                       <button
-                        onClick={() => router.push("/")}
+                        onClick={() => router.push("/workflows")}
                         className="text-xs text-violet-500 hover:text-violet-700 font-medium"
                       >
                         View all {workflows.length} scenarios →
@@ -420,25 +464,411 @@ export default function OrgDashboard() {
   );
 }
 
+// ─── Plan Usage Strip (dashboard widget) ─────────────────────────────────────
+
+const RESOURCE_META: { key: ResourceKey; label: string; icon: React.ElementType }[] = [
+  { key: "scenarios", label: "Scenarios", icon: Zap },
+  { key: "agents", label: "AI Agents", icon: Bot },
+  { key: "tables", label: "Tables", icon: Table2 },
+  { key: "connections", label: "Connections", icon: Plug2 },
+  { key: "members", label: "Members", icon: Users },
+];
+
+function PlanUsageStrip({ usageData, onManage }: { usageData: UsageData; onManage: () => void }) {
+  const plan = usageData.plan;
+  const planColors: Record<PlanName, string> = {
+    free: "bg-gray-100 text-gray-600",
+    starter: "bg-blue-100 text-blue-700",
+    pro: "bg-violet-100 text-violet-700",
+    enterprise: "bg-amber-100 text-amber-700",
+    unlimited: "bg-emerald-100 text-emerald-700",
+  };
+
+  const atLimit = RESOURCE_META.some(({ key }) => {
+    const limit = usageData.limits[key];
+    return limit !== null && usageData.usage[key] >= limit;
+  });
+
+  return (
+    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${atLimit ? "border-amber-200" : "border-gray-100"}`}>
+      <div className="flex items-center justify-between px-6 py-3.5 border-b border-gray-50">
+        <div className="flex items-center gap-2.5">
+          <CreditCard size={14} className="text-gray-400" />
+          <span className="text-sm font-semibold text-gray-800">Plan Usage</span>
+          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full capitalize ${planColors[plan]}`}>
+            {PLAN_LABELS[plan]}
+          </span>
+          {atLimit && (
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+              <AlertTriangle size={9} /> Limit reached
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onManage}
+          className="text-xs text-violet-500 hover:text-violet-700 font-medium flex items-center gap-1"
+        >
+          Manage plan <ChevronRight size={12} />
+        </button>
+      </div>
+      <div className="px-6 py-4 grid grid-cols-5 gap-4">
+        {RESOURCE_META.map(({ key, label, icon: Icon }) => {
+          const current = usageData.usage[key];
+          const limit = usageData.limits[key];
+          const pct = limit ? Math.min((current / limit) * 100, 100) : 0;
+          const isAtLimit = limit !== null && current >= limit;
+          const barColor = isAtLimit ? "bg-red-400" : pct >= 70 ? "bg-amber-400" : "bg-violet-400";
+
+          return (
+            <div key={key} className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                <Icon size={12} className="text-gray-400" /> {label}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-base font-bold ${isAtLimit ? "text-red-500" : "text-gray-900"}`}>{current}</span>
+                {limit === null ? (
+                  <Infinity size={13} className="text-emerald-500" />
+                ) : (
+                  <span className="text-xs text-gray-400">/ {limit}</span>
+                )}
+              </div>
+              {limit !== null && (
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Subscription Panel ───────────────────────────────────────────────────────
+
+const PLAN_PRICES: Record<PlanName, string> = {
+  free: "$0",
+  starter: "$19",
+  pro: "$49",
+  enterprise: "$199",
+  unlimited: "$499",
+};
+
+const PLAN_ORDER: PlanName[] = ["free", "starter", "pro", "enterprise", "unlimited"];
+
+const PLAN_HIGHLIGHTS: Record<PlanName, string[]> = {
+  free: ["5 Scenarios", "2 AI Agents", "2 Tables", "3 Connections", "2 Members"],
+  starter: ["20 Scenarios", "5 AI Agents", "10 Tables", "10 Connections", "5 Members"],
+  pro: ["100 Scenarios", "20 AI Agents", "50 Tables", "50 Connections", "25 Members"],
+  enterprise: ["500 Scenarios", "100 AI Agents", "200 Tables", "200 Connections", "100 Members"],
+  unlimited: ["Unlimited everything", "No restrictions", "All features", "Priority support", "Dedicated infra"],
+};
+
+function SubscriptionPanel({
+  usageData,
+  org,
+  onUpgraded,
+}: {
+  usageData: UsageData | null;
+  org: Org | null;
+  onUpgraded: (plan: string) => void;
+}) {
+  const [upgrading, setUpgrading] = useState<PlanName | null>(null);
+  const [error, setError] = useState("");
+
+  const currentPlan = (usageData?.plan ?? org?.plan ?? "free") as PlanName;
+  const currentIdx = PLAN_ORDER.indexOf(currentPlan);
+
+  const handleUpgrade = async (plan: PlanName) => {
+    setUpgrading(plan);
+    setError("");
+    try {
+      const res = await fetch("/api/org", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error ?? "Failed to update plan"); return; }
+      onUpgraded(plan);
+    } finally {
+      setUpgrading(null);
+    }
+  };
+
+  const planColors: Record<PlanName, { badge: string; ring: string; button: string }> = {
+    free: { badge: "bg-gray-100 text-gray-600", ring: "border-gray-200", button: "bg-gray-100 text-gray-600" },
+    starter: { badge: "bg-blue-100 text-blue-700", ring: "border-blue-200", button: "bg-blue-600 text-white" },
+    pro: { badge: "bg-violet-100 text-violet-700", ring: "border-violet-300", button: "bg-violet-600 text-white" },
+    enterprise: { badge: "bg-amber-100 text-amber-700", ring: "border-amber-300", button: "bg-amber-500 text-white" },
+    unlimited: { badge: "bg-emerald-100 text-emerald-700", ring: "border-emerald-300", button: "bg-emerald-600 text-white" },
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-[#f8f9fc]">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-100 px-8 py-4 sticky top-0 z-10">
+        <h1 className="text-lg font-bold text-gray-900">Subscription</h1>
+        <p className="text-xs text-gray-400 mt-0.5">Manage your plan and view resource usage</p>
+      </header>
+
+      <div className="px-8 py-6 space-y-8">
+        {/* Current plan + usage */}
+        {usageData && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center">
+                  <Crown size={17} className="text-violet-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900">Current Plan</p>
+                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full capitalize ${planColors[currentPlan].badge}`}>
+                    {PLAN_LABELS[currentPlan]}
+                  </span>
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-gray-900">
+                {PLAN_PRICES[currentPlan]}<span className="text-sm font-medium text-gray-400">/mo</span>
+              </p>
+            </div>
+
+            <div className="p-6">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Resource Usage</p>
+              <div className="grid grid-cols-2 gap-4">
+                {RESOURCE_META.map(({ key, label, icon: Icon }) => {
+                  const current = usageData.usage[key];
+                  const limit = usageData.limits[key];
+                  const pct = limit ? Math.min((current / limit) * 100, 100) : 0;
+                  const isAtLimit = limit !== null && current >= limit;
+                  const barColor = isAtLimit ? "bg-red-400" : pct >= 70 ? "bg-amber-400" : "bg-violet-500";
+
+                  return (
+                    <div key={key} className={`rounded-xl border p-4 ${isAtLimit ? "border-red-200 bg-red-50/30" : "border-gray-100 bg-gray-50/50"}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                          <Icon size={13} className="text-gray-400" /> {label}
+                        </div>
+                        {isAtLimit && <span className="text-[9px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded-full">LIMIT</span>}
+                      </div>
+                      <div className="flex items-baseline gap-1.5 mb-2">
+                        <span className={`text-xl font-bold ${isAtLimit ? "text-red-500" : "text-gray-900"}`}>{current}</span>
+                        {limit === null ? (
+                          <span className="text-xs text-emerald-500 flex items-center gap-0.5"><Infinity size={11} /> unlimited</span>
+                        ) : (
+                          <span className="text-xs text-gray-400">of {limit}</span>
+                        )}
+                      </div>
+                      {limit !== null && (
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
+
+        {/* Plan cards */}
+        <div>
+          <p className="text-sm font-bold text-gray-900 mb-1">Available Plans</p>
+          <p className="text-xs text-gray-400 mb-5">Upgrade or downgrade at any time. Changes take effect immediately.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {PLAN_ORDER.map((plan, idx) => {
+              const isCurrent = plan === currentPlan;
+              const isUpgrade = idx > currentIdx;
+              const colors = planColors[plan];
+
+              return (
+                <div
+                  key={plan}
+                  className={`relative bg-white rounded-2xl border-2 p-5 flex flex-col transition-all ${
+                    isCurrent ? `${colors.ring} shadow-md` : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  {isCurrent && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${colors.badge}`}>Current</span>
+                    </div>
+                  )}
+                  {plan === "pro" && !isCurrent && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-violet-600 text-white">Popular</span>
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <p className="text-sm font-bold text-gray-900 capitalize">{PLAN_LABELS[plan]}</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">
+                      {PLAN_PRICES[plan]}
+                      <span className="text-xs font-medium text-gray-400">/mo</span>
+                    </p>
+                  </div>
+
+                  <ul className="space-y-1.5 flex-1 mb-4">
+                    {PLAN_HIGHLIGHTS[plan].map(h => (
+                      <li key={h} className="flex items-center gap-1.5 text-xs text-gray-600">
+                        <Check size={11} className="text-green-500 flex-shrink-0" /> {h}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {isCurrent ? (
+                    <div className="flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-500 bg-gray-50 rounded-xl">
+                      <Check size={12} className="text-green-500" /> Active
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleUpgrade(plan)}
+                      disabled={upgrading !== null}
+                      className={`py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1.5 ${
+                        isUpgrade ? colors.button : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {upgrading === plan ? <Loader2 size={12} className="animate-spin" /> : null}
+                      {isUpgrade ? "Upgrade" : "Downgrade"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-400 text-center pb-4">
+          Payment processing coming soon. Plan changes are applied instantly for now.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Org Settings Panel ───────────────────────────────────────────────────────
+
+const TIMEZONES = [
+  "UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+  "America/Anchorage", "Pacific/Honolulu", "Europe/London", "Europe/Paris", "Europe/Berlin",
+  "Europe/Moscow", "Asia/Dubai", "Asia/Kolkata", "Asia/Dhaka", "Asia/Bangkok",
+  "Asia/Singapore", "Asia/Shanghai", "Asia/Tokyo", "Asia/Seoul", "Australia/Sydney",
+  "Pacific/Auckland",
+];
+
+function OrgSettings({ org, onSaved }: { org: Org | null; onSaved: (o: Org) => void }) {
+  const [name, setName] = useState(org?.name ?? "");
+  const [timezone, setTimezone] = useState(org?.timezone ?? "UTC");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (org) { setName(org.name); setTimezone(org.timezone); }
+  }, [org]);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setSaving(true); setError(""); setSaved(false);
+    const res = await fetch("/api/org", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), timezone }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) { setError(data.error ?? "Failed to save"); return; }
+    onSaved(data);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-[#f8f9fc] p-8">
+      <div className="max-w-xl">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Organization Settings</h2>
+        <p className="text-sm text-gray-400 mb-6">Manage your workspace name and preferences</p>
+
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Organization name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400 transition-all"
+              placeholder="Acme Inc."
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+              <Globe size={11} className="inline mr-1" />Timezone
+            </label>
+            <select
+              value={timezone}
+              onChange={e => setTimezone(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400 transition-all bg-white"
+            >
+              {TIMEZONES.map(tz => (
+                <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Plan</label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-violet-700 bg-violet-50 border border-violet-200 px-3 py-1 rounded-full capitalize">{org?.plan ?? "Free"}</span>
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+
+          <button
+            onClick={handleSave}
+            disabled={saving || !name.trim()}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition-all disabled:opacity-50 hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, #7c3aed, #ec4899)" }}
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {saved ? "Saved!" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Org Sidebar ──────────────────────────────────────────────────────────────
 
 function OrgSidebar({
   activeNav,
   setActiveNav,
+  org,
 }: {
   activeNav: string;
   setActiveNav: (id: string) => void;
+  org: Org | null;
 }) {
+  const initials = org?.name
+    ? org.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+    : "…";
+
   return (
     <aside className="w-56 bg-white border-r border-gray-100 flex flex-col py-4 flex-shrink-0 overflow-y-auto">
       <div className="px-4 mb-4">
         <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-          <div className="w-6 h-6 bg-violet-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-[9px] font-bold text-white">MY</span>
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-[9px] font-bold" style={{ background: "linear-gradient(135deg, #7c3aed, #ec4899)" }}>
+            {initials}
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-gray-800 truncate">My Organization</p>
-            <p className="text-[9px] text-gray-400">Free plan</p>
+            <p className="text-xs font-semibold text-gray-800 truncate">{org?.name ?? "Loading…"}</p>
+            <p className="text-[9px] text-gray-400 capitalize">{org?.plan ?? "Free"} plan</p>
           </div>
         </div>
       </div>

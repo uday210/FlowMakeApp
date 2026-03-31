@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
 import type { NodeType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -328,6 +328,9 @@ function buildWithRules(prompt: string): Blueprint {
 // ─── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { prompt } = await req.json();
   if (!prompt?.trim()) {
     return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
@@ -344,9 +347,8 @@ export async function POST(req: Request) {
     blueprint = buildWithRules(prompt.trim());
   }
 
-  // Persist to DB
-  const supabase = createServerClient();
-  const { data, error } = await supabase
+  // Persist to DB with org_id
+  const { data, error } = await ctx.admin
     .from("workflows")
     .insert({
       name: blueprint.name,
@@ -354,6 +356,7 @@ export async function POST(req: Request) {
       nodes: blueprint.nodes,
       edges: blueprint.edges,
       is_active: false,
+      org_id: ctx.orgId,
     })
     .select()
     .single();

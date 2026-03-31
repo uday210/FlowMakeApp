@@ -21,6 +21,13 @@ import {
   ShoppingCart,
   GitBranch,
   FileText,
+  Phone,
+  Calendar,
+  Table2,
+  Server,
+  Lock,
+  Activity,
+  Layers,
 } from "lucide-react";
 
 interface Connection {
@@ -32,17 +39,54 @@ interface Connection {
 }
 
 const SERVICE_TYPES = [
+  // AI
   { value: "openai", label: "OpenAI", icon: Bot, color: "bg-green-100 text-green-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
   { value: "anthropic", label: "Anthropic", icon: Bot, color: "bg-amber-100 text-amber-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  // Messaging / Email
   { value: "gmail", label: "Gmail / SMTP", icon: Mail, color: "bg-red-100 text-red-500", fields: [{ key: "email", label: "Email", type: "text" }, { key: "app_password", label: "App Password", type: "password" }] },
+  { value: "smtp", label: "SMTP", icon: Mail, color: "bg-blue-100 text-blue-600", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }] },
+  { value: "sendgrid", label: "SendGrid", icon: Mail, color: "bg-blue-100 text-blue-700", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "from_email", label: "From Email", type: "text" }] },
+  { value: "resend", label: "Resend", icon: Mail, color: "bg-indigo-100 text-indigo-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "from_email", label: "From Email", type: "text" }] },
+  { value: "mailgun", label: "Mailgun", icon: Mail, color: "bg-red-100 text-red-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "domain", label: "Domain", type: "text" }, { key: "from_email", label: "From Email", type: "text" }] },
+  { value: "postmark", label: "Postmark", icon: Mail, color: "bg-yellow-100 text-yellow-700", fields: [{ key: "server_token", label: "Server Token", type: "password" }, { key: "from_email", label: "From Email", type: "text" }] },
+  { value: "mailchimp", label: "Mailchimp", icon: Mail, color: "bg-yellow-100 text-yellow-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "server_prefix", label: "Server Prefix (e.g. us1)", type: "text" }] },
+  // Messaging Platforms
   { value: "slack", label: "Slack", icon: MessageSquare, color: "bg-yellow-100 text-yellow-600", fields: [{ key: "bot_token", label: "Bot Token", type: "password" }, { key: "channel", label: "Default Channel", type: "text" }] },
   { value: "discord", label: "Discord", icon: MessageSquare, color: "bg-indigo-100 text-indigo-600", fields: [{ key: "webhook_url", label: "Webhook URL", type: "text" }] },
-  { value: "airtable", label: "Airtable", icon: Database, color: "bg-cyan-100 text-cyan-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "base_id", label: "Base ID", type: "text" }] },
-  { value: "notion", label: "Notion", icon: FileText, color: "bg-gray-100 text-gray-700", fields: [{ key: "token", label: "Integration Token", type: "password" }] },
+  { value: "telegram", label: "Telegram", icon: MessageSquare, color: "bg-sky-100 text-sky-600", fields: [{ key: "bot_token", label: "Bot Token", type: "password" }, { key: "chat_id", label: "Default Chat ID", type: "text" }] },
+  { value: "whatsapp", label: "WhatsApp", icon: Phone, color: "bg-green-100 text-green-600", fields: [{ key: "phone_number_id", label: "Phone Number ID", type: "text" }, { key: "access_token", label: "Access Token", type: "password" }] },
+  { value: "twilio", label: "Twilio", icon: Phone, color: "bg-red-100 text-red-600", fields: [{ key: "account_sid", label: "Account SID", type: "text" }, { key: "auth_token", label: "Auth Token", type: "password" }, { key: "from_number", label: "From Phone Number", type: "text" }] },
+  // CRM / Sales
+  { value: "salesforce", label: "Salesforce", icon: Cloud, color: "bg-blue-100 text-blue-600", fields: [{ key: "client_id", label: "Client ID", type: "text" }, { key: "client_secret", label: "Client Secret", type: "password" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password + Security Token", type: "password" }] },
+  { value: "hubspot", label: "HubSpot", icon: Activity, color: "bg-orange-100 text-orange-600", fields: [{ key: "access_token", label: "Private App Token", type: "password" }] },
+  // Project Management
+  { value: "jira", label: "Jira", icon: Layers, color: "bg-blue-100 text-blue-700", fields: [{ key: "host", label: "Host (e.g. yourorg.atlassian.net)", type: "text" }, { key: "email", label: "Email", type: "text" }, { key: "api_token", label: "API Token", type: "password" }] },
+  { value: "linear", label: "Linear", icon: Zap, color: "bg-violet-100 text-violet-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
   { value: "github", label: "GitHub", icon: GitBranch, color: "bg-gray-100 text-gray-800", fields: [{ key: "token", label: "Personal Access Token", type: "password" }, { key: "owner", label: "Owner / Org", type: "text" }] },
+  // Productivity / Data
+  { value: "notion", label: "Notion", icon: FileText, color: "bg-gray-100 text-gray-700", fields: [{ key: "token", label: "Integration Token", type: "password" }] },
+  { value: "airtable", label: "Airtable", icon: Database, color: "bg-cyan-100 text-cyan-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "base_id", label: "Base ID", type: "text" }] },
+  { value: "sheets", label: "Google Sheets", icon: Table2, color: "bg-green-100 text-green-700", fields: [{ key: "service_account_json", label: "Service Account JSON", type: "password" }, { key: "spreadsheet_id", label: "Spreadsheet ID", type: "text" }] },
+  { value: "google_drive", label: "Google Drive", icon: Cloud, color: "bg-blue-100 text-blue-500", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "refresh_token", label: "Refresh Token", type: "password" }] },
+  { value: "google_calendar", label: "Google Calendar", icon: Calendar, color: "bg-blue-100 text-blue-600", fields: [{ key: "service_account_json", label: "Service Account JSON", type: "password" }, { key: "calendar_id", label: "Calendar ID", type: "text" }] },
+  // Payments
   { value: "stripe", label: "Stripe", icon: ShoppingCart, color: "bg-violet-100 text-violet-600", fields: [{ key: "secret_key", label: "Secret Key", type: "password" }, { key: "webhook_secret", label: "Webhook Secret", type: "password" }] },
+  // Storage
   { value: "aws_s3", label: "AWS S3", icon: Cloud, color: "bg-orange-100 text-orange-500", fields: [{ key: "access_key_id", label: "Access Key ID", type: "text" }, { key: "secret_access_key", label: "Secret Access Key", type: "password" }, { key: "region", label: "Region", type: "text" }, { key: "bucket", label: "Bucket", type: "text" }] },
+  // Databases
+  { value: "postgres", label: "PostgreSQL", icon: Database, color: "bg-blue-100 text-blue-700", fields: [{ key: "connection_string", label: "Connection String", type: "password" }] },
+  { value: "mysql", label: "MySQL", icon: Database, color: "bg-orange-100 text-orange-600", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "database", label: "Database", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }] },
+  { value: "mongodb", label: "MongoDB", icon: Database, color: "bg-green-100 text-green-700", fields: [{ key: "connection_string", label: "Connection String", type: "password" }, { key: "database", label: "Database Name", type: "text" }] },
+  { value: "redis", label: "Redis", icon: Server, color: "bg-red-100 text-red-600", fields: [{ key: "url", label: "Redis URL", type: "password" }] },
+  { value: "supabase", label: "Supabase", icon: Database, color: "bg-emerald-100 text-emerald-600", fields: [{ key: "url", label: "Project URL", type: "text" }, { key: "service_role_key", label: "Service Role Key", type: "password" }] },
+  { value: "elasticsearch", label: "Elasticsearch", icon: Search, color: "bg-yellow-100 text-yellow-700", fields: [{ key: "node", label: "Node URL", type: "text" }, { key: "api_key", label: "API Key", type: "password" }] },
+  // Message Brokers
+  { value: "kafka", label: "Kafka", icon: Activity, color: "bg-gray-100 text-gray-700", fields: [{ key: "brokers", label: "Brokers (comma-separated)", type: "text" }, { key: "sasl_username", label: "SASL Username", type: "text" }, { key: "sasl_password", label: "SASL Password", type: "password" }] },
+  { value: "rabbitmq", label: "RabbitMQ", icon: Activity, color: "bg-orange-100 text-orange-700", fields: [{ key: "url", label: "AMQP URL", type: "password" }] },
+  { value: "mqtt", label: "MQTT", icon: Activity, color: "bg-teal-100 text-teal-600", fields: [{ key: "broker_url", label: "Broker URL", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }] },
+  // Generic
   { value: "webhook", label: "HTTP / Webhook", icon: Globe, color: "bg-blue-100 text-blue-600", fields: [{ key: "base_url", label: "Base URL", type: "text" }, { key: "auth_header", label: "Auth Header (optional)", type: "password" }] },
+  { value: "jwt", label: "JWT / API Key", icon: Lock, color: "bg-slate-100 text-slate-600", fields: [{ key: "secret", label: "Secret / Private Key", type: "password" }, { key: "algorithm", label: "Algorithm (e.g. HS256)", type: "text" }] },
   { value: "custom", label: "Custom", icon: Zap, color: "bg-pink-100 text-pink-600", fields: [{ key: "key", label: "Key / Token", type: "password" }] },
 ];
 
@@ -74,8 +118,12 @@ export default function ConnectionsPage() {
   const [savedId, setSavedId] = useState<string | null>(null);
 
   const [form, setForm] = useState({ name: "", type: "openai", config: {} as Record<string, string> });
+  const [serviceSearch, setServiceSearch] = useState("");
 
   const selectedService = SERVICE_TYPES.find((s) => s.value === form.type) ?? SERVICE_TYPES[0];
+  const filteredServices = serviceSearch
+    ? SERVICE_TYPES.filter((s) => s.label.toLowerCase().includes(serviceSearch.toLowerCase()))
+    : SERVICE_TYPES;
 
   const load = () => {
     setLoading(true);
@@ -166,7 +214,7 @@ export default function ConnectionsPage() {
 
         {/* Create form */}
         {showing && (
-          <div className="bg-white border border-violet-200 rounded-xl p-5 mb-6 shadow-sm max-w-lg">
+          <div className="bg-white border border-violet-200 rounded-xl p-5 mb-6 shadow-sm max-w-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-gray-800">New Connection</h3>
               <button onClick={() => setShowing(false)} className="p-1 text-gray-400 hover:text-gray-600">
@@ -177,23 +225,32 @@ export default function ConnectionsPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-gray-600 mb-1 block">Service</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {SERVICE_TYPES.map((s) => {
+                <div className="relative mb-2">
+                  <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={serviceSearch}
+                    onChange={(e) => setServiceSearch(e.target.value)}
+                    placeholder="Search services…"
+                    className="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
+                  />
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 max-h-52 overflow-y-auto pr-0.5">
+                  {filteredServices.map((s) => {
                     const Icon = s.icon;
                     return (
                       <button
                         key={s.value}
                         onClick={() => setForm({ ...form, type: s.value, config: {} })}
-                        className={`flex items-center gap-1.5 px-2.5 py-2 text-xs rounded-lg border transition-all ${
+                        className={`flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-lg border transition-all ${
                           form.type === s.value
                             ? "border-violet-400 bg-violet-50 text-violet-700 font-semibold"
                             : "border-gray-200 hover:border-gray-300 text-gray-600"
                         }`}
                       >
-                        <span className={`w-4 h-4 flex items-center justify-center rounded ${s.color}`}>
+                        <span className={`w-4 h-4 flex items-center justify-center rounded flex-shrink-0 ${s.color}`}>
                           <Icon size={10} />
                         </span>
-                        {s.label}
+                        <span className="truncate">{s.label}</span>
                       </button>
                     );
                   })}

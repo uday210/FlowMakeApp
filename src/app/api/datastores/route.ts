@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getOrgContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/datastores — list all data store keys/values
 export async function GET(request: Request) {
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const store = searchParams.get("store") ?? "default";
-  const supabase = createServerClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await ctx.admin
     .from("workflow_data")
     .select("*")
+    .eq("org_id", ctx.orgId)
     .eq("store", store)
     .order("updated_at", { ascending: false });
 
@@ -19,16 +20,19 @@ export async function GET(request: Request) {
   return NextResponse.json(data ?? []);
 }
 
-// POST /api/datastores — set a key
 export async function POST(request: Request) {
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await request.json();
   const { store = "default", key, value } = body;
   if (!key) return NextResponse.json({ error: "key required" }, { status: 400 });
 
-  const supabase = createServerClient();
-  const { data, error } = await supabase
+  const { data, error } = await ctx.admin
     .from("workflow_data")
-    .upsert({ store, key, value: String(value ?? ""), updated_at: new Date().toISOString() }, { onConflict: "store,key" })
+    .upsert(
+      { org_id: ctx.orgId, store, key, value: String(value ?? ""), updated_at: new Date().toISOString() },
+      { onConflict: "org_id,store,key" }
+    )
     .select()
     .single();
 
@@ -36,17 +40,18 @@ export async function POST(request: Request) {
   return NextResponse.json(data);
 }
 
-// DELETE /api/datastores?store=x&key=y
 export async function DELETE(request: Request) {
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const store = searchParams.get("store") ?? "default";
   const key = searchParams.get("key");
   if (!key) return NextResponse.json({ error: "key required" }, { status: 400 });
 
-  const supabase = createServerClient();
-  const { error } = await supabase
+  const { error } = await ctx.admin
     .from("workflow_data")
     .delete()
+    .eq("org_id", ctx.orgId)
     .eq("store", store)
     .eq("key", key);
 

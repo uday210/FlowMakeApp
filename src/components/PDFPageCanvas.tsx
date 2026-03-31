@@ -30,7 +30,12 @@ export default function PDFPageCanvas({ pdfDoc, pageNumber, width, onRendered }:
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      await page.render({ canvasContext: ctx, viewport: scaledViewport, canvas: canvas }).promise;
+      // Reset any leftover transform before rendering — stale transforms from a
+      // previous render (or from DPR scaling) can cause the page to appear
+      // inverted or mirrored on certain PDFs.
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
       if (!cancelled) onRendered?.(scaledViewport.width, scaledViewport.height);
     })();
     return () => { cancelled = true; };
