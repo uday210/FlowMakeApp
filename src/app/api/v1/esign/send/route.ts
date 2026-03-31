@@ -127,8 +127,10 @@ export async function POST(request: Request) {
     });
   }
 
-  // Mark document as sent
-  await admin.from("esign_documents").update({ status: "sent" }).eq("id", document_id);
+  // Mark document as sent — skip for templates so their status stays reusable
+  if (!doc.is_template) {
+    await admin.from("esign_documents").update({ status: "sent" }).eq("id", document_id);
+  }
 
   return NextResponse.json({
     session_id: sessionId,

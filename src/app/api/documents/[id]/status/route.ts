@@ -22,8 +22,9 @@ export async function GET(_req: Request, { params }: Params) {
   const signed = (requests ?? []).filter((r) => r.status === "signed").length;
   const total = (requests ?? []).length;
 
-  // Auto-complete document when all signers have signed
-  if (total > 0 && signed === total && doc.status !== "completed") {
+  // Auto-complete document when all signers have signed — skip for templates
+  // since they're reused across many sessions and should never be "completed"
+  if (total > 0 && signed === total && doc.status !== "completed" && !doc.is_template) {
     await supabase.from("esign_documents").update({ status: "completed" }).eq("id", id);
     doc.status = "completed";
   }
