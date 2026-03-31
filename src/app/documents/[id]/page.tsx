@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import {
   ArrowLeft, Save, Send, Loader2, PenLine, Type, Calendar, AlignLeft,
   CheckCircle2, Clock, X, Download, Copy, Check, Link2, Users, UserPlus,
-  Eye, FileText,
+  Eye, FileText, RefreshCw,
 } from "lucide-react";
 
 const PDFEditorCanvas = dynamic(() => import("@/components/PDFEditorCanvas"), { ssr: false });
@@ -75,6 +75,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [showStatus, setShowStatus]       = useState(false);
   const [sendSuccess, setSendSuccess]     = useState<{ email: string; url: string | null; order: number }[]>([]);
   const [copiedId, setCopiedId]           = useState<string | null>(null);
+  const [refreshing, setRefreshing]       = useState(false);
   const [emailTemplates, setEmailTemplates] = useState<{ id: string; name: string }[]>([]);
   const [emailTemplateId, setEmailTemplateId] = useState<string>("");
   const [emailPreviewHtml, setEmailPreviewHtml] = useState<string | null>(null);
@@ -297,16 +298,19 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
         )}
         <div className="flex-1" />
 
-        {signerRequests.length > 0 && (
-          <button
-            onClick={() => setShowStatus(v => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-              showStatus ? "bg-gray-100 border-gray-200 text-gray-700" : "text-gray-600 border-gray-200 hover:bg-gray-50"
-            }`}
-          >
-            <Eye size={12} /> {showStatus ? "Back to Editor" : "View Status"}
-          </button>
-        )}
+        <button
+          onClick={() => setShowStatus(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+            showStatus ? "bg-gray-100 border-gray-200 text-gray-700" : "text-gray-600 border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          <Eye size={12} /> {showStatus ? "Editor" : "Status"}
+          {signerRequests.length > 0 && (
+            <span className="ml-1 bg-indigo-100 text-indigo-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {signerRequests.length}
+            </span>
+          )}
+        </button>
 
         <button
           onClick={toggleTemplate}
@@ -614,11 +618,25 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
             return (
               <div className="flex-1 overflow-auto">
                 <div className="max-w-2xl mx-auto py-8 px-6 space-y-6">
-                  <div>
-                    <h2 className="font-semibold text-gray-800">Signing Status</h2>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {groups.length} sending group{groups.length !== 1 ? "s" : ""} · {signerRequests.filter(r => r.status === "signed").length} of {signerRequests.length} total signed
-                    </p>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h2 className="font-semibold text-gray-800">Signing Status</h2>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {groups.length} sending group{groups.length !== 1 ? "s" : ""} · {signerRequests.filter(r => r.status === "signed").length} of {signerRequests.length} total signed
+                      </p>
+                    </div>
+                  <button
+                    onClick={async () => {
+                      setRefreshing(true);
+                      const d = await fetch(`/api/documents/${id}/status`).then(r => r.json());
+                      if (d.requests) setSignerRequests(d.requests);
+                      setRefreshing(false);
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                    title="Refresh status"
+                  >
+                    <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                  </button>
                   </div>
 
                   {signerRequests.length === 0 ? (
