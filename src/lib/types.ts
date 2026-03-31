@@ -202,7 +202,7 @@ export interface NodeDefinition {
 export interface ConfigField {
   key: string;
   label: string;
-  type: "text" | "textarea" | "select" | "number" | "password";
+  type: "text" | "textarea" | "select" | "number" | "password" | "email_template_select";
   placeholder?: string;
   required?: boolean;
   options?: { label: string; value: string }[];
