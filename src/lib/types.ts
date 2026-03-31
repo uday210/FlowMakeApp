@@ -28,6 +28,7 @@ export type NodeType =
   | "action_mailgun"
   | "action_postmark"
   | "action_smtp"
+  | "action_send_email_template"
   | "action_rss"
   | "action_datetime"
   | "action_math"
