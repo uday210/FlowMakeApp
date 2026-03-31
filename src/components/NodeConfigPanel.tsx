@@ -7,6 +7,26 @@ import { NODE_DEF_MAP } from "@/lib/nodeDefinitions";
 import { X, Copy, Check, Plus, Trash2, GripVertical, ChevronDown, AlertCircle, Table2, HelpCircle, ChevronRight } from "lucide-react";
 import { NODE_HELP_GUIDES } from "@/lib/nodeHelpGuides";
 
+// ─── Email Template Select ────────────────────────────────────────────────────
+
+function EmailTemplateSelect({ value, onChange, className }: { value: string; onChange: (v: string) => void; className: string }) {
+  const [templates, setTemplates] = useState<{ id: string; name: string; category: string }[]>([]);
+  useEffect(() => {
+    fetch("/api/email-templates")
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setTemplates(d); })
+      .catch(() => {});
+  }, []);
+  return (
+    <select className={className} value={value} onChange={e => onChange(e.target.value)}>
+      <option value="">— Select email template —</option>
+      {templates.map(t => (
+        <option key={t.id} value={t.id}>{t.name} ({t.category})</option>
+      ))}
+    </select>
+  );
+}
+
 // ─── Node output fields map ────────────────────────────────────────────────────
 // Maps node types to the output fields they produce, shown as autocomplete suggestions.
 
@@ -35,6 +55,7 @@ const NODE_OUTPUT_FIELDS: Record<string, { field: string; label: string }[]> = {
   action_smtp:          [{ field: "message_id", label: "Message ID" }, { field: "accepted", label: "Accepted recipients" }],
   action_sendgrid:      [{ field: "message_id", label: "Message ID" }, { field: "status", label: "Send status" }],
   action_resend:        [{ field: "id", label: "Email ID" }],
+  action_send_email_template: [{ field: "sent", label: "Sent (true/false)" }, { field: "to", label: "Recipient email" }, { field: "subject", label: "Subject used" }],
   action_mailgun:       [{ field: "id", label: "Message ID" }, { field: "message", label: "Status message" }],
   action_postmark:      [{ field: "message_id", label: "Message ID" }, { field: "submitted_at", label: "Submit time" }],
   action_slack:         [{ field: "ok", label: "Success flag" }, { field: "ts", label: "Message timestamp" }, { field: "channel", label: "Channel ID" }],
@@ -385,6 +406,10 @@ function FieldInput({
         {field.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     );
+  }
+
+  if (field.type === "email_template_select") {
+    return <EmailTemplateSelect value={value} onChange={onChange} className={base} />;
   }
 
   // Group suggestions

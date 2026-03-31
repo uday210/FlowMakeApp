@@ -540,6 +540,22 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
+    type: "action_send_email_template",
+    label: "Send Email Template",
+    description: "Send one of your saved email templates using your org's active email provider",
+    category: "action",
+    subcategory: "Email",
+    color: "#6366f1",
+    icon: "MailCheck",
+    defaultConfig: { template_id: "", to: "", to_name: "", subject_override: "" },
+    configFields: [
+      { key: "template_id", label: "Email Template", type: "email_template_select", placeholder: "Select a template…", required: true },
+      { key: "to", label: "To Email", type: "text", placeholder: "{{trigger.email}}", required: true },
+      { key: "to_name", label: "To Name", type: "text", placeholder: "{{trigger.name}}" },
+      { key: "subject_override", label: "Subject Override", type: "text", placeholder: "Leave blank to use template subject" },
+    ],
+  },
+  {
     type: "action_smtp",
     label: "SMTP Email",
     description: "Send email via any SMTP server (Gmail, Outlook, custom)",

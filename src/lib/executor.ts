@@ -563,6 +563,41 @@ async function executeNodeOnce(
         break;
       }
 
+      case "action_send_email_template": {
+        const { sendEmail, renderEmailTemplate } = await import("./emailSender");
+        const templateId = interpolate(config.template_id as string);
+        const to         = interpolate(config.to as string);
+        const toName     = interpolate((config.to_name as string) || "");
+        const subjectOverride = interpolate((config.subject_override as string) || "");
+        if (!templateId) throw new Error("Email template is required");
+        if (!to) throw new Error("To email is required");
+        // Build variables from all node outputs for interpolation inside the template
+        const allVars: Record<string, string> = {};
+        for (const [k, v] of Object.entries({ ...ctx.triggerData, ...ctx.nodeOutputs })) {
+          if (typeof v === "object" && v !== null) {
+            for (const [fk, fv] of Object.entries(v as Record<string, unknown>)) {
+              allVars[`${k}.${fk}`] = String(fv ?? "");
+              allVars[fk] = String(fv ?? "");
+            }
+          } else {
+            allVars[k] = String(v ?? "");
+          }
+        }
+        const rendered = await renderEmailTemplate(templateId, allVars);
+        if (!rendered) throw new Error("Email template not found or failed to render");
+        const sent = await sendEmail({
+          orgId: ctx.orgId || "",
+          to,
+          toName: toName || undefined,
+          subject: subjectOverride || rendered.subject,
+          htmlBody: rendered.htmlBody,
+          plainBody: rendered.plainBody,
+        });
+        if (!sent) throw new Error("Failed to send email — check your org email provider configuration");
+        output = { sent: true, to, subject: subjectOverride || rendered.subject, template_id: templateId };
+        break;
+      }
+
       case "action_rss": {
         const url = config.url as string;
         const limit = Math.min(Number(config.limit) || 5, 20);
