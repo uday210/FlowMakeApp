@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 import { interpolateVariables } from "./emailTemplateRenderer";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -116,6 +117,24 @@ async function sendViaPostmark(config: OrgEmailConfig, opts: SendEmailOptions) {
   if (!res.ok) throw new Error(`Postmark error: ${res.status}`);
 }
 
+async function sendViaSmtp(config: OrgEmailConfig, opts: SendEmailOptions) {
+  const transporter = nodemailer.createTransport({
+    host: config.smtp_host!,
+    port: config.smtp_port ?? 587,
+    secure: config.smtp_secure ?? false,
+    auth: { user: config.smtp_user!, pass: config.smtp_pass! },
+  });
+  const from = config.from_name ? `${config.from_name} <${config.from_email}>` : config.from_email;
+  await transporter.sendMail({
+    from,
+    to: opts.toName ? `${opts.toName} <${opts.to}>` : opts.to,
+    subject: opts.subject,
+    html: opts.htmlBody,
+    text: opts.plainBody,
+    replyTo: opts.replyTo,
+  });
+}
+
 /**
  * Send using an explicit config (used for testing a specific, possibly inactive config).
  */
@@ -133,6 +152,9 @@ export async function sendEmailWithConfig(config: OrgEmailConfig, opts: SendEmai
         return true;
       case "postmark":
         await sendViaPostmark(config, opts);
+        return true;
+      case "smtp":
+        await sendViaSmtp(config, opts);
         return true;
       default:
         return false;
@@ -164,6 +186,9 @@ export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
           return true;
         case "postmark":
           await sendViaPostmark(orgConfig, opts);
+          return true;
+        case "smtp":
+          await sendViaSmtp(orgConfig, opts);
           return true;
       }
     }
