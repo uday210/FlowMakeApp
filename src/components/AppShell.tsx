@@ -19,6 +19,7 @@ import {
   Bot,
   LogOut,
   Crown,
+  Mail,
 } from "lucide-react";
 
 const USER_NAV = [
@@ -34,6 +35,7 @@ const USER_NAV = [
   { href: "/secrets", icon: KeyRound, label: "Secrets" },
   { href: "/api-keys", icon: KeyRound, label: "API Keys" },
   { href: "/documents", icon: FileText, label: "E-Sign" },
+  { href: "/email-templates", icon: Mail, label: "Email Templates" },
   { href: "/help", icon: HelpCircle, label: "Help & Docs" },
 ];
 
