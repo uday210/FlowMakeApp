@@ -70,13 +70,13 @@ export default function PDFSigningViewer({ fileUrl, fields, fieldValues, onField
     (async () => {
       try {
         const res = await fetch(fileUrl);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`Proxy returned HTTP ${res.status}`);
         const data = await res.arrayBuffer();
         if (cancelled) return;
         const doc = await pdfjsLib.getDocument({ data }).promise;
         if (!cancelled) { setPdfDoc(doc); setNumPages(doc.numPages); }
-      } catch {
-        if (!cancelled) setError("Failed to load PDF.");
+      } catch (err) {
+        if (!cancelled) setError(`Failed to load PDF: ${err instanceof Error ? err.message : String(err)}`);
       }
     })();
     return () => { cancelled = true; };
