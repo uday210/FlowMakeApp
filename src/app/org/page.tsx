@@ -9,7 +9,7 @@ import {
   TrendingUp, AlertTriangle, CheckCircle2, Clock,
   ArrowRight, Zap, Sparkles, ChevronRight, RefreshCw,
   Activity, Globe, Loader2, Save, Infinity, KeyRound, Plug2,
-  Table2, Check, Crown,
+  Table2, Check, Crown, Mail, Plus, Trash2, ShieldCheck, X,
 } from "lucide-react";
 import { PLAN_LIMITS, PLAN_LABELS, type PlanName, type ResourceKey } from "@/lib/plan-limits";
 import type { Execution } from "@/lib/types";
@@ -48,6 +48,7 @@ const ORG_NAV = [
       { id: "installed-apps", label: "Installed apps", icon: Puzzle },
       { id: "variables", label: "Variables", icon: Variable },
       { id: "notifications", label: "Notification options", icon: Bell },
+      { id: "email", label: "Email Accounts", icon: Mail },
     ],
   },
 ];
@@ -188,6 +189,17 @@ export default function OrgDashboard() {
               fetch("/api/org/usage").then(r => r.json()).then(d => { if (!d.error) setUsageData(d); });
             }}
           />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (activeNav === "email") {
+    return (
+      <AppShell>
+        <div className="flex h-full overflow-hidden">
+          <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} org={org} />
+          <EmailConfigsPanel />
         </div>
       </AppShell>
     );
@@ -839,6 +851,488 @@ function OrgSettings({ org, onSaved }: { org: Org | null; onSaved: (o: Org) => v
             {saved ? "Saved!" : "Save changes"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Email Configs Panel ──────────────────────────────────────────────────────
+
+interface EmailConfig {
+  id: string;
+  name: string;
+  provider: string;
+  from_email: string;
+  from_name: string;
+  is_active: boolean;
+  verified: boolean;
+  created_at: string;
+  mailgun_domain?: string;
+  mailgun_region?: string;
+  smtp_host?: string;
+  smtp_port?: number;
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+  resend: "Resend",
+  sendgrid: "SendGrid",
+  mailgun: "Mailgun",
+  postmark: "Postmark",
+  smtp: "SMTP",
+};
+
+const PROVIDER_COLORS: Record<string, string> = {
+  resend: "bg-black text-white",
+  sendgrid: "bg-blue-600 text-white",
+  mailgun: "bg-red-600 text-white",
+  postmark: "bg-yellow-500 text-white",
+  smtp: "bg-gray-600 text-white",
+};
+
+function blankForm() {
+  return {
+    name: "",
+    provider: "resend",
+    from_email: "",
+    from_name: "",
+    api_key: "",
+    mailgun_domain: "",
+    mailgun_region: "us",
+    smtp_host: "",
+    smtp_port: "587",
+    smtp_user: "",
+    smtp_pass: "",
+    smtp_secure: true,
+  };
+}
+
+function EmailConfigsPanel() {
+  const [configs, setConfigs] = useState<EmailConfig[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState(blankForm());
+  const [saving, setSaving] = useState(false);
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState("");
+  const [testTarget, setTestTarget] = useState<string | null>(null);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    fetch("/api/org/email-configs")
+      .then(r => r.json())
+      .then(d => { setConfigs(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  function openAdd() {
+    setEditId(null);
+    setForm(blankForm());
+    setErr("");
+    setShowForm(true);
+  }
+
+  function openEdit(c: EmailConfig) {
+    setEditId(c.id);
+    setForm({
+      name: c.name,
+      provider: c.provider,
+      from_email: c.from_email,
+      from_name: c.from_name,
+      api_key: "",
+      mailgun_domain: c.mailgun_domain ?? "",
+      mailgun_region: c.mailgun_region ?? "us",
+      smtp_host: c.smtp_host ?? "",
+      smtp_port: c.smtp_port ? String(c.smtp_port) : "587",
+      smtp_user: "",
+      smtp_pass: "",
+      smtp_secure: true,
+    });
+    setErr("");
+    setShowForm(true);
+  }
+
+  async function saveForm() {
+    setSaving(true);
+    setErr("");
+    const body = {
+      ...form,
+      smtp_port: form.smtp_port ? Number(form.smtp_port) : null,
+    };
+    try {
+      const res = editId
+        ? await fetch(`/api/org/email-configs/${editId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+        : await fetch("/api/org/email-configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || "Failed to save"); return; }
+      if (editId) {
+        setConfigs(cs => cs.map(c => c.id === editId ? data : c));
+      } else {
+        setConfigs(cs => [...cs, data]);
+      }
+      setShowForm(false);
+    } catch {
+      setErr("Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function activate(id: string) {
+    setActivatingId(id);
+    try {
+      const res = await fetch(`/api/org/email-configs/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ _action: "activate" }) });
+      const data = await res.json();
+      if (res.ok) {
+        setConfigs(cs => cs.map(c => ({ ...c, is_active: c.id === id ? true : false })));
+      } else {
+        setErr(data.error || "Failed to activate");
+      }
+    } finally {
+      setActivatingId(null);
+    }
+  }
+
+  async function sendTest(id: string) {
+    if (!testEmail.trim()) return;
+    setTestingId(id);
+    try {
+      const res = await fetch(`/api/org/email-configs/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ _action: "test", test_to: testEmail }) });
+      const data = await res.json();
+      if (res.ok) {
+        setConfigs(cs => cs.map(c => c.id === id ? { ...c, verified: true } : c));
+        setTestTarget(null);
+        setTestEmail("");
+      } else {
+        setErr(data.error || "Test failed");
+      }
+    } finally {
+      setTestingId(null);
+    }
+  }
+
+  async function deleteConfig(id: string) {
+    if (!confirm("Delete this email configuration?")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/org/email-configs/${id}`, { method: "DELETE" });
+      if (res.ok) setConfigs(cs => cs.filter(c => c.id !== id));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-[#f8f9fc]">
+      <header className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">Email Accounts</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Configure outbound email providers for your organization</p>
+        </div>
+        <button
+          onClick={openAdd}
+          className="flex items-center gap-2 text-xs font-semibold bg-violet-600 text-white px-4 py-2 rounded-xl hover:bg-violet-700 transition-colors"
+        >
+          <Plus size={13} /> Add Provider
+        </button>
+      </header>
+
+      <div className="px-8 py-6 max-w-3xl space-y-4">
+        {err && (
+          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <AlertTriangle size={14} /> {err}
+            <button onClick={() => setErr("")} className="ml-auto"><X size={14} /></button>
+          </div>
+        )}
+
+        {/* Info banner */}
+        <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 text-xs text-violet-700 flex items-start gap-2">
+          <Mail size={13} className="mt-0.5 flex-shrink-0" />
+          <span>Only one provider can be <strong>active</strong> at a time. The active provider is used for all outgoing emails from your org. If none is active, the app default (Resend) is used.</span>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-400" /></div>
+        ) : configs.length === 0 && !showForm ? (
+          <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
+            <Mail size={32} className="mx-auto text-gray-300 mb-3" />
+            <p className="text-sm font-medium text-gray-500">No email providers configured</p>
+            <p className="text-xs text-gray-400 mt-1">Add a provider to send emails from your org</p>
+            <button onClick={openAdd} className="mt-4 text-xs font-semibold text-violet-600 hover:text-violet-700">
+              + Add your first provider
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {configs.map(c => (
+              <div key={c.id} className={`bg-white rounded-2xl border p-5 shadow-sm transition-all ${c.is_active ? "border-violet-300 ring-1 ring-violet-200" : "border-gray-100"}`}>
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-gray-900">{c.name}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PROVIDER_COLORS[c.provider] ?? "bg-gray-200 text-gray-700"}`}>
+                        {PROVIDER_LABELS[c.provider] ?? c.provider}
+                      </span>
+                      {c.is_active && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
+                          <Check size={9} /> Active
+                        </span>
+                      )}
+                      {c.verified && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                          <ShieldCheck size={9} /> Verified
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">{c.from_name ? `${c.from_name} <${c.from_email}>` : c.from_email}</p>
+                    {c.smtp_host && <p className="text-xs text-gray-400">SMTP: {c.smtp_host}:{c.smtp_port}</p>}
+                    {c.mailgun_domain && <p className="text-xs text-gray-400">Domain: {c.mailgun_domain} ({c.mailgun_region === "eu" ? "EU" : "US"})</p>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {!c.is_active && (
+                      <button
+                        onClick={() => activate(c.id)}
+                        disabled={activatingId === c.id}
+                        className="text-xs font-medium text-violet-600 border border-violet-200 rounded-lg px-3 py-1.5 hover:bg-violet-50 transition-colors disabled:opacity-50"
+                      >
+                        {activatingId === c.id ? <Loader2 size={12} className="animate-spin" /> : "Set Active"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setTestTarget(c.id); setTestEmail(""); setErr(""); }}
+                      className="text-xs font-medium text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
+                    >
+                      Test
+                    </button>
+                    <button
+                      onClick={() => openEdit(c)}
+                      className="text-xs font-medium text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteConfig(c.id)}
+                      disabled={deletingId === c.id}
+                      className="text-xs text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      {deletingId === c.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Test email inline */}
+                {testTarget === c.id && (
+                  <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-2">
+                    <input
+                      type="email"
+                      placeholder="Send test to email address…"
+                      value={testEmail}
+                      onChange={e => setTestEmail(e.target.value)}
+                      className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                    />
+                    <button
+                      onClick={() => sendTest(c.id)}
+                      disabled={testingId === c.id || !testEmail.trim()}
+                      className="text-xs font-semibold bg-violet-600 text-white px-4 py-2 rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {testingId === c.id ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
+                      Send Test
+                    </button>
+                    <button onClick={() => setTestTarget(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={14} /></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add / Edit Form */}
+        {showForm && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-bold text-gray-900">{editId ? "Edit Email Provider" : "Add Email Provider"}</h2>
+              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Display Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Marketing Resend"
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                  <select
+                    value={form.provider}
+                    onChange={e => setForm(f => ({ ...f, provider: e.target.value }))}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400 bg-white"
+                  >
+                    {Object.entries(PROVIDER_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">From Email</label>
+                  <input
+                    type="email"
+                    placeholder="noreply@yourdomain.com"
+                    value={form.from_email}
+                    onChange={e => setForm(f => ({ ...f, from_email: e.target.value }))}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">From Name</label>
+                  <input
+                    type="text"
+                    placeholder="Acme Notifications"
+                    value={form.from_name}
+                    onChange={e => setForm(f => ({ ...f, from_name: e.target.value }))}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                  />
+                </div>
+              </div>
+
+              {/* Provider-specific fields */}
+              {(form.provider === "resend" || form.provider === "sendgrid" || form.provider === "postmark") && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>
+                  <input
+                    type="password"
+                    placeholder={editId ? "Leave blank to keep existing key" : "API key…"}
+                    value={form.api_key}
+                    onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                  />
+                </div>
+              )}
+
+              {form.provider === "mailgun" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>
+                    <input
+                      type="password"
+                      placeholder={editId ? "Leave blank to keep existing key" : "Mailgun API key…"}
+                      value={form.api_key}
+                      onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
+                      className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Sending Domain</label>
+                      <input
+                        type="text"
+                        placeholder="mg.yourdomain.com"
+                        value={form.mailgun_domain}
+                        onChange={e => setForm(f => ({ ...f, mailgun_domain: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Region</label>
+                      <select
+                        value={form.mailgun_region}
+                        onChange={e => setForm(f => ({ ...f, mailgun_region: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400 bg-white"
+                      >
+                        <option value="us">US</option>
+                        <option value="eu">EU</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {form.provider === "smtp" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">SMTP Host</label>
+                      <input
+                        type="text"
+                        placeholder="smtp.yourdomain.com"
+                        value={form.smtp_host}
+                        onChange={e => setForm(f => ({ ...f, smtp_host: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Port</label>
+                      <input
+                        type="number"
+                        placeholder="587"
+                        value={form.smtp_port}
+                        onChange={e => setForm(f => ({ ...f, smtp_port: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Username</label>
+                      <input
+                        type="text"
+                        placeholder="SMTP username"
+                        value={form.smtp_user}
+                        onChange={e => setForm(f => ({ ...f, smtp_user: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Password</label>
+                      <input
+                        type="password"
+                        placeholder={editId ? "Leave blank to keep existing" : "SMTP password"}
+                        value={form.smtp_pass}
+                        onChange={e => setForm(f => ({ ...f, smtp_pass: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.smtp_secure}
+                      onChange={e => setForm(f => ({ ...f, smtp_secure: e.target.checked }))}
+                      className="rounded"
+                    />
+                    Use TLS/SSL
+                  </label>
+                </div>
+              )}
+
+              {err && <p className="text-xs text-red-500">{err}</p>}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => setShowForm(false)} className="text-xs text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={saveForm}
+                  disabled={saving}
+                  className="text-xs font-semibold bg-violet-600 text-white px-5 py-2 rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                  {editId ? "Save Changes" : "Add Provider"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
