@@ -296,21 +296,33 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
             {doc.name}
           </button>
         )}
-        <div className="flex-1" />
 
-        <button
-          onClick={() => setShowStatus(v => !v)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-            showStatus ? "bg-gray-100 border-gray-200 text-gray-700" : "text-gray-600 border-gray-200 hover:bg-gray-50"
-          }`}
-        >
-          <Eye size={12} /> {showStatus ? "Editor" : "Status"}
-          {signerRequests.length > 0 && (
-            <span className="ml-1 bg-indigo-100 text-indigo-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-              {signerRequests.length}
-            </span>
-          )}
-        </button>
+        {/* ── Tabs ── */}
+        <div className="flex items-center bg-gray-100 rounded-lg p-0.5 ml-4">
+          <button
+            onClick={() => setShowStatus(false)}
+            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              !showStatus ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Editor
+          </button>
+          <button
+            onClick={() => setShowStatus(true)}
+            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              showStatus ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Status
+            {signerRequests.length > 0 && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showStatus ? "bg-indigo-100 text-indigo-600" : "bg-gray-200 text-gray-500"}`}>
+                {signerRequests.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="flex-1" />
 
         <button
           onClick={toggleTemplate}
