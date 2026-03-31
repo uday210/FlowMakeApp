@@ -222,6 +222,9 @@ export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
         case "smtp":
           await sendViaSmtp(orgConfig, opts);
           return true;
+        case "mailtrap":
+          await sendViaMailtrap(orgConfig, opts);
+          return true;
       }
     }
 
