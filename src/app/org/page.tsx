@@ -998,8 +998,21 @@ function EmailConfigsPanel() {
   async function sendTest(id: string) {
     if (!testEmail.trim()) return;
     setTestingId(id);
+    setErr("");
     try {
-      const res = await fetch(`/api/org/email-configs/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ _action: "test", test_to: testEmail }) });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      let res: Response;
+      try {
+        res = await fetch(`/api/org/email-configs/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ _action: "test", test_to: testEmail }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
       const data = await res.json();
       if (res.ok) {
         setConfigs(cs => cs.map(c => c.id === id ? { ...c, verified: true } : c));
@@ -1007,6 +1020,12 @@ function EmailConfigsPanel() {
         setTestEmail("");
       } else {
         setErr(data.error || "Test failed");
+      }
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === "AbortError") {
+        setErr("Request timed out. Check your SMTP host and port.");
+      } else {
+        setErr("Network error");
       }
     } finally {
       setTestingId(null);

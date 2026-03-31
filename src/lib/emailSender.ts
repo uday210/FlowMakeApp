@@ -123,6 +123,9 @@ async function sendViaSmtp(config: OrgEmailConfig, opts: SendEmailOptions) {
     port: config.smtp_port ?? 587,
     secure: config.smtp_secure ?? false,
     auth: { user: config.smtp_user!, pass: config.smtp_pass! },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
   const from = config.from_name ? `${config.from_name} <${config.from_email}>` : config.from_email;
   await transporter.sendMail({
