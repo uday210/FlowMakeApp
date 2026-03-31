@@ -21,6 +21,66 @@ interface EmailTemplate {
   updated_at: string;
 }
 
+// ─── Pre-built template definitions ──────────────────────────────────────────
+
+const PRESET_TEMPLATES = [
+  {
+    emoji: "✍️",
+    name: "E-Sign Invitation",
+    description: "Invite someone to sign a document with a direct signing link",
+    category: "esign",
+    color: "#4f46e5",
+    subject: "Action required: Please sign {{document_title}}",
+    html_body: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background:#4f46e5;padding:32px 40px;text-align:center;"><h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">Signature Required</h1></td></tr><tr><td style="padding:40px;"><p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi {{signer_name}},</p><p style="margin:0 0 24px;color:#374151;font-size:16px;">You have been requested to review and sign the following document:</p><div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin:0 0 28px;"><p style="margin:0;color:#111827;font-size:18px;font-weight:600;">{{document_title}}</p></div><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center"><a href="{{signing_url}}" style="display:inline-block;background:#4f46e5;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:8px;">Review &amp; Sign Document</a></td></tr></table><p style="margin:28px 0 0;color:#6b7280;font-size:14px;">This link is unique to you — please do not share it.</p></td></tr><tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;"><p style="margin:0;color:#9ca3af;font-size:13px;">Sent via your e-signature platform</p></td></tr></table></td></tr></table></body></html>`,
+    plain_body: `Hi {{signer_name}},\n\nYou have been requested to sign: {{document_title}}\n\nSign here: {{signing_url}}`,
+    variables: [{ name: "signer_name", description: "Full name of the signer" }, { name: "document_title", description: "Title of the document" }, { name: "signing_url", description: "Unique signing link" }],
+  },
+  {
+    emoji: "✅",
+    name: "E-Sign Completed",
+    description: "Confirm that a document has been successfully signed",
+    category: "esign",
+    color: "#059669",
+    subject: "Document signed: {{document_title}}",
+    html_body: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background:#059669;padding:32px 40px;text-align:center;"><h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">Document Signed ✓</h1></td></tr><tr><td style="padding:40px;"><p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi {{signer_name}},</p><p style="margin:0 0 24px;color:#374151;font-size:16px;">The following document has been successfully signed:</p><div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:0 0 28px;"><p style="margin:0 0 4px;color:#111827;font-size:18px;font-weight:600;">{{document_title}}</p><p style="margin:0;color:#059669;font-size:14px;">&#10003; Signed on {{signed_at}}</p></div><p style="margin:0;color:#6b7280;font-size:14px;">Thank you for completing this process.</p></td></tr><tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;"><p style="margin:0;color:#9ca3af;font-size:13px;">Sent via your e-signature platform</p></td></tr></table></td></tr></table></body></html>`,
+    plain_body: `Hi {{signer_name}},\n\nThe document "{{document_title}}" was successfully signed on {{signed_at}}.\n\nThank you.`,
+    variables: [{ name: "signer_name", description: "Full name of the signer" }, { name: "document_title", description: "Title of the document" }, { name: "signed_at", description: "Date the document was signed" }],
+  },
+  {
+    emoji: "👋",
+    name: "Welcome Email",
+    description: "Onboard new users with a warm welcome and getting-started link",
+    category: "onboarding",
+    color: "#2563eb",
+    subject: "Welcome to {{org_name}}, {{first_name}}!",
+    html_body: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background:#2563eb;padding:32px 40px;text-align:center;"><h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;">Welcome aboard!</h1></td></tr><tr><td style="padding:40px;"><p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi {{first_name}},</p><p style="margin:0 0 24px;color:#374151;font-size:16px;">We're thrilled to have you join <strong>{{org_name}}</strong>. Your account is ready.</p><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:20px;margin:0 0 28px;"><h3 style="margin:0 0 12px;color:#1d4ed8;font-size:16px;font-weight:600;">Getting started</h3><ul style="margin:0;padding-left:20px;color:#374151;font-size:14px;line-height:1.8;"><li>Complete your profile</li><li>Explore the dashboard</li><li>Connect your first integration</li></ul></div><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center"><a href="{{app_url}}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:8px;">Go to Dashboard</a></td></tr></table></td></tr><tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;"><p style="margin:0;color:#9ca3af;font-size:13px;">&copy; {{org_name}}</p></td></tr></table></td></tr></table></body></html>`,
+    plain_body: `Hi {{first_name}},\n\nWelcome to {{org_name}}! Your account is ready.\n\nGo to your dashboard: {{app_url}}`,
+    variables: [{ name: "first_name", description: "User's first name" }, { name: "org_name", description: "Your organization name" }, { name: "app_url", description: "Link to the dashboard" }],
+  },
+  {
+    emoji: "🔔",
+    name: "Workflow Notification",
+    description: "Generic notification email triggered from an automation workflow",
+    category: "notification",
+    color: "#d97706",
+    subject: "{{subject_line}}",
+    html_body: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background:#374151;padding:24px 40px;"><h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">{{subject_line}}</h1></td></tr><tr><td style="padding:40px;"><p style="margin:0 0 20px;color:#374151;font-size:16px;">Hi {{recipient_name}},</p><div style="border-left:4px solid #6b7280;padding-left:16px;margin:0 0 28px;"><p style="margin:0;color:#374151;font-size:15px;line-height:1.6;">{{message}}</p></div><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center"><a href="{{action_url}}" style="display:inline-block;background:#374151;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:8px;">{{action_label}}</a></td></tr></table></td></tr><tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;"><p style="margin:0;color:#9ca3af;font-size:13px;">Sent automatically by your workflow</p></td></tr></table></td></tr></table></body></html>`,
+    plain_body: `Hi {{recipient_name}},\n\n{{message}}\n\n{{action_label}}: {{action_url}}`,
+    variables: [{ name: "recipient_name", description: "Recipient's name" }, { name: "subject_line", description: "Email subject and header" }, { name: "message", description: "Notification message body" }, { name: "action_url", description: "Call-to-action link" }, { name: "action_label", description: "Button label text" }],
+  },
+  {
+    emoji: "💳",
+    name: "Invoice / Payment Receipt",
+    description: "Send an invoice or payment confirmation to customers",
+    category: "transactional",
+    color: "#0284c7",
+    subject: "Invoice #{{invoice_number}} — {{amount}} due {{due_date}}",
+    html_body: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="padding:40px 40px 0;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td><h2 style="margin:0;color:#111827;font-size:22px;font-weight:700;">Invoice</h2></td><td align="right"><span style="background:#fef3c7;color:#92400e;font-size:13px;font-weight:600;padding:4px 12px;border-radius:20px;">Due {{due_date}}</span></td></tr></table><hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"><p style="margin:0 0 4px;color:#6b7280;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;">Bill to</p><p style="margin:0 0 24px;color:#111827;font-size:16px;font-weight:600;">{{customer_name}}</p><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;"><tr style="background:#f9fafb;"><td style="padding:12px 16px;color:#6b7280;font-size:13px;font-weight:600;">Invoice #</td><td style="padding:12px 16px;color:#6b7280;font-size:13px;font-weight:600;">Description</td><td align="right" style="padding:12px 16px;color:#6b7280;font-size:13px;font-weight:600;">Amount</td></tr><tr><td style="padding:16px;color:#374151;font-size:14px;border-top:1px solid #e5e7eb;">{{invoice_number}}</td><td style="padding:16px;color:#374151;font-size:14px;border-top:1px solid #e5e7eb;">{{description}}</td><td align="right" style="padding:16px;color:#111827;font-size:16px;font-weight:700;border-top:1px solid #e5e7eb;">{{amount}}</td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;"><tr><td align="center"><a href="{{payment_url}}" style="display:inline-block;background:#0284c7;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:8px;">Pay Now</a></td></tr></table><p style="margin:24px 0 0;color:#6b7280;font-size:14px;">Thank you for your business.</p></td></tr><tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;margin-top:40px;"><p style="margin:0;color:#9ca3af;font-size:13px;">&copy; {{org_name}}</p></td></tr></table></td></tr></table></body></html>`,
+    plain_body: `Invoice #{{invoice_number}}\n\nBill to: {{customer_name}}\nAmount: {{amount}}\nDue: {{due_date}}\n\nPay here: {{payment_url}}\n\nThank you, {{org_name}}`,
+    variables: [{ name: "customer_name", description: "Customer's name" }, { name: "invoice_number", description: "Invoice reference" }, { name: "amount", description: "Amount due" }, { name: "due_date", description: "Payment due date" }, { name: "description", description: "Line item description" }, { name: "payment_url", description: "Payment link" }, { name: "org_name", description: "Your org name" }],
+  },
+];
+
 const BUILT_IN_CATEGORIES = ["esign", "onboarding", "notification", "transactional", "workflow", "custom"];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -71,9 +131,8 @@ export default function EmailTemplatesPage() {
   const [showCatManager, setShowCatManager] = useState(false);
   const [newCategory, setNewCategory] = useState("");
 
-  // Seed defaults
-  const [seeding, setSeeding] = useState(false);
-  const [seedMsg, setSeedMsg] = useState("");
+  // Template carousel
+  const [templateLoading, setTemplateLoading] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/email-templates")
@@ -115,26 +174,30 @@ export default function EmailTemplatesPage() {
     return list;
   }, [templates, search, filterCategory, sortKey, sortAsc]);
 
-  const handleSeedDefaults = async () => {
-    setSeeding(true);
-    setSeedMsg("");
-    const res = await fetch("/api/email-templates/seed-defaults", { method: "POST" });
-    const data = await res.json();
-    setSeeding(false);
-    if (res.ok) {
-      if (data.inserted > 0) {
-        setSeedMsg(`Added ${data.inserted} default template${data.inserted !== 1 ? "s" : ""}`);
-        // Refresh list
-        fetch("/api/email-templates").then(r => r.json()).then(d => {
-          if (Array.isArray(d)) setTemplates(d);
-        });
-      } else {
-        setSeedMsg("All defaults already loaded");
-      }
-      setTimeout(() => setSeedMsg(""), 3000);
-    } else {
-      setSeedMsg(data.error || "Failed");
-      setTimeout(() => setSeedMsg(""), 3000);
+  const handleUseTemplate = async (tpl: (typeof PRESET_TEMPLATES)[number], index: number) => {
+    setTemplateLoading(index);
+    try {
+      const res = await fetch("/api/email-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: tpl.name,
+          description: tpl.description,
+          category: tpl.category,
+          subject: tpl.subject,
+          html_body: tpl.html_body,
+          plain_body: tpl.plain_body,
+          variables: tpl.variables,
+          blocks: [],
+          settings: {},
+        }),
+      });
+      const data = await res.json();
+      if (data.id) router.push(`/email-templates/${data.id}`);
+    } catch {
+      // fail silently
+    } finally {
+      setTemplateLoading(null);
     }
   };
 
@@ -220,21 +283,6 @@ export default function EmailTemplatesPage() {
         subtitle="Design reusable email templates for esign notifications, workflows, and more."
         action={
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <button
-                onClick={handleSeedDefaults}
-                disabled={seeding}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                {seeding ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
-                Load Defaults
-              </button>
-              {seedMsg && (
-                <div className="absolute top-full mt-1 right-0 whitespace-nowrap text-xs bg-gray-800 text-white px-2.5 py-1.5 rounded-lg z-10">
-                  {seedMsg}
-                </div>
-              )}
-            </div>
             <button
               onClick={() => setShowCatManager(true)}
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
@@ -252,6 +300,43 @@ export default function EmailTemplatesPage() {
           </div>
         }
       />
+
+      {/* Pre-built templates carousel */}
+      <div className="px-6 py-5 border-b border-gray-100 bg-gray-50">
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Pre-built Templates</h2>
+          <span className="text-[11px] bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full font-medium">{PRESET_TEMPLATES.length}</span>
+        </div>
+        <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+          {PRESET_TEMPLATES.map((tpl, i) => (
+            <div
+              key={i}
+              className="flex-shrink-0 w-56 bg-white border border-gray-200 rounded-2xl p-4 flex flex-col gap-2 hover:shadow-md hover:border-gray-300 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl">{tpl.emoji}</span>
+                <span
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize text-white"
+                  style={{ backgroundColor: tpl.color }}
+                >
+                  {tpl.category}
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-gray-800 leading-tight">{tpl.name}</p>
+              <p className="text-[11px] text-gray-400 leading-relaxed flex-1 line-clamp-2">{tpl.description}</p>
+              <button
+                onClick={() => handleUseTemplate(tpl, i)}
+                disabled={templateLoading === i}
+                className="mt-1 w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-white rounded-xl transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: tpl.color }}
+              >
+                {templateLoading === i ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+                Use Template
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center gap-3 flex-wrap">
         {/* Search */}
