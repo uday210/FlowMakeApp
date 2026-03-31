@@ -60,8 +60,7 @@ export default function EmailTemplatesPage() {
     <AppShell>
       <PageHeader
         title="Email Templates"
-        description="Design reusable email templates for esign notifications, workflows, and more."
-        icon={<Mail size={18} />}
+        subtitle="Design reusable email templates for esign notifications, workflows, and more."
         action={
           <button
             onClick={handleCreate}
