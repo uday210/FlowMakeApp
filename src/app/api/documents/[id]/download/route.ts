@@ -14,6 +14,7 @@ export async function GET(req: Request, { params }: Params) {
   const url = new URL(req.url);
   const untilOrder = url.searchParams.get("until_order");
   const maxOrder = untilOrder ? parseInt(untilOrder, 10) : Infinity;
+  const sessionId = url.searchParams.get("session_id");
 
   const { data: doc, error: docError } = await supabase
     .from("esign_documents")
@@ -27,13 +28,19 @@ export async function GET(req: Request, { params }: Params) {
     .select("*")
     .eq("document_id", id);
 
-  // Fetch signed requests up to maxOrder
+  // Fetch signed requests — scope to session when provided so multiple API
+  // sessions on the same template don't bleed into each other's PDFs
   let query = supabase
     .from("esign_requests")
     .select("*")
-    .eq("document_id", id)
     .eq("status", "signed")
     .order("signing_order");
+
+  if (sessionId) {
+    query = query.eq("session_id", sessionId);
+  } else {
+    query = query.eq("document_id", id);
+  }
 
   const { data: allRequests } = await query;
   const requests = (allRequests ?? []).filter(

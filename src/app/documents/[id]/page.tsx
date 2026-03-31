@@ -43,6 +43,7 @@ interface SignerRequest {
   signed_at: string | null;
   signing_order: number;
   signing_url: string | null;
+  session_id: string | null;
 }
 
 const FIELD_TYPES = [
@@ -549,7 +550,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                               {isSigned ? "Signed" : isPending ? "Pending" : "Waiting"}
                             </span>
                             {isSigned && (
-                              <a href={`/api/documents/${id}/download?until_order=${r.signing_order}`} target="_blank" rel="noreferrer"
+                              <a href={`/api/documents/${id}/download?until_order=${r.signing_order}${r.session_id ? `&session_id=${r.session_id}` : ""}`} target="_blank" rel="noreferrer"
                                 className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100">
                                 <Download size={11} /> PDF
                               </a>
