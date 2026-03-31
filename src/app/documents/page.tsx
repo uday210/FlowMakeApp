@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import AppShell, { PageHeader } from "@/components/AppShell";
 import {
   FileText, Plus, Upload, Loader2, CheckCircle2,
-  Clock, Send, Trash2, Eye, AlertCircle,
+  Clock, Send, Trash2, Eye, AlertCircle, BookOpen,
 } from "lucide-react";
 
 interface EsignDocument {
@@ -102,14 +103,22 @@ export default function DocumentsPage() {
         title="E-Sign Documents"
         subtitle="Upload PDFs, add signature fields, and send for signing"
         action={
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
-          >
-            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            Upload PDF
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/docs/esign"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              <BookOpen size={14} /> API Docs
+            </Link>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
+            >
+              {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              Upload PDF
+            </button>
+          </div>
         }
       />
 
