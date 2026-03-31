@@ -879,6 +879,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   mailgun: "Mailgun",
   postmark: "Postmark",
   smtp: "SMTP",
+  mailtrap: "Mailtrap",
 };
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -887,6 +888,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   mailgun: "bg-red-600 text-white",
   postmark: "bg-yellow-500 text-white",
   smtp: "bg-gray-600 text-white",
+  mailtrap: "bg-teal-600 text-white",
 };
 
 function blankForm() {
@@ -1331,6 +1333,36 @@ function EmailConfigsPanel() {
                     />
                     Use TLS/SSL
                   </label>
+                </div>
+              )}
+
+              {form.provider === "mailtrap" && (
+                <div className="space-y-3">
+                  <div className="bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 text-xs text-teal-700">
+                    Uses Mailtrap HTTP API — works on Railway where SMTP ports are blocked.
+                    Get your API token from <strong>Mailtrap → API Tokens</strong>.
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">API Token</label>
+                    <input
+                      type="password"
+                      placeholder={editId ? "Leave blank to keep existing token" : "Mailtrap API token…"}
+                      value={form.api_key}
+                      onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
+                      className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Inbox ID <span className="text-gray-400 font-normal">(for testing sandbox)</span></label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1234567 — from Mailtrap inbox URL"
+                      value={form.mailgun_domain}
+                      onChange={e => setForm(f => ({ ...f, mailgun_domain: e.target.value }))}
+                      className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Leave empty to use the sending API (production). For sandbox testing, paste the numeric ID from your inbox URL.</p>
+                  </div>
                 </div>
               )}
 

@@ -138,6 +138,32 @@ async function sendViaSmtp(config: OrgEmailConfig, opts: SendEmailOptions) {
   });
 }
 
+async function sendViaMailtrap(config: OrgEmailConfig, opts: SendEmailOptions) {
+  // Uses Mailtrap Email Testing API (HTTP) — works on Railway where SMTP ports are blocked
+  // api_key = "Bearer <token>" or just "<token>", mailgun_domain field holds the inbox ID
+  const token = config.api_key!;
+  const inboxId = config.mailgun_domain; // we reuse mailgun_domain field to store inbox ID
+  const url = inboxId
+    ? `https://sandbox.api.mailtrap.io/api/send/${inboxId}`
+    : "https://send.api.mailtrap.io/api/send";
+  const from = config.from_name ? { email: config.from_email, name: config.from_name } : { email: config.from_email };
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to: [{ email: opts.to, name: opts.toName }],
+      subject: opts.subject,
+      html: opts.htmlBody,
+      text: opts.plainBody,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Mailtrap error: ${err}`);
+  }
+}
+
 /**
  * Send using an explicit config (used for testing a specific, possibly inactive config).
  */
@@ -158,6 +184,9 @@ export async function sendEmailWithConfig(config: OrgEmailConfig, opts: SendEmai
         return true;
       case "smtp":
         await sendViaSmtp(config, opts);
+        return true;
+      case "mailtrap":
+        await sendViaMailtrap(config, opts);
         return true;
       default:
         return false;
