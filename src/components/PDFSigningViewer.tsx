@@ -6,7 +6,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import PDFPageCanvas from "./PDFPageCanvas";
 import { PenLine, Type, Calendar, AlignLeft, CheckCircle2 } from "lucide-react";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface EsignField {
   id: string;
