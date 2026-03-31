@@ -99,6 +99,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     setSignerRequests(statusData.requests || []);
     setPageCount(docData.page_count || 1);
     setIsTemplate(!!docData.is_template);
+    setEmailTemplateId(docData.email_template_id || "");
     if (statusData.requests?.length > 0) setShowStatus(true);
     setLoading(false);
   }, [id]);
@@ -151,7 +152,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
       await fetch(`/api/documents/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: doc.name, page_count: pageCount, status: doc.status, is_template: isTemplate }),
+        body: JSON.stringify({ name: doc.name, page_count: pageCount, status: doc.status, is_template: isTemplate, email_template_id: emailTemplateId || null }),
       });
     }
     setSaving(false);
@@ -185,7 +186,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     await fetch(`/api/documents/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, page_count: pageCount, status: doc.status, is_template: isTemplate }),
+      body: JSON.stringify({ name, page_count: pageCount, status: doc.status, is_template: isTemplate, email_template_id: emailTemplateId || null }),
     });
   };
 
@@ -314,7 +315,10 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
 
         <select
           value={emailTemplateId}
-          onChange={(e) => setEmailTemplateId(e.target.value)}
+          onChange={(e) => {
+            setEmailTemplateId(e.target.value);
+            if (doc) fetch(`/api/documents/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: doc.name, page_count: pageCount, status: doc.status, is_template: isTemplate, email_template_id: e.target.value || null }) });
+          }}
           className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white outline-none focus:ring-2 focus:ring-indigo-500 max-w-[160px]"
           title="Optionally attach an email template — signers will be emailed automatically"
         >
@@ -583,110 +587,147 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
           )}
 
           {/* Status view */}
-          {showStatus && (
-            <div className="flex-1 overflow-auto">
-              <div className="max-w-2xl mx-auto py-8 px-6 space-y-5">
-                <div className="flex items-center justify-between">
+          {showStatus && (() => {
+            // Group requests by session_id
+            const groupMap = new Map<string, typeof signerRequests>();
+            for (const r of signerRequests) {
+              const key = r.session_id ?? r.id;
+              if (!groupMap.has(key)) groupMap.set(key, []);
+              groupMap.get(key)!.push(r);
+            }
+            const groups = Array.from(groupMap.entries())
+              .map(([sessionId, reqs]) => ({ sessionId, reqs: reqs.sort((a, b) => a.signing_order - b.signing_order) }))
+              .sort((a, b) => new Date(a.reqs[0].created_at).getTime() - new Date(b.reqs[0].created_at).getTime());
+
+            return (
+              <div className="flex-1 overflow-auto">
+                <div className="max-w-2xl mx-auto py-8 px-6 space-y-6">
                   <div>
                     <h2 className="font-semibold text-gray-800">Signing Status</h2>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {signerRequests.filter(r => r.status === "signed").length} of {signerRequests.length} signed
+                      {groups.length} sending group{groups.length !== 1 ? "s" : ""} · {signerRequests.filter(r => r.status === "signed").length} of {signerRequests.length} total signed
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {signerRequests.every(r => r.status === "signed") && signerRequests.length > 0 && (
-                      <a href={`/api/documents/${id}/download`} target="_blank" rel="noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg">
-                        <Download size={12} /> Download Signed PDF
-                      </a>
-                    )}
-                  </div>
-                </div>
 
-                {signerRequests.length > 0 && (
-                  <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full transition-all"
-                      style={{ width: `${(signerRequests.filter(r => r.status === "signed").length / signerRequests.length) * 100}%` }}
-                    />
-                  </div>
-                )}
+                  {signerRequests.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Users size={28} className="text-gray-300 mx-auto mb-3" />
+                      <p className="text-sm text-gray-500 font-medium">No signing requests yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Add recipients and click Send for Signature</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      {groups.map(({ sessionId, reqs }, gi) => {
+                        const allSigned   = reqs.every(r => r.status === "signed");
+                        const someSigned  = reqs.some(r => r.status === "signed");
+                        const signedCount = reqs.filter(r => r.status === "signed").length;
+                        const sentAt      = new Date(reqs[0].created_at);
+                        const dlBase      = `/api/documents/${id}/download?session_id=${sessionId}`;
 
-                {signerRequests.length === 0 ? (
-                  <div className="text-center py-16">
-                    <Users size={28} className="text-gray-300 mx-auto mb-3" />
-                    <p className="text-sm text-gray-500 font-medium">No signing requests yet</p>
-                    <p className="text-xs text-gray-400 mt-1">Add recipients and click Send for Signature</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {signerRequests.map(r => {
-                      const isSigned  = r.status === "signed";
-                      const isPending = r.status === "pending";
-                      return (
-                        <div key={r.id} className={`rounded-xl border p-4 ${isSigned ? "bg-green-50 border-green-200" : isPending ? "bg-white border-indigo-200 shadow-sm" : "bg-white border-gray-200 opacity-70"}`}>
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${isSigned ? "bg-green-500 text-white" : isPending ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-500"}`}>
-                              {isSigned ? <Check size={15} /> : r.signing_order}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-gray-800">{r.signer_name || r.signer_email}</p>
-                              <p className="text-xs text-gray-400">{r.signer_email}</p>
-                            </div>
-                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isSigned ? "bg-green-100 text-green-700" : isPending ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}>
-                              {isSigned ? "Signed" : isPending ? "Pending" : "Waiting"}
-                            </span>
-                            {isSigned && (
-                              <a href={`/api/documents/${id}/download?until_order=${r.signing_order}${r.session_id ? `&session_id=${r.session_id}` : ""}`} target="_blank" rel="noreferrer"
-                                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100">
-                                <Download size={11} /> PDF
-                              </a>
-                            )}
-                          </div>
-                          {isSigned && r.signed_at && (
-                            <p className="text-xs text-green-600 flex items-center gap-1.5 pl-12 mt-2">
-                              <CheckCircle2 size={11} />
-                              Signed {new Date(r.signed_at).toLocaleString()}
-                            </p>
-                          )}
-                          {isPending && r.signing_url && (
-                            <div className="ml-12 mt-2 bg-indigo-50 border border-indigo-200 rounded-lg p-2.5">
-                              <p className="text-[11px] font-semibold text-indigo-700 mb-1.5 flex items-center gap-1">
-                                <Link2 size={11} /> Signing link — share with recipient
-                              </p>
+                        return (
+                          <div key={sessionId} className={`rounded-2xl border overflow-hidden ${allSigned ? "border-green-200" : "border-gray-200"}`}>
+                            {/* Group header */}
+                            <div className={`px-4 py-3 flex items-center justify-between gap-3 ${allSigned ? "bg-green-50" : "bg-gray-50"}`}>
                               <div className="flex items-center gap-2">
-                                <code className="flex-1 text-[10px] text-indigo-600 bg-white border border-indigo-100 rounded px-2 py-1 truncate">{r.signing_url}</code>
-                                <button
-                                  onClick={() => { navigator.clipboard.writeText(r.signing_url!); setCopiedId(r.id); setTimeout(() => setCopiedId(null), 2000); }}
-                                  className={`flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-lg border flex-shrink-0 transition-colors ${copiedId === r.id ? "bg-green-50 text-green-700 border-green-200" : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"}`}
-                                >
-                                  {copiedId === r.id ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
-                                </button>
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${allSigned ? "bg-green-500" : "bg-indigo-500"}`}>
+                                  {gi + 1}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-800">
+                                    Group {gi + 1} · {reqs.length} signer{reqs.length !== 1 ? "s" : ""}
+                                    {allSigned && <span className="ml-2 text-green-600">· All signed</span>}
+                                    {!allSigned && someSigned && <span className="ml-2 text-amber-600">· {signedCount}/{reqs.length} signed</span>}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400">Sent {sentAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+                                </div>
+                              </div>
+                              {/* Group download buttons */}
+                              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                {someSigned && !allSigned && (
+                                  <a href={dlBase} target="_blank" rel="noreferrer"
+                                    className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100">
+                                    <Download size={10} /> Signed so far
+                                  </a>
+                                )}
+                                {allSigned && (
+                                  <a href={dlBase} target="_blank" rel="noreferrer"
+                                    className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700">
+                                    <Download size={10} /> Full Signed PDF
+                                  </a>
+                                )}
                               </div>
                             </div>
-                          )}
-                          {r.status === "waiting" && (
-                            <p className="text-xs text-gray-400 flex items-center gap-1.5 pl-12 mt-2">
-                              <Clock size={11} /> Waiting for recipient #{r.signing_order - 1} to sign first
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
 
-                {signerRequests.some(r => r.status === "signed") && !signerRequests.every(r => r.status === "signed") && (
-                  <div className="pt-2 border-t border-gray-100">
-                    <a href={`/api/documents/${id}/download`} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors">
-                      <Download size={12} /> Download partial PDF (signed so far)
-                    </a>
-                  </div>
-                )}
+                            {/* Progress bar */}
+                            <div className="w-full bg-gray-100 h-1">
+                              <div className="bg-green-500 h-1 transition-all" style={{ width: `${(signedCount / reqs.length) * 100}%` }} />
+                            </div>
+
+                            {/* Signers */}
+                            <div className="divide-y divide-gray-100">
+                              {reqs.map(r => {
+                                const isSigned  = r.status === "signed";
+                                const isPending = r.status === "pending";
+                                return (
+                                  <div key={r.id} className={`px-4 py-3 ${isSigned ? "bg-white" : isPending ? "bg-white" : "bg-gray-50 opacity-70"}`}>
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${isSigned ? "bg-green-500 text-white" : isPending ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-500"}`}>
+                                        {isSigned ? <Check size={13} /> : r.signing_order}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-800">{r.signer_name || r.signer_email}</p>
+                                        <p className="text-xs text-gray-400">{r.signer_email}</p>
+                                      </div>
+                                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isSigned ? "bg-green-100 text-green-700" : isPending ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}>
+                                        {isSigned ? "Signed" : isPending ? "Pending" : "Waiting"}
+                                      </span>
+                                      {/* Individual download */}
+                                      {isSigned && (
+                                        <a href={`${dlBase}&until_order=${r.signing_order}`} target="_blank" rel="noreferrer"
+                                          className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100">
+                                          <Download size={10} /> PDF
+                                        </a>
+                                      )}
+                                    </div>
+                                    {isSigned && r.signed_at && (
+                                      <p className="text-xs text-green-600 flex items-center gap-1.5 pl-11 mt-1.5">
+                                        <CheckCircle2 size={10} /> Signed {new Date(r.signed_at).toLocaleString()}
+                                      </p>
+                                    )}
+                                    {isPending && r.signing_url && (
+                                      <div className="ml-11 mt-2 bg-indigo-50 border border-indigo-200 rounded-lg p-2.5">
+                                        <p className="text-[11px] font-semibold text-indigo-700 mb-1.5 flex items-center gap-1">
+                                          <Link2 size={11} /> Signing link — share with recipient
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                          <code className="flex-1 text-[10px] text-indigo-600 bg-white border border-indigo-100 rounded px-2 py-1 truncate">{r.signing_url}</code>
+                                          <button
+                                            onClick={() => { navigator.clipboard.writeText(r.signing_url!); setCopiedId(r.id); setTimeout(() => setCopiedId(null), 2000); }}
+                                            className={`flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-lg border flex-shrink-0 transition-colors ${copiedId === r.id ? "bg-green-50 text-green-700 border-green-200" : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"}`}
+                                          >
+                                            {copiedId === r.id ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {r.status === "waiting" && (
+                                      <p className="text-xs text-gray-400 flex items-center gap-1.5 pl-11 mt-1.5">
+                                        <Clock size={11} /> Waiting for signer #{r.signing_order - 1} to sign first
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
