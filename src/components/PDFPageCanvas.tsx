@@ -30,6 +30,13 @@ export default function PDFPageCanvas({ pdfDoc, pageNumber, width, onRendered }:
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
+      // Always reset transform to identity before rendering.
+      // Setting canvas.width/height resets the canvas but NOT the transform in all
+      // browsers — a stale transform from a previous render causes inversion.
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      // Do NOT pass `canvas` to render — pdfjs v5 treats it as an OffscreenCanvas
+      // hint and applies a flipped coordinate transform, causing pages to appear inverted.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (page.render as any)({ canvasContext: ctx, viewport: scaledViewport }).promise;
       if (!cancelled) onRendered?.(scaledViewport.width, scaledViewport.height);
