@@ -117,6 +117,33 @@ async function sendViaPostmark(config: OrgEmailConfig, opts: SendEmailOptions) {
 }
 
 /**
+ * Send using an explicit config (used for testing a specific, possibly inactive config).
+ */
+export async function sendEmailWithConfig(config: OrgEmailConfig, opts: SendEmailOptions): Promise<boolean> {
+  try {
+    switch (config.provider) {
+      case "resend":
+        await sendViaResend({ apiKey: config.api_key!, from: config.from_email, fromName: config.from_name }, opts);
+        return true;
+      case "sendgrid":
+        await sendViaSendGrid({ apiKey: config.api_key!, from: config.from_email, fromName: config.from_name }, opts);
+        return true;
+      case "mailgun":
+        await sendViaMailgun(config, opts);
+        return true;
+      case "postmark":
+        await sendViaPostmark(config, opts);
+        return true;
+      default:
+        return false;
+    }
+  } catch (err) {
+    console.error("[emailSender] sendEmailWithConfig failed:", err);
+    return false;
+  }
+}
+
+/**
  * Send an email. Returns true if sent, false if no email provider configured (silently skipped).
  */
 export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {

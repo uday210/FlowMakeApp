@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgContext } from "@/lib/auth";
-import { sendEmail } from "@/lib/emailSender";
+import { sendEmailWithConfig } from "@/lib/emailSender";
 
 export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
@@ -39,8 +39,8 @@ export async function PUT(request: Request, { params }: Params) {
 
     if (!config) return NextResponse.json({ error: "Config not found" }, { status: 404 });
 
-    // Temporarily activate this config just for the test
-    const sent = await sendEmail({
+    // Send using this specific config (regardless of whether it's active)
+    const sent = await sendEmailWithConfig(config, {
       orgId: ctx.orgId,
       to: testTo,
       subject: "Test email from FlowMake",
