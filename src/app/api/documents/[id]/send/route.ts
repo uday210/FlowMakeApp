@@ -71,6 +71,11 @@ export async function POST(request: Request, { params }: Params) {
     signing_url: r.status === "pending" ? `${baseUrl}/sign/${r.token}` : null,
   }));
 
+  // Increment template usage count
+  if (email_template_id) {
+    await ctx.admin.rpc("increment_template_usage", { template_id: email_template_id });
+  }
+
   // Send emails to pending signers if a template is attached
   if (email_template_id) {
     const pendingSigners = results.filter((r) => r.status === "pending");

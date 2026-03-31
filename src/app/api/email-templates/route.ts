@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data, error } = await ctx.admin
     .from("email_templates")
-    .select("id, name, description, category, subject, variables, created_at, updated_at")
+    .select("id, name, description, category, subject, variables, usage_count, created_at, updated_at")
     .eq("org_id", ctx.orgId)
     .order("updated_at", { ascending: false });
 
