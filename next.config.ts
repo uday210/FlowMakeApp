@@ -17,6 +17,9 @@ const nextConfig: NextConfig = {
     "pdf-parse",
     // pdfjs-dist removed — it's a client-only lib and must be bundled by webpack for the browser
   ],
+  // Turbopack (used in production) handles pdfjs fine with no extra config
+  turbopack: {},
+  // Webpack config only applies in local dev (next dev --webpack)
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // pdfjs-dist tries to require('canvas') in Node envs; stub it out for the browser bundle
