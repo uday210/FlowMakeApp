@@ -6,19 +6,20 @@
 
 import { NextResponse } from "next/server";
 import { getApiKeyContext } from "@/lib/apiAuth";
+import { getBaseUrl } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await getApiKeyContext(request);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: sessionId } = await params;
+  const baseUrl = getBaseUrl(request);
   const admin = createClient(supabaseUrl, supabaseServiceKey);
 
   const { data: requests, error } = await admin

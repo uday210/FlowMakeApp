@@ -32,13 +32,13 @@
 
 import { NextResponse } from "next/server";
 import { getApiKeyContext } from "@/lib/apiAuth";
+import { getBaseUrl } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export async function POST(request: Request) {
   const auth = await getApiKeyContext(request);
@@ -62,6 +62,7 @@ export async function POST(request: Request) {
   if (!document_id) return NextResponse.json({ error: "document_id is required" }, { status: 400 });
   if (!signers?.length) return NextResponse.json({ error: "signers array is required and must not be empty" }, { status: 400 });
 
+  const baseUrl = getBaseUrl(request);
   const admin = createClient(supabaseUrl, supabaseServiceKey);
 
   // Verify document belongs to this org

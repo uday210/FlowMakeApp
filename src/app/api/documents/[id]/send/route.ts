@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrgContext } from "@/lib/auth";
+import { getOrgContext, getBaseUrl } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: Params) {
 
   await ctx.admin.from("esign_documents").update({ status: "sent" }).eq("id", id).eq("org_id", ctx.orgId);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = getBaseUrl(request);
   return NextResponse.json({
     success: true,
     requests: requests.map((r) => ({

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { getBaseUrl } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,5 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  return NextResponse.json({ ...data, signing_url: `${baseUrl}/sign/${data.token}` }, { status: 201 });
+  return NextResponse.json({ ...data, signing_url: `${getBaseUrl(request)}/sign/${data.token}` }, { status: 201 });
 }

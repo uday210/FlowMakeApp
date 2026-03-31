@@ -69,6 +69,19 @@ export async function isSuperAdmin(): Promise<boolean> {
 }
 
 /**
+ * Derives the public base URL from the incoming request headers so signing
+ * links work correctly behind Railway / any reverse proxy.
+ * Prefers NEXT_PUBLIC_APP_URL env var when explicitly set.
+ */
+export function getBaseUrl(request: Request): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  const h = request.headers;
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const host  = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  return `${proto}://${host}`;
+}
+
+/**
  * Returns the service-role admin client for superadmin API routes.
  * Returns null if the user is not a superadmin.
  */

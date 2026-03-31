@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { getBaseUrl } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
+  const baseUrl = getBaseUrl(_req);
   const { id } = await params;
   const supabase = createServerClient();
 
@@ -26,7 +28,6 @@ export async function GET(_req: Request, { params }: Params) {
     doc.status = "completed";
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const requestsWithLinks = (requests ?? []).map((r) => ({
     ...r,
     signing_url: r.token
