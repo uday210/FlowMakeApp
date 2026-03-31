@@ -18,6 +18,7 @@ const PUBLIC_ROUTES = [
 const PUBLIC_PREFIXES = [
   "/api/webhook/",
   "/api/esign/",
+  "/api/v1/",
   "/api/approvals/",
   "/embed/",
   "/form/",
