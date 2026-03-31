@@ -341,40 +341,48 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
           {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} Save
         </button>
 
-        <select
-          value={emailTemplateId}
-          onChange={(e) => {
-            setEmailTemplateId(e.target.value);
-            if (doc) fetch(`/api/documents/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: doc.name, page_count: pageCount, status: doc.status, is_template: isTemplate, email_template_id: e.target.value || null }) });
-          }}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white outline-none focus:ring-2 focus:ring-indigo-500 max-w-[160px]"
-          title="Optionally attach an email template — signers will be emailed automatically"
-        >
-          <option value="">✉ No email (URL only)</option>
-          {emailTemplates.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
+        {isTemplate ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-50 border border-violet-200 rounded-lg text-[11px] text-violet-700 font-medium">
+            <span>◆ Template — send via API or a Scenario workflow</span>
+          </div>
+        ) : (
+          <>
+            <select
+              value={emailTemplateId}
+              onChange={(e) => {
+                setEmailTemplateId(e.target.value);
+                if (doc) fetch(`/api/documents/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: doc.name, page_count: pageCount, status: doc.status, is_template: isTemplate, email_template_id: e.target.value || null }) });
+              }}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white outline-none focus:ring-2 focus:ring-indigo-500 max-w-[160px]"
+              title="Optionally attach an email template — signers will be emailed automatically"
+            >
+              <option value="">✉ No email (URL only)</option>
+              {emailTemplates.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
 
-        {emailTemplateId && (
-          <button
-            onClick={handleEmailPreview}
-            disabled={emailPreviewLoading}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
-            title="Preview the email signers will receive"
-          >
-            {emailPreviewLoading ? <Loader2 size={11} className="animate-spin" /> : <Eye size={11} />}
-            Preview Email
-          </button>
+            {emailTemplateId && (
+              <button
+                onClick={handleEmailPreview}
+                disabled={emailPreviewLoading}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
+                title="Preview the email signers will receive"
+              >
+                {emailPreviewLoading ? <Loader2 size={11} className="animate-spin" /> : <Eye size={11} />}
+                Preview Email
+              </button>
+            )}
+
+            <button
+              onClick={handleSend} disabled={sending}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+            >
+              {sending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+              Send for Signature
+            </button>
+          </>
         )}
-
-        <button
-          onClick={handleSend} disabled={sending}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
-        >
-          {sending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
-          Send for Signature
-        </button>
       </header>
 
       {/* ── Body ── */}
