@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   // Verify document belongs to this org
   const { data: doc, error: docError } = await admin
     .from("esign_documents")
-    .select("id, name, is_template")
+    .select("id, name, is_template, email_template_id")
     .eq("id", document_id)
     .eq("org_id", auth.orgId)
     .single();
@@ -135,11 +135,14 @@ export async function POST(request: Request) {
     await admin.from("esign_documents").update({ status: "sent" }).eq("id", document_id);
   }
 
+  // Use request body email_template_id, falling back to the one saved on the document
+  const effectiveTemplateId = email_template_id || (doc as { email_template_id?: string }).email_template_id || null;
+
   // Send emails to pending signers if a template is attached
-  if (email_template_id) {
+  if (effectiveTemplateId) {
     const baseUrl = getBaseUrl(request);
     for (const signer of results.filter((r) => r.status === "pending")) {
-      const rendered = await renderEmailTemplate(email_template_id, {
+      const rendered = await renderEmailTemplate(effectiveTemplateId, {
         signer_name:    signer.name || signer.email,
         signer_email:   signer.email,
         document_title: doc.name,
@@ -166,6 +169,6 @@ export async function POST(request: Request) {
     document_name: doc.name,
     mode: effectiveMode,
     signers: results,
-    emails_sent: !!email_template_id,
+    emails_sent: !!effectiveTemplateId,
   }, { status: 201 });
 }
