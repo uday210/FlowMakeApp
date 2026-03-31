@@ -44,6 +44,7 @@ interface SignerRequest {
   signing_order: number;
   signing_url: string | null;
   session_id: string | null;
+  created_at: string;
 }
 
 const FIELD_TYPES = [
