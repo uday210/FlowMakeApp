@@ -12,11 +12,25 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("esign_requests")
-    .select("id, token, document_id, document_title, document_content, signer_email, signer_name, signer_role, status, signed_at, created_at, signing_order")
+    .select("id, token, document_id, document_title, document_content, signer_email, signer_name, signer_role, status, signed_at, created_at, signing_order, esign_documents(file_url)")
     .eq("token", token)
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Flatten the joined file_url so callers don't need an authenticated /api/documents fetch
+  const fileUrl = (data.esign_documents as { file_url?: string } | null)?.file_url ?? null;
+
+  // Fetch fields for the document so the signing page doesn't need an authenticated call
+  let documentFields: unknown[] = [];
+  if (data.document_id) {
+    const { data: fields } = await supabase
+      .from("esign_fields")
+      .select("*")
+      .eq("document_id", data.document_id)
+      .order("page");
+    documentFields = fields ?? [];
+  }
 
   // Fetch previous signers' field values so the sign page can show them as read-only overlays
   let previousSignatures: {
@@ -47,5 +61,6 @@ export async function GET(
     });
   }
 
-  return NextResponse.json({ ...data, previous_signatures: previousSignatures });
+  const { esign_documents: _doc, ...rest } = data as typeof data & { esign_documents: unknown };
+  return NextResponse.json({ ...rest, file_url: fileUrl, document_fields: documentFields, previous_signatures: previousSignatures });
 }

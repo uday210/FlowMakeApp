@@ -41,6 +41,8 @@ interface EsignRequest {
   status: string;
   signed_at: string | null;
   signing_order: number;
+  file_url: string | null;
+  document_fields: EsignField[];
   previous_signatures: PreviousSignature[];
 }
 
@@ -78,16 +80,8 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
         if (data.status === "waiting") return;
 
         if (data.document_id) {
-          const [docRes, fieldsRes] = await Promise.all([
-            fetch(`/api/documents/${data.document_id}`),
-            fetch(`/api/documents/${data.document_id}/fields`),
-          ]);
-          if (docRes.ok) {
-            const doc = await docRes.json();
-            setDocFileUrl(doc.file_url);
-          }
-          if (fieldsRes.ok) {
-            const allFields: EsignField[] = await fieldsRes.json();
+          setDocFileUrl(data.file_url);
+          const allFields: EsignField[] = data.document_fields ?? [];
 
             // Fields for this signer only.
             // Matches by email directly, OR by role (for template documents).
@@ -131,7 +125,6 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
               }
               setReadOnlyValues(prevValues);
             }
-          }
         }
       })
       .catch(() => setNotFound(true))

@@ -35,7 +35,7 @@ export default function PDFPageCanvas({ pdfDoc, pageNumber, width, onRendered }:
       // inverted or mirrored on certain PDFs.
       ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-      await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+      await page.render({ canvasContext: ctx, canvas, viewport: scaledViewport }).promise;
       if (!cancelled) onRendered?.(scaledViewport.width, scaledViewport.height);
     })();
     return () => { cancelled = true; };
