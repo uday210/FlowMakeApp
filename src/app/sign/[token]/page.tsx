@@ -80,7 +80,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
         if (data.status === "waiting") return;
 
         if (data.document_id) {
-          setDocFileUrl(data.file_url);
+          setDocFileUrl(`/api/esign/${token}/pdf`);
           const allFields: EsignField[] = data.document_fields ?? [];
 
             // Fields for this signer only.

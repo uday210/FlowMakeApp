@@ -391,7 +391,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
         <div className="flex-1 overflow-auto">
           {tab === "editor" && (
             <PDFEditorCanvas
-              fileUrl={doc.file_url}
+              fileUrl={`/api/documents/${id}/pdf`}
               fields={fields}
               activeTool={activeTool}
               selectedField={selectedField}

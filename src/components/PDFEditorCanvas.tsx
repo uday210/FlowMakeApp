@@ -6,7 +6,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import PDFPageCanvas from "./PDFPageCanvas";
 import { PenLine, Type, Calendar, AlignLeft, GripVertical, X } from "lucide-react";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
 interface EsignField {
   id: string;
@@ -84,12 +84,21 @@ export default function PDFEditorCanvas({
 
   useEffect(() => {
     let cancelled = false;
-    pdfjsLib.getDocument(fileUrl).promise.then((doc) => {
-      if (cancelled) return;
-      setPdfDoc(doc);
-      setNumPages(doc.numPages);
-      onPageCountChange(doc.numPages);
-    }).catch(() => setError("Failed to load PDF. Check the file URL."));
+    (async () => {
+      try {
+        const res = await fetch(fileUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.arrayBuffer();
+        if (cancelled) return;
+        const doc = await pdfjsLib.getDocument({ data }).promise;
+        if (cancelled) return;
+        setPdfDoc(doc);
+        setNumPages(doc.numPages);
+        onPageCountChange(doc.numPages);
+      } catch {
+        if (!cancelled) setError("Failed to load PDF. Check the file URL.");
+      }
+    })();
     return () => { cancelled = true; };
   }, [fileUrl, onPageCountChange]);
 
