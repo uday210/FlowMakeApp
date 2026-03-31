@@ -12,7 +12,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("esign_requests")
-    .select("id, token, document_id, document_title, document_content, signer_email, signer_name, signer_role, status, signed_at, created_at, signing_order, esign_documents(file_url)")
+    .select("id, token, document_id, document_title, document_content, signer_email, signer_name, signer_role, status, signed_at, created_at, signing_order, session_id, esign_documents(file_url)")
     .eq("token", token)
     .single();
 
@@ -36,6 +36,7 @@ export async function GET(
   let previousSignatures: {
     signer_name: string;
     signer_email: string;
+    signer_role: string | null;
     signing_order: number;
     fields_data: Record<string, string>;
     signature_data: string | null;
@@ -44,13 +45,21 @@ export async function GET(
   }[] = [];
 
   if (data.document_id && (data.signing_order ?? 1) > 1) {
-    const { data: prevReqs } = await supabase
+    // Scope to this session so other sessions on the same document don't bleed in
+    let prevQuery = supabase
       .from("esign_requests")
-      .select("signer_name, signer_email, signing_order, fields_data, signature_data, signature_type, signed_at")
-      .eq("document_id", data.document_id)
+      .select("signer_name, signer_email, signer_role, signing_order, fields_data, signature_data, signature_type, signed_at")
       .eq("status", "signed")
       .lt("signing_order", data.signing_order ?? 1)
       .order("signing_order");
+
+    if (data.session_id) {
+      prevQuery = prevQuery.eq("session_id", data.session_id);
+    } else {
+      prevQuery = prevQuery.eq("document_id", data.document_id);
+    }
+
+    const { data: prevReqs } = await prevQuery;
 
     previousSignatures = (prevReqs ?? []).map((r) => {
       let fd = (r.fields_data ?? {}) as Record<string, string>;

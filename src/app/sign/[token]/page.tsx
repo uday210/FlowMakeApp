@@ -22,6 +22,7 @@ interface EsignField {
 interface PreviousSignature {
   signer_name: string;
   signer_email: string;
+  signer_role: string | null;
   signing_order: number;
   fields_data: Record<string, string>;
   signature_data: string | null;
@@ -105,7 +106,17 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
             // Build read-only overlays from previous signatures
             if (data.previous_signatures?.length > 0) {
               const prevEmails = new Set(data.previous_signatures.map((p) => p.signer_email));
-              const prevFields = allFields.filter((f) => f.signer_email && prevEmails.has(f.signer_email));
+              const prevRoles = new Set(
+                data.previous_signatures.map((p) => p.signer_role).filter((r): r is string => !!r)
+              );
+              // Exclude fields that the current signer also needs to fill (UC1: same slot, N signers)
+              const myFieldIds = new Set(myFields.map((f) => f.id));
+              const prevFields = allFields.filter(
+                (f) =>
+                  f.signer_email &&
+                  !myFieldIds.has(f.id) &&
+                  (prevEmails.has(f.signer_email) || prevRoles.has(f.signer_email))
+              );
               setReadOnlyFields(prevFields);
 
               // Merge all previous field values
@@ -116,8 +127,9 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
                 if (Object.keys(prev.fields_data).length === 0 && prev.signature_data &&
                     (prev.signature_type === "draw" || prev.signature_type === "type")) {
                   for (const f of prevFields) {
-                    if (f.signer_email === prev.signer_email &&
-                        (f.type === "signature" || f.type === "initials")) {
+                    const matchByEmail = f.signer_email === prev.signer_email;
+                    const matchByRole = !!(prev.signer_role && f.signer_email === prev.signer_role);
+                    if ((matchByEmail || matchByRole) && (f.type === "signature" || f.type === "initials")) {
                       prevValues[f.id] = prev.signature_data;
                     }
                   }
