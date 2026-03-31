@@ -21,12 +21,15 @@ interface EmailTemplate {
   updated_at: string;
 }
 
-const BUILT_IN_CATEGORIES = ["esign", "workflow", "custom"];
+const BUILT_IN_CATEGORIES = ["esign", "onboarding", "notification", "transactional", "workflow", "custom"];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  esign:    "bg-indigo-100 text-indigo-700",
-  workflow: "bg-amber-100 text-amber-700",
-  custom:   "bg-gray-100 text-gray-600",
+  esign:         "bg-indigo-100 text-indigo-700",
+  onboarding:    "bg-blue-100 text-blue-700",
+  notification:  "bg-amber-100 text-amber-700",
+  transactional: "bg-green-100 text-green-700",
+  workflow:      "bg-purple-100 text-purple-700",
+  custom:        "bg-gray-100 text-gray-600",
 };
 
 function categoryColor(cat: string) {
@@ -68,6 +71,10 @@ export default function EmailTemplatesPage() {
   const [showCatManager, setShowCatManager] = useState(false);
   const [newCategory, setNewCategory] = useState("");
 
+  // Seed defaults
+  const [seeding, setSeeding] = useState(false);
+  const [seedMsg, setSeedMsg] = useState("");
+
   useEffect(() => {
     fetch("/api/email-templates")
       .then(r => r.json())
@@ -107,6 +114,29 @@ export default function EmailTemplatesPage() {
     });
     return list;
   }, [templates, search, filterCategory, sortKey, sortAsc]);
+
+  const handleSeedDefaults = async () => {
+    setSeeding(true);
+    setSeedMsg("");
+    const res = await fetch("/api/email-templates/seed-defaults", { method: "POST" });
+    const data = await res.json();
+    setSeeding(false);
+    if (res.ok) {
+      if (data.inserted > 0) {
+        setSeedMsg(`Added ${data.inserted} default template${data.inserted !== 1 ? "s" : ""}`);
+        // Refresh list
+        fetch("/api/email-templates").then(r => r.json()).then(d => {
+          if (Array.isArray(d)) setTemplates(d);
+        });
+      } else {
+        setSeedMsg("All defaults already loaded");
+      }
+      setTimeout(() => setSeedMsg(""), 3000);
+    } else {
+      setSeedMsg(data.error || "Failed");
+      setTimeout(() => setSeedMsg(""), 3000);
+    }
+  };
 
   const handleCreate = async () => {
     setCreating(true);
@@ -190,6 +220,21 @@ export default function EmailTemplatesPage() {
         subtitle="Design reusable email templates for esign notifications, workflows, and more."
         action={
           <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={handleSeedDefaults}
+                disabled={seeding}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {seeding ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                Load Defaults
+              </button>
+              {seedMsg && (
+                <div className="absolute top-full mt-1 right-0 whitespace-nowrap text-xs bg-gray-800 text-white px-2.5 py-1.5 rounded-lg z-10">
+                  {seedMsg}
+                </div>
+              )}
+            </div>
             <button
               onClick={() => setShowCatManager(true)}
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"

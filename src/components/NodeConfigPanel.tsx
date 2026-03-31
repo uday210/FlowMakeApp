@@ -27,6 +27,26 @@ function EmailTemplateSelect({ value, onChange, className }: { value: string; on
   );
 }
 
+// ─── Esign Template Select ────────────────────────────────────────────────────
+
+function EsignTemplateSelect({ value, onChange, className }: { value: string; onChange: (v: string) => void; className: string }) {
+  const [docs, setDocs] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    fetch("/api/documents")
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setDocs(d.filter((doc: { is_template: boolean }) => doc.is_template)); })
+      .catch(() => {});
+  }, []);
+  return (
+    <select className={className} value={value} onChange={e => onChange(e.target.value)}>
+      <option value="">— Select document template —</option>
+      {docs.map(d => (
+        <option key={d.id} value={d.id}>{d.name}</option>
+      ))}
+    </select>
+  );
+}
+
 // ─── Node output fields map ────────────────────────────────────────────────────
 // Maps node types to the output fields they produce, shown as autocomplete suggestions.
 
@@ -103,6 +123,7 @@ const NODE_OUTPUT_FIELDS: Record<string, { field: string; label: string }[]> = {
   action_google_drive:  [{ field: "id", label: "File ID" }, { field: "name", label: "File name" }, { field: "url", label: "File URL" }],
   action_s3:            [{ field: "url", label: "Object URL" }, { field: "key", label: "S3 key" }, { field: "etag", label: "ETag" }],
   action_esign_request: [{ field: "id", label: "Request ID" }, { field: "status", label: "Signing status" }, { field: "signed_url", label: "Signed doc URL" }],
+  action_send_esign_template: [{ field: "session_id", label: "Session ID" }, { field: "document_id", label: "Document ID" }, { field: "mode", label: "Signing mode" }, { field: "signers", label: "Signers array" }, { field: "emails_sent", label: "Emails sent" }],
   action_rss:           [{ field: "title", label: "Feed title" }, { field: "items", label: "Feed items" }, { field: "link", label: "Feed URL" }],
   action_xml:           [{ field: "result", label: "Parsed/built XML" }],
   action_crypto:        [{ field: "result", label: "Crypto output" }],
@@ -410,6 +431,10 @@ function FieldInput({
 
   if (field.type === "email_template_select") {
     return <EmailTemplateSelect value={value} onChange={onChange} className={base} />;
+  }
+
+  if (field.type === "esign_template_select") {
+    return <EsignTemplateSelect value={value} onChange={onChange} className={base} />;
   }
 
   // Group suggestions

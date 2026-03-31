@@ -818,6 +818,38 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
 
+  {
+    type: "action_send_esign_template",
+    label: "Send Document for Signing",
+    description: "Send an esign document template to one or more signers with emails and names from workflow variables",
+    category: "action",
+    subcategory: "E-Sign",
+    color: "#7c3aed",
+    icon: "FileSignature",
+    defaultConfig: {
+      document_id: "",
+      email_template_id: "",
+      mode: "sequential",
+      signer1_email: "",
+      signer1_name: "",
+      signer2_email: "",
+      signer2_name: "",
+      signer3_email: "",
+      signer3_name: "",
+    },
+    configFields: [
+      { key: "document_id", label: "Document Template", type: "esign_template_select", required: true },
+      { key: "email_template_id", label: "Email Template (for invitation)", type: "email_template_select" },
+      { key: "mode", label: "Signing Mode", type: "select", options: [{ label: "Sequential (one by one)", value: "sequential" }, { label: "Parallel (all at once)", value: "parallel" }] },
+      { key: "signer1_email", label: "Signer 1 Email", type: "text", placeholder: "{{trigger.email}}", required: true },
+      { key: "signer1_name", label: "Signer 1 Name", type: "text", placeholder: "{{trigger.name}}" },
+      { key: "signer2_email", label: "Signer 2 Email (optional)", type: "text", placeholder: "{{variables.signer2_email}}" },
+      { key: "signer2_name", label: "Signer 2 Name", type: "text", placeholder: "{{variables.signer2_name}}" },
+      { key: "signer3_email", label: "Signer 3 Email (optional)", type: "text", placeholder: "{{variables.signer3_email}}" },
+      { key: "signer3_name", label: "Signer 3 Name", type: "text", placeholder: "{{variables.signer3_name}}" },
+    ],
+  },
+
   // ── Data & Utilities ──────────────────────────────────────────────────────────
   {
     type: "action_airtable",

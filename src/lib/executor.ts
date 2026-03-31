@@ -1089,6 +1089,107 @@ async function executeNodeOnce(
         break;
       }
 
+      case "action_send_esign_template": {
+        const documentId = interpolate(config.document_id as string);
+        if (!documentId) throw new Error("Document template is required");
+
+        const signerFields = [
+          { email: interpolate(config.signer1_email as string), name: interpolate(config.signer1_name as string) },
+          { email: interpolate(config.signer2_email as string), name: interpolate(config.signer2_name as string) },
+          { email: interpolate(config.signer3_email as string), name: interpolate(config.signer3_name as string) },
+        ].filter(s => s.email.trim());
+
+        if (!signerFields.length) throw new Error("At least one signer email is required");
+
+        const mode = (config.mode as string) || "sequential";
+        const emailTemplateId = interpolate(config.email_template_id as string);
+
+        const supabase = createServerClient();
+
+        // Verify document belongs to this org
+        const { data: doc, error: docError } = await supabase
+          .from("esign_documents")
+          .select("id, name, email_template_id")
+          .eq("id", documentId)
+          .eq("org_id", ctx.orgId || "")
+          .single();
+        if (docError || !doc) throw new Error("Document template not found in your org");
+
+        const effectiveTemplateId = emailTemplateId || (doc as { email_template_id?: string }).email_template_id || null;
+        const sessionId = crypto.randomUUID();
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const results = [];
+
+        for (let i = 0; i < signerFields.length; i++) {
+          const signer = signerFields[i];
+          const order = i + 1;
+          const status = mode === "parallel" || order === 1 ? "pending" : "waiting";
+
+          const { data: req, error: reqErr } = await supabase
+            .from("esign_requests")
+            .insert({
+              document_id: documentId,
+              document_title: doc.name,
+              document_content: "",
+              signer_email: signer.email,
+              signer_name: signer.name || signer.email,
+              status,
+              signing_order: order,
+              session_id: sessionId,
+              org_id: ctx.orgId || null,
+            })
+            .select("id, token, status")
+            .single();
+          if (reqErr || !req) throw new Error(`Failed to create request for ${signer.email}: ${reqErr?.message}`);
+
+          results.push({
+            id: req.id,
+            email: signer.email,
+            name: signer.name || signer.email,
+            order,
+            status: req.status,
+            signing_url: req.status === "pending" ? `${baseUrl}/sign/${req.token}` : null,
+          });
+        }
+
+        // Send invitation emails to pending signers
+        if (effectiveTemplateId) {
+          const { sendEmail, renderEmailTemplate } = await import("./emailSender");
+          for (const signer of results.filter(r => r.status === "pending")) {
+            try {
+              const rendered = await renderEmailTemplate(effectiveTemplateId, {
+                signer_name: signer.name,
+                signer_email: signer.email,
+                document_title: doc.name,
+                signing_url: signer.signing_url ?? "",
+              });
+              if (rendered) {
+                await sendEmail({
+                  orgId: ctx.orgId ?? "",
+                  to: signer.email,
+                  toName: signer.name,
+                  subject: rendered.subject || `Please sign: ${doc.name}`,
+                  htmlBody: rendered.htmlBody,
+                  plainBody: rendered.plainBody,
+                });
+              }
+            } catch {
+              // non-fatal
+            }
+          }
+        }
+
+        output = {
+          session_id: sessionId,
+          document_id: documentId,
+          document_name: doc.name,
+          mode,
+          signers: results,
+          emails_sent: !!effectiveTemplateId,
+        };
+        break;
+      }
+
       // ── Flow Control ──────────────────────────────────────────────────────────
 
       case "action_iterator": {

@@ -116,8 +116,11 @@ const SUBCATEGORY_MAP: Record<string, string> = {
   action_hubspot:          "CRM & Sales",
   // Payments
   action_stripe:           "Payments",
+  // Email Templates
+  action_send_email_template: "Email",
   // E-Sign
-  action_esign_request:    "E-Sign",
+  action_esign_request:       "E-Sign",
+  action_send_esign_template: "E-Sign",
   // Databases
   action_postgres:         "Databases",
   action_mysql:            "Databases",
