@@ -82,6 +82,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [newEmail, setNewEmail]           = useState("");
   const [newName, setNewName]             = useState("");
   const [editingIdx, setEditingIdx]       = useState<number | null>(null);
+  const [editingName, setEditingName]     = useState(false);
+  const [draftName, setDraftName]         = useState("");
 
   const load = useCallback(async () => {
     const [docRes, fieldsRes, statusRes] = await Promise.all([
@@ -175,6 +177,18 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     }
   };
 
+  const saveName = async () => {
+    const name = draftName.trim();
+    if (!name || !doc || name === doc.name) { setEditingName(false); return; }
+    setDoc(d => d ? { ...d, name } : d);
+    setEditingName(false);
+    await fetch(`/api/documents/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, page_count: pageCount, status: doc.status, is_template: isTemplate }),
+    });
+  };
+
   const addRecipient = () => {
     if (!newEmail.trim()) return;
     setSigners(prev => [...prev, { email: newEmail.trim(), name: newName.trim(), order: prev.length + 1 }]);
@@ -250,7 +264,24 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
         </button>
         <div className="h-4 w-px bg-gray-200" />
         <FileText size={14} className="text-gray-400 flex-shrink-0" />
-        <span className="text-sm font-semibold text-gray-800 truncate max-w-xs">{doc.name}</span>
+        {editingName ? (
+          <input
+            autoFocus
+            value={draftName}
+            onChange={e => setDraftName(e.target.value)}
+            onBlur={saveName}
+            onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }}
+            className="text-sm font-semibold text-gray-800 bg-white border border-violet-400 rounded px-2 py-0.5 outline-none max-w-xs w-48"
+          />
+        ) : (
+          <button
+            onClick={() => { setDraftName(doc.name); setEditingName(true); }}
+            className="text-sm font-semibold text-gray-800 truncate max-w-xs hover:text-violet-600 transition-colors"
+            title="Click to rename"
+          >
+            {doc.name}
+          </button>
+        )}
         <div className="flex-1" />
 
         {signerRequests.length > 0 && (
