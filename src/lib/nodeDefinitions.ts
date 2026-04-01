@@ -674,7 +674,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     category: "trigger" as const,
     color: "#EA4335",
     icon: "Mail",
-    connectionType: "google_calendar",
+    connectionType: "gmail",
+    connectionFields: ["access_token"],
     defaultConfig: { poll_interval: "15", access_token: "", label_filter: "" },
     configFields: [
       { key: "access_token", label: "Access Token (OAuth)", type: "password" as const, required: true },
@@ -694,6 +695,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     category: "trigger" as const,
     color: "#0078D4",
     icon: "Mail",
+    connectionType: "onedrive",
+    connectionFields: ["access_token"],
     defaultConfig: { poll_interval: "15", access_token: "", folder: "" },
     configFields: [
       { key: "access_token", label: "Access Token (MS Graph)", type: "password" as const, required: true },
@@ -777,6 +780,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     category: "trigger" as const,
     color: "#4285F4",
     icon: "HardDrive",
+    connectionType: "google_drive",
+    connectionFields: ["access_token"],
     defaultConfig: { poll_interval: "15", access_token: "", folder_id: "", mime_type_filter: "" },
     configFields: [
       { key: "access_token", label: "Access Token", type: "password" as const, required: true },
@@ -910,6 +915,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
         { label: "Every hour", value: "60" },
       ]},
     ],
+    connectionType: "activecampaign",
+    connectionFields: ["api_url", "api_key"],
   },
 
   // ── Database Polling Triggers ─────────────────────────────────────────────────
@@ -1398,6 +1405,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Email",
     color: "#64748b",
     icon: "Mail",
+    connectionType: "smtp",
+    connectionFields: ["host", "port", "user", "pass"],
     defaultConfig: { host: "", port: "587", secure: "false", user: "", pass: "", from: "", to: "", subject: "", body: "" },
     configFields: [
       { key: "host", label: "SMTP Host", type: "text", placeholder: "smtp.gmail.com", required: true },
@@ -1998,6 +2007,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Storage",
     color: "#1fa463",
     icon: "HardDrive",
+    connectionType: "google_drive",
+    connectionFields: ["access_token"],
     defaultConfig: { access_token: "", action: "list", folder_id: "", file_name: "", file_content: "", mime_type: "text/plain" },
     configFields: [
       { key: "access_token", label: "OAuth Access Token", type: "password", placeholder: "ya29.xxx", required: true },
@@ -2026,6 +2037,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Storage",
     color: "#ff9900",
     icon: "Cloud",
+    connectionType: "aws_s3",
+    connectionFields: ["access_key_id", "secret_access_key", "region", "bucket"],
     defaultConfig: { access_key_id: "", secret_access_key: "", region: "us-east-1", bucket: "", action: "put", key: "", body: "" },
     configFields: [
       { key: "access_key_id", label: "Access Key ID", type: "text", placeholder: "AKIAIOSFODNN7EXAMPLE", required: true },
@@ -2048,6 +2061,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Productivity",
     color: "#1a73e8",
     icon: "CalendarDays",
+    connectionType: "google_calendar",
+    connectionFields: ["access_token"],
     defaultConfig: { access_token: "", action: "list", calendar_id: "primary", summary: "", start: "", end: "" },
     configFields: [
       { key: "access_token", label: "OAuth Access Token", type: "password", placeholder: "ya29.xxx", required: true },
@@ -2081,6 +2096,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Messaging",
     color: "#25d366",
     icon: "MessageCircle",
+    connectionType: "whatsapp",
+    connectionFields: ["access_token", "phone_number_id"],
     defaultConfig: { access_token: "", phone_number_id: "", to: "", message: "" },
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", placeholder: "Meta permanent access token", required: true },
@@ -2099,6 +2116,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Flow Control",
     color: "#d97706",
     icon: "CheckSquare",
+    connectionType: "smtp",
+    connectionFields: ["smtp_host", "smtp_user", "smtp_pass"],
     defaultConfig: { approver_email: "", subject: "Action required: approval needed", message: "", smtp_host: "", smtp_user: "", smtp_pass: "" },
     configFields: [
       { key: "approver_email", label: "Approver Email", type: "text", placeholder: "manager@company.com", required: true },

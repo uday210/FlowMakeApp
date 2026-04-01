@@ -60,6 +60,7 @@ const SERVICE_TYPES = [
   { value: "pinecone", label: "Pinecone", icon: Database, color: "bg-green-100 text-green-700", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
   { value: "weaviate", label: "Weaviate", icon: Database, color: "bg-green-100 text-green-600", fields: [{ key: "host", label: "Host URL", type: "text" }, { key: "api_key", label: "API Key", type: "password" }] },
   // ── Email ──────────────────────────────────────────────────────────────────
+  { value: "gmail", label: "Gmail (OAuth)", icon: Mail, color: "bg-red-100 text-red-600", fields: [{ key: "access_token", label: "OAuth Access Token", type: "password" }] },
   { value: "smtp", label: "SMTP", icon: Mail, color: "bg-blue-100 text-blue-600", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "user", label: "Username", type: "text" }, { key: "pass", label: "Password", type: "password" }] },
   { value: "sendgrid", label: "SendGrid", icon: Mail, color: "bg-blue-100 text-blue-700", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "from", label: "From Email", type: "text" }] },
   { value: "resend", label: "Resend", icon: Mail, color: "bg-indigo-100 text-indigo-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "from", label: "From Email", type: "text" }] },
