@@ -59,63 +59,81 @@ export async function POST(
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  // ── Activate next signer in sequence ──────────────────────────────────────
+  // ── Activate next group when all signers in current group have signed ───────
+  // Works for: sequential (group size=1), parallel (no waiting), groups (group size>1)
   if (req.document_id) {
-    const nextOrder = (req.signing_order ?? 1) + 1;
-
-    let nextSignerQuery = supabase
+    // Check if every other member of the current signing_order group has also signed
+    let groupQuery = supabase
       .from("esign_requests")
-      .select("id, token, signer_email, signer_name")
+      .select("id, status")
       .eq("document_id", req.document_id)
-      .eq("signing_order", nextOrder)
-      .eq("status", "waiting");
+      .eq("signing_order", req.signing_order ?? 1);
+    if (req.session_id) groupQuery = groupQuery.eq("session_id", req.session_id);
+    const { data: groupMembers } = await groupQuery;
 
-    if (req.session_id) {
-      nextSignerQuery = nextSignerQuery.eq("session_id", req.session_id);
-    }
+    const allGroupSigned = (groupMembers ?? []).every(
+      (m) => m.id === req.id || m.status === "signed"
+    );
 
-    const { data: nextSigner } = await nextSignerQuery.single();
-
-    if (nextSigner) {
-      await supabase
+    if (allGroupSigned) {
+      // Find next group: lowest signing_order > current that still has waiting signers
+      let nextGroupQuery = supabase
         .from("esign_requests")
-        .update({ status: "pending" })
-        .eq("id", nextSigner.id);
+        .select("id, token, signer_email, signer_name, signing_order")
+        .eq("document_id", req.document_id)
+        .eq("status", "waiting")
+        .gt("signing_order", req.signing_order ?? 1)
+        .order("signing_order", { ascending: true });
+      if (req.session_id) nextGroupQuery = nextGroupQuery.eq("session_id", req.session_id);
+      const { data: waitingNext } = await nextGroupQuery;
 
-      // Send email to next signer if document has an email template configured
-      try {
-        const admin = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
-        const { data: doc } = await admin
-          .from("esign_documents")
-          .select("name, email_template_id, org_id")
-          .eq("id", req.document_id)
-          .single();
+      if (waitingNext && waitingNext.length > 0) {
+        const nextOrder = waitingNext[0].signing_order;
+        const nextGroup = waitingNext.filter((s) => s.signing_order === nextOrder);
 
-        if (doc?.email_template_id && doc?.org_id) {
-          const baseUrl = getBaseUrl(request);
-          const signingUrl = `${baseUrl}/sign/${nextSigner.token}`;
-          const rendered = await renderEmailTemplate(doc.email_template_id, {
-            signer_name:    nextSigner.signer_name || nextSigner.signer_email,
-            signer_email:   nextSigner.signer_email,
-            document_title: doc.name,
-            signing_url:    signingUrl,
-            org_name:       doc.org_id,
-          });
-          if (rendered) {
-            await sendEmail({
-              orgId:    doc.org_id,
-              to:       nextSigner.signer_email,
-              toName:   nextSigner.signer_name,
-              subject:  rendered.subject || `Please sign: ${doc.name}`,
-              htmlBody: rendered.htmlBody,
-              plainBody: rendered.plainBody,
-            });
+        // Activate all members of the next group simultaneously
+        await supabase
+          .from("esign_requests")
+          .update({ status: "pending" })
+          .in("id", nextGroup.map((s) => s.id));
+
+        // Send emails to all next group members if a template is configured
+        try {
+          const admin = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+          const { data: doc } = await admin
+            .from("esign_documents")
+            .select("name, email_template_id, org_id")
+            .eq("id", req.document_id)
+            .single();
+
+          if (doc?.email_template_id && doc?.org_id) {
+            const baseUrl = getBaseUrl(request);
+            for (const nextSigner of nextGroup) {
+              const signingUrl = `${baseUrl}/sign/${nextSigner.token}`;
+              const rendered = await renderEmailTemplate(doc.email_template_id, {
+                signer_name:    nextSigner.signer_name || nextSigner.signer_email,
+                signer_email:   nextSigner.signer_email,
+                document_title: doc.name,
+                signing_url:    signingUrl,
+                org_name:       doc.org_id,
+              });
+              if (rendered) {
+                await sendEmail({
+                  orgId:    doc.org_id,
+                  to:       nextSigner.signer_email,
+                  toName:   nextSigner.signer_name,
+                  subject:  rendered.subject || `Please sign: ${doc.name}`,
+                  htmlBody: rendered.htmlBody,
+                  plainBody: rendered.plainBody,
+                });
+              }
+            }
           }
-        }
-      } catch { /* Non-fatal — don't block signing if email fails */ }
+        } catch { /* Non-fatal — don't block signing if email fails */ }
+      }
     }
   }
 

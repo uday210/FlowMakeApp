@@ -11,9 +11,10 @@ export async function POST(request: Request, { params }: Params) {
   const ctx = await getOrgContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { signers, email_template_id } = await request.json() as {
-    signers: { email: string; name: string; order?: number }[];
+  const { signers, email_template_id, mode } = await request.json() as {
+    signers: { email: string; name: string; order?: number; group?: number }[];
     email_template_id?: string;
+    mode?: "sequential" | "parallel" | "groups";
   };
 
   if (!signers || signers.length === 0) {
@@ -28,16 +29,30 @@ export async function POST(request: Request, { params }: Params) {
     .single();
   if (docError || !doc) return NextResponse.json({ error: "Document not found" }, { status: 404 });
 
-  // Assign order: use provided order or auto-assign 1, 2, 3...
-  const ordered = signers.map((s, i) => ({ ...s, signing_order: s.order ?? i + 1 }));
+  const effectiveMode = mode ?? (signers.length > 1 ? "sequential" : "sequential");
+
+  // Derive signing_order from mode:
+  // - parallel: all get order 1 (all pending simultaneously)
+  // - groups: use signer.group as the order (multiple per level)
+  // - sequential: use signer.order (or auto 1, 2, 3...)
+  const ordered = signers.map((s, i) => ({
+    ...s,
+    signing_order: effectiveMode === "parallel"
+      ? 1
+      : effectiveMode === "groups"
+        ? (s.group ?? i + 1)
+        : (s.order ?? i + 1),
+  }));
   ordered.sort((a, b) => a.signing_order - b.signing_order);
 
-  const isSequential = ordered.length > 1;
+  const minOrder = ordered.length > 0 ? ordered[0].signing_order : 1;
 
   const requests = [];
   for (const signer of ordered) {
-    // First signer is immediately 'pending', rest 'waiting' (sequential mode)
-    const status = (!isSequential || signer.signing_order === 1) ? "pending" : "waiting";
+    // parallel: all pending; sequential/groups: first level pending, rest waiting
+    const status = effectiveMode === "parallel" || signer.signing_order === minOrder
+      ? "pending"
+      : "waiting";
 
     const { data: req, error } = await ctx.admin
       .from("esign_requests")

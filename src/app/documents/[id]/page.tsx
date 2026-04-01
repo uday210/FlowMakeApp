@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import {
   ArrowLeft, Save, Send, Loader2, PenLine, Type, Calendar, AlignLeft,
   CheckCircle2, Clock, X, Download, Copy, Check, Link2, Users, UserPlus,
-  Eye, FileText, RefreshCw,
+  Eye, FileText, RefreshCw, GitMerge, Layers2, ArrowDownUp, ChevronUp, ChevronDown,
 } from "lucide-react";
 
 const PDFEditorCanvas = dynamic(() => import("@/components/PDFEditorCanvas"), { ssr: false });
@@ -33,7 +33,9 @@ interface EsignDoc {
   is_template: boolean;
 }
 
-interface Signer { email: string; name: string; order: number }
+interface Signer { email: string; name: string; order: number; group: number }
+
+type SigningMode = "sequential" | "parallel" | "groups";
 
 interface SignerRequest {
   id: string;
@@ -86,6 +88,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [editingIdx, setEditingIdx]       = useState<number | null>(null);
   const [editingName, setEditingName]     = useState(false);
   const [draftName, setDraftName]         = useState("");
+  const [signingMode, setSigningMode]     = useState<SigningMode>("sequential");
 
   const load = useCallback(async () => {
     const [docRes, fieldsRes, statusRes] = await Promise.all([
@@ -179,7 +182,11 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     const res  = await fetch(`/api/documents/${id}/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signers: valid, email_template_id: emailTemplateId || undefined }),
+      body: JSON.stringify({
+        signers: valid,
+        email_template_id: emailTemplateId || undefined,
+        mode: signingMode,
+      }),
     });
     const data = await res.json();
     setSending(false);
@@ -205,7 +212,10 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
 
   const addRecipient = () => {
     if (!newEmail.trim()) return;
-    setSigners(prev => [...prev, { email: newEmail.trim(), name: newName.trim(), order: prev.length + 1 }]);
+    const nextOrder = signers.length + 1;
+    // In groups mode, new signers default to their own new group; in parallel all same group 1
+    const nextGroup = signingMode === "parallel" ? 1 : (signers.length > 0 ? Math.max(...signers.map(s => s.group)) + 1 : 1);
+    setSigners(prev => [...prev, { email: newEmail.trim(), name: newName.trim(), order: nextOrder, group: nextGroup }]);
     setActiveSignerIdx(signers.length);
     setNewEmail(""); setNewName(""); setAddingRecipient(false);
   };
@@ -214,6 +224,10 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     setSigners(prev => prev.filter((_, i) => i !== idx).map((s, i) => ({ ...s, order: i + 1 })));
     setFields(prev => prev.filter(f => f.signer_email !== signers[idx].email));
     setActiveSignerIdx(prev => Math.max(0, prev >= idx ? prev - 1 : prev));
+  };
+
+  const moveSignerGroup = (idx: number, delta: number) => {
+    setSigners(prev => prev.map((s, i) => i === idx ? { ...s, group: Math.max(1, s.group + delta) } : s));
   };
 
   const handlePlaceField = useCallback((page: number, x: number, y: number) => {
@@ -249,7 +263,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const templateSlots  = [1,2,3,4].map(n => ({ email: `Signer ${n}`, name: `Signer ${n}`, order: n }));
+  const templateSlots  = [1,2,3,4].map(n => ({ email: `Signer ${n}`, name: `Signer ${n}`, order: n, group: n }));
   const displaySigners = isTemplate ? templateSlots : signers;
   const activeSigner   = displaySigners[activeSignerIdx];
   const activeColor    = SIGNER_COLORS[activeSignerIdx % SIGNER_COLORS.length];
@@ -409,6 +423,43 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                 )}
               </div>
 
+              {/* Signing mode selector */}
+              {!isTemplate && (
+                <div className="mb-3">
+                  <p className="text-[10px] text-gray-400 mb-1.5 font-medium">Signing mode</p>
+                  <div className="flex rounded-lg overflow-hidden border border-gray-200 text-[10px] font-semibold">
+                    {(["sequential", "parallel", "groups"] as SigningMode[]).map((m) => {
+                      const icons = { sequential: ArrowDownUp, parallel: GitMerge, groups: Layers2 };
+                      const labels = { sequential: "Sequential", parallel: "Parallel", groups: "Groups" };
+                      const Icon = icons[m];
+                      return (
+                        <button
+                          key={m}
+                          onClick={() => setSigningMode(m)}
+                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 transition-colors ${
+                            signingMode === m
+                              ? "bg-indigo-600 text-white"
+                              : "bg-white text-gray-500 hover:bg-gray-50"
+                          }`}
+                          title={
+                            m === "sequential" ? "Each signer signs one after another"
+                            : m === "parallel" ? "All signers receive the link at once"
+                            : "Signers are grouped; each group signs together before the next group"
+                          }
+                        >
+                          <Icon size={10} /> {labels[m]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
+                    {signingMode === "sequential" && "Signers sign one after another in order."}
+                    {signingMode === "parallel" && "All signers receive the link at the same time."}
+                    {signingMode === "groups" && "Signers in the same group sign together. Groups unlock in order."}
+                  </p>
+                </div>
+              )}
+
               {displaySigners.length === 0 && !addingRecipient && (
                 <div className="text-center py-3">
                   <p className="text-[11px] text-gray-400 mb-2">No recipients yet</p>
@@ -421,58 +472,116 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                 </div>
               )}
 
+              {/* Signer list — groups mode renders group separators */}
               <div className="space-y-1">
-                {displaySigners.map((s, i) => {
-                  const color    = SIGNER_COLORS[i % SIGNER_COLORS.length];
-                  const isActive = activeSignerIdx === i;
-                  return (
-                    <div key={i}>
-                      {editingIdx === i && !isTemplate ? (
-                        <div className="space-y-1.5 p-2 rounded-lg border border-indigo-200 bg-indigo-50">
-                          <input
-                            autoFocus type="email" placeholder="Email address"
-                            value={signers[i].email}
-                            onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, email: e.target.value } : x))}
-                            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
-                          />
-                          <input
-                            type="text" placeholder="Name (optional)"
-                            value={signers[i].name}
-                            onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x))}
-                            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
-                          />
-                          <div className="flex gap-1">
-                            <button onClick={() => setEditingIdx(null)} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold">Done</button>
-                            <button onClick={() => { setEditingIdx(null); removeRecipient(i); }} className="text-[11px] text-red-500 hover:text-red-600 px-2">Remove</button>
+                {signingMode === "groups" && !isTemplate
+                  ? (() => {
+                      const groupNums = [...new Set(signers.map(s => s.group))].sort((a, b) => a - b);
+                      return groupNums.map((g) => {
+                        const groupSigners = signers.map((s, i) => ({ s, i })).filter(({ s }) => s.group === g);
+                        return (
+                          <div key={g} className="mb-2">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full">
+                                Group {g}
+                              </span>
+                              <div className="flex-1 h-px bg-indigo-100" />
+                            </div>
+                            {groupSigners.map(({ s, i }) => {
+                              const color = SIGNER_COLORS[i % SIGNER_COLORS.length];
+                              const isActive = activeSignerIdx === i;
+                              return (
+                                <div key={i} className="mb-1">
+                                  {editingIdx === i ? (
+                                    <div className="space-y-1.5 p-2 rounded-lg border border-indigo-200 bg-indigo-50">
+                                      <input autoFocus type="email" placeholder="Email address" value={s.email}
+                                        onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, email: e.target.value } : x))}
+                                        className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
+                                      <input type="text" placeholder="Name (optional)" value={s.name}
+                                        onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x))}
+                                        className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
+                                      <div className="flex gap-1">
+                                        <button onClick={() => setEditingIdx(null)} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold">Done</button>
+                                        <button onClick={() => { setEditingIdx(null); removeRecipient(i); }} className="text-[11px] text-red-500 px-2">Remove</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all group ${isActive ? "shadow-sm" : "hover:bg-gray-50"}`}
+                                      style={isActive ? { backgroundColor: `${color}12`, border: `1px solid ${color}40` } : { border: "1px solid transparent" }}
+                                      onClick={() => { setActiveSignerIdx(i); setActiveTool(null); }}
+                                    >
+                                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0" style={{ backgroundColor: color }}>{i + 1}</span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-gray-800 truncate">{s.name || s.email.split("@")[0]}</p>
+                                        <p className="text-[10px] text-gray-400 truncate">{s.email}</p>
+                                      </div>
+                                      <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                        <button onClick={() => moveSignerGroup(i, -1)} disabled={s.group <= 1} className="text-gray-400 hover:text-indigo-600 disabled:opacity-20" title="Move to earlier group"><ChevronUp size={10} /></button>
+                                        <button onClick={() => moveSignerGroup(i, 1)} className="text-gray-400 hover:text-indigo-600" title="Move to later group"><ChevronDown size={10} /></button>
+                                      </div>
+                                      <button onClick={e => { e.stopPropagation(); setEditingIdx(i); }} className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-400 hover:text-gray-600 transition-opacity">edit</button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => { setActiveSignerIdx(i); setActiveTool(null); }}
-                          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all group ${isActive ? "shadow-sm" : "hover:bg-gray-50"}`}
-                          style={isActive ? { backgroundColor: `${color}12`, border: `1px solid ${color}40` } : { border: "1px solid transparent" }}
-                        >
-                          <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: color }}>
-                            {i + 1}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-gray-800 truncate">{s.name || s.email.split("@")[0]}</p>
-                            {!isTemplate && <p className="text-[10px] text-gray-400 truncate">{s.email}</p>}
-                          </div>
-                          {isActive && <span className="text-[9px] font-bold ml-auto flex-shrink-0" style={{ color }}>active</span>}
-                          {!isTemplate && !isActive && (
+                        );
+                      });
+                    })()
+                  : displaySigners.map((s, i) => {
+                      const color    = SIGNER_COLORS[i % SIGNER_COLORS.length];
+                      const isActive = activeSignerIdx === i;
+                      return (
+                        <div key={i}>
+                          {editingIdx === i && !isTemplate ? (
+                            <div className="space-y-1.5 p-2 rounded-lg border border-indigo-200 bg-indigo-50">
+                              <input
+                                autoFocus type="email" placeholder="Email address"
+                                value={signers[i].email}
+                                onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, email: e.target.value } : x))}
+                                className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
+                              />
+                              <input
+                                type="text" placeholder="Name (optional)"
+                                value={signers[i].name}
+                                onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x))}
+                                className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
+                              />
+                              <div className="flex gap-1">
+                                <button onClick={() => setEditingIdx(null)} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold">Done</button>
+                                <button onClick={() => { setEditingIdx(null); removeRecipient(i); }} className="text-[11px] text-red-500 hover:text-red-600 px-2">Remove</button>
+                              </div>
+                            </div>
+                          ) : (
                             <button
-                              onClick={e => { e.stopPropagation(); setEditingIdx(i); }}
-                              className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-400 hover:text-gray-600 flex-shrink-0 transition-opacity"
+                              onClick={() => { setActiveSignerIdx(i); setActiveTool(null); }}
+                              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all group ${isActive ? "shadow-sm" : "hover:bg-gray-50"}`}
+                              style={isActive ? { backgroundColor: `${color}12`, border: `1px solid ${color}40` } : { border: "1px solid transparent" }}
                             >
-                              edit
+                              <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: color }}>
+                                {signingMode === "parallel" ? "=" : i + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-800 truncate">{s.name || s.email.split("@")[0]}</p>
+                                {!isTemplate && <p className="text-[10px] text-gray-400 truncate">{s.email}</p>}
+                              </div>
+                              {isActive && <span className="text-[9px] font-bold ml-auto flex-shrink-0" style={{ color }}>active</span>}
+                              {!isTemplate && !isActive && (
+                                <button
+                                  onClick={e => { e.stopPropagation(); setEditingIdx(i); }}
+                                  className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-400 hover:text-gray-600 flex-shrink-0 transition-opacity"
+                                >
+                                  edit
+                                </button>
+                              )}
                             </button>
                           )}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                        </div>
+                      );
+                    })
+                }
               </div>
 
               {/* Inline add form */}
