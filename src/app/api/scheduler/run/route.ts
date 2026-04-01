@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { cronMatches, intervalToCron } from "@/lib/cronMatch";
-import type { WorkflowNode } from "@/lib/types";
+import { executeWorkflow } from "@/lib/executor";
+import type { WorkflowNode, WorkflowEdge } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export async function POST() {
   // Fetch all active workflows
   const { data: workflows, error } = await supabase
     .from("workflows")
-    .select("id, name, nodes")
+    .select("id, name, nodes, edges, org_id")
     .eq("is_active", true);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -46,19 +47,44 @@ export async function POST() {
       continue;
     }
 
-    // Execute workflow
+    // Execute workflow directly (no HTTP self-call — avoids network issues on Railway)
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      const res = await fetch(`${baseUrl}/api/execute/${wf.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _trigger: "schedule", _cron: cron, _fired_at: now.toISOString() }),
-      });
-      if (res.ok) {
-        triggered.push({ id: wf.id, name: wf.name });
-      } else {
-        skipped.push({ id: wf.id, name: wf.name, reason: `Execute returned ${res.status}` });
+      const triggerData = { _trigger: "schedule", _cron: cron, _fired_at: now.toISOString() };
+      const nodes = wf.nodes as WorkflowNode[];
+
+      // Collect connection IDs referenced by this workflow
+      const connectionIds = [...new Set(
+        nodes.map(n => n.data?.config?.connectionId as string | undefined).filter(Boolean) as string[]
+      )];
+      const connectionsMap: Record<string, Record<string, unknown>> = {};
+      if (connectionIds.length > 0) {
+        const { data: conns } = await supabase.from("connections").select("id, config").in("id", connectionIds);
+        for (const conn of conns ?? []) connectionsMap[conn.id] = conn.config as Record<string, unknown>;
       }
+
+      // Create execution record
+      const { data: execution } = await supabase
+        .from("executions")
+        .insert({ workflow_id: wf.id, status: "running", trigger_data: triggerData, logs: [] })
+        .select()
+        .single();
+
+      // Run
+      let finalStatus: "success" | "failed" = "success";
+      let ctx;
+      try {
+        ctx = await executeWorkflow(nodes, wf.edges as WorkflowEdge[], triggerData, connectionsMap, wf.id, wf.org_id as string | undefined);
+        if (ctx.logs.some(l => l.status === "error")) finalStatus = "failed";
+      } catch {
+        finalStatus = "failed";
+        ctx = { logs: [] };
+      }
+
+      if (execution) {
+        await supabase.from("executions").update({ status: finalStatus, logs: ctx.logs, finished_at: new Date().toISOString() }).eq("id", execution.id);
+      }
+
+      triggered.push({ id: wf.id, name: wf.name });
     } catch (err) {
       skipped.push({ id: wf.id, name: wf.name, reason: String(err) });
     }
