@@ -175,7 +175,33 @@ export type NodeType =
   | "action_contentful"
   | "action_calendly"
   | "action_clearbit"
-  | "action_hunter";
+  | "action_hunter"
+  // New webhook triggers
+  | "trigger_slack_event"
+  | "trigger_hubspot"
+  | "trigger_shopify"
+  | "trigger_jira_event"
+  | "trigger_calendly"
+  | "trigger_typeform"
+  | "trigger_gitlab_event"
+  | "trigger_paypal_webhook"
+  | "trigger_discord_event"
+  | "trigger_telegram_update"
+  | "trigger_linear_event"
+  | "trigger_pipedrive"
+  | "trigger_woocommerce"
+  | "trigger_clickup"
+  | "trigger_asana"
+  | "trigger_zendesk"
+  | "trigger_intercom"
+  | "trigger_freshdesk"
+  | "trigger_square_webhook"
+  | "trigger_paddle"
+  | "trigger_tally"
+  | "trigger_bitbucket_event"
+  | "trigger_sentry_alert"
+  | "trigger_pagerduty"
+  | "trigger_datadog";
 
 export interface UserTable {
   id: string;
