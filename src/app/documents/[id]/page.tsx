@@ -686,18 +686,6 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                     onChange={e => setNewName(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") addRecipient(); if (e.key === "Escape") { setAddingRecipient(false); setNewEmail(""); setNewName(""); } }}
                     className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
-                  {/* Group picker — only in groups mode */}
-                  {signingMode === "groups" && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-gray-500 flex-shrink-0">Add to group:</span>
-                      <select value={newGroup} onChange={e => setNewGroup(Number(e.target.value))}
-                        className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-1 outline-none bg-white">
-                        {existingGroups.map(gn => (
-                            <option key={gn} value={gn}>Group {gn}</option>
-                          ))}
-                      </select>
-                    </div>
-                  )}
                   <div className="flex gap-1">
                     <button onClick={addRecipient} disabled={!newEmail.trim()} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold disabled:opacity-40">Add</button>
                     <button onClick={() => { setAddingRecipient(false); setNewEmail(""); setNewName(""); }} className="text-[11px] text-gray-500 hover:text-gray-700 px-2">Cancel</button>
