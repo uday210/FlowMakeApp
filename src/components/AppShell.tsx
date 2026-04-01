@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import NavigationProgress, { startNavProgress } from "@/components/NavigationProgress";
 import {
   Zap,
   LayoutTemplate,
@@ -70,61 +71,86 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const navigate = (href: string) => {
+    if (pathname !== href) {
+      startNavProgress();
+      router.push(href);
+    }
+  };
+
   const handleLogout = async () => {
+    startNavProgress();
     await supabase.auth.signOut();
     router.push("/auth/login");
   };
 
+  const nav = roleLoaded ? (isSuperAdmin ? ADMIN_NAV : USER_NAV) : [];
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Global navigation progress bar */}
+      <NavigationProgress />
+
       {/* Sidebar */}
-      <aside className="w-[72px] bg-[#1a0a2e] flex flex-col items-center py-4 gap-1 flex-shrink-0">
-        {/* Logo */}
-        <button
-          onClick={() => router.push(isSuperAdmin ? "/admin" : "/workflows")}
-          className="mb-4 p-2 hover:bg-white/10 rounded-xl transition-colors"
-        >
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--gradient-brand)" }}>
-            <Zap size={18} className="text-white" />
-          </div>
-        </button>
+      <aside className="w-[72px] bg-[#1a0a2e] flex flex-col items-center flex-shrink-0">
 
-        {/* Nav items — only render after role is confirmed to avoid flash of wrong nav */}
-        {roleLoaded && (isSuperAdmin ? ADMIN_NAV : USER_NAV).map(({ href, icon: Icon, label }) => {
-          const active = pathname.startsWith(href);
-          return (
-            <button
-              key={href}
-              onClick={() => router.push(href)}
-              title={label}
-              className={`group relative flex flex-col items-center gap-1 w-14 py-2 rounded-xl transition-all ${
-                active
-                  ? "text-white"
-                  : isSuperAdmin
-                  ? "text-amber-400/70 hover:bg-white/10 hover:text-amber-300"
-                  : "text-white/50 hover:bg-white/10 hover:text-white"
-              }`}
-              style={active ? { background: "var(--gradient-brand)" } : undefined}
+        {/* Logo — always pinned top */}
+        <div className="pt-4 pb-2 flex-shrink-0">
+          <button
+            onClick={() => navigate(isSuperAdmin ? "/admin" : "/workflows")}
+            className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+          >
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "var(--gradient-brand)" }}
             >
-              <Icon size={18} />
-              <span className="text-[9px] font-medium leading-none">{label.split(" ")[0]}</span>
+              <Zap size={18} className="text-white" />
+            </div>
+          </button>
+        </div>
 
-              {/* Tooltip */}
-              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 hidden group-hover:block">
-                {label}
-              </div>
-            </button>
-          );
-        })}
+        {/* Scrollable nav items */}
+        <nav
+          className="flex-1 overflow-y-auto w-full flex flex-col items-center gap-0.5 px-2 py-1"
+          style={{ scrollbarWidth: "none" }}
+        >
+          <style>{`nav::-webkit-scrollbar { display: none; }`}</style>
 
-        {/* Spacer */}
-        <div className="flex-1" />
+          {nav.map(({ href, icon: Icon, label }) => {
+            const active = pathname.startsWith(href);
+            return (
+              <button
+                key={href}
+                onClick={() => navigate(href)}
+                title={label}
+                className={`group relative flex flex-col items-center gap-0.5 w-full py-2 rounded-xl transition-all ${
+                  active
+                    ? "text-white"
+                    : isSuperAdmin
+                    ? "text-amber-400/70 hover:bg-white/10 hover:text-amber-300"
+                    : "text-white/50 hover:bg-white/10 hover:text-white"
+                }`}
+                style={active ? { background: "var(--gradient-brand)" } : undefined}
+              >
+                <Icon size={17} />
+                <span className="text-[8.5px] font-medium leading-none text-center">
+                  {label.split(" ")[0]}
+                </span>
 
-        {/* User avatar + logout */}
-        <div className="flex flex-col items-center gap-2 pb-2">
+                {/* Hover tooltip */}
+                <span className="absolute left-full ml-2.5 px-2.5 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl border border-white/10">
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* User avatar + logout — always pinned bottom */}
+        <div className="flex-shrink-0 flex flex-col items-center gap-2 pb-4 pt-2 border-t border-white/10 w-full px-2">
           <div
             title={userEmail}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-default"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-default flex-shrink-0"
             style={{ background: "var(--gradient-brand)" }}
           >
             {userInitial || "?"}
@@ -132,9 +158,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={handleLogout}
             title="Sign out"
-            className="text-white/30 hover:text-white/70 transition-colors"
+            className="text-white/30 hover:text-red-400 transition-colors"
           >
-            <LogOut size={16} />
+            <LogOut size={15} />
           </button>
         </div>
       </aside>
