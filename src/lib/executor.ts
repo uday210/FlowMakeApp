@@ -5469,8 +5469,13 @@ async function executeNodeOnce(
         const body: Record<string, unknown> = { inputs: interpolate(config.inputs as string || "") };
         if (Object.keys(params).length) body.parameters = params;
         const res = await fetch(`https://router.huggingface.co/hf-inference/models/${modelId}`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HuggingFace ${res.status}`);
+        const raw = await res.text();
+        let data: unknown;
+        try { data = JSON.parse(raw); } catch { throw new Error(`HuggingFace ${res.status}: ${raw}`); }
+        if (!res.ok) {
+          const err = data as Record<string, unknown>;
+          throw new Error(String(err?.error ?? err?.message ?? raw) + (res.status === 404 ? " — check the model ID exists and is available on the HuggingFace Inference API" : res.status === 403 ? " — you may need to accept the model license on huggingface.co" : ""));
+        }
         output = data;
         break;
       }
