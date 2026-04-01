@@ -29,7 +29,7 @@ export async function POST(
   const rpc = body as { jsonrpc: string; id?: string | number | null; method: string; params?: unknown };
   if (rpc.jsonrpc !== "2.0") return NextResponse.json({ error: "Invalid JSON-RPC" }, { status: 400 });
 
-  const response = await handleMcpRequest(rpc as Parameters<typeof handleMcpRequest>[0], slug);
+  const response = await handleMcpRequest(rpc as Parameters<typeof handleMcpRequest>[0], slug, "sse");
 
   if (response !== null) {
     // Send response back via the SSE stream

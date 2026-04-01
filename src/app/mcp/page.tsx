@@ -7,6 +7,7 @@ import {
   ExternalLink, Key, RefreshCw, Server, Wrench, ChevronDown,
   ChevronUp, ToggleLeft, ToggleRight, Link2, AlertCircle,
   CheckCircle2, Settings, Zap, ShieldCheck, ShieldOff, Eye, EyeOff, RotateCcw,
+  History, Clock, XCircle, ChevronRight,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -50,6 +51,18 @@ interface Workflow {
   name: string;
   description?: string;
   is_active: boolean;
+}
+
+interface ToolExecution {
+  id: string;
+  tool_name: string;
+  input_data: Record<string, unknown>;
+  output_text: string | null;
+  status: "success" | "error";
+  error_message: string | null;
+  duration_ms: number | null;
+  transport: string | null;
+  created_at: string;
 }
 
 interface InputParam {
@@ -355,6 +368,64 @@ function AddToolPanel({
   );
 }
 
+// ── Execution Row ─────────────────────────────────────────────────────────────
+
+function ExecutionRow({ exec }: { exec: ToolExecution }) {
+  const [open, setOpen] = useState(false);
+  const isSuccess = exec.status === "success";
+
+  return (
+    <div className={`rounded-xl border text-[11px] transition-colors ${isSuccess ? "border-gray-100 bg-gray-50" : "border-red-100 bg-red-50"}`}>
+      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left">
+        {isSuccess
+          ? <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
+          : <XCircle size={13} className="text-red-400 flex-shrink-0" />}
+        <span className="font-mono font-semibold text-gray-800 flex-shrink-0">{exec.tool_name}</span>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${isSuccess ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+          {exec.status}
+        </span>
+        {exec.transport && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-500 flex-shrink-0">{exec.transport}</span>
+        )}
+        <span className="flex items-center gap-1 text-gray-400 flex-shrink-0">
+          <Clock size={10} />{exec.duration_ms != null ? `${exec.duration_ms}ms` : "—"}
+        </span>
+        <span className="text-gray-400 flex-1 text-right truncate">
+          {new Date(exec.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+        </span>
+        <ChevronRight size={12} className={`text-gray-400 flex-shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-100 px-3 pb-3 space-y-2 pt-2">
+          <div>
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Input</p>
+            <pre className="text-[10px] bg-white border border-gray-100 rounded-lg p-2 overflow-x-auto text-gray-700 max-h-32">
+              {JSON.stringify(exec.input_data, null, 2)}
+            </pre>
+          </div>
+          {isSuccess && exec.output_text && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Output</p>
+              <pre className="text-[10px] bg-white border border-gray-100 rounded-lg p-2 overflow-x-auto text-gray-700 max-h-40 whitespace-pre-wrap">
+                {exec.output_text}
+              </pre>
+            </div>
+          )}
+          {!isSuccess && exec.error_message && (
+            <div>
+              <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wide mb-1">Error</p>
+              <pre className="text-[10px] bg-white border border-red-100 rounded-lg p-2 overflow-x-auto text-red-600 max-h-32 whitespace-pre-wrap">
+                {exec.error_message}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Server Card ───────────────────────────────────────────────────────────────
 
 function ServerCard({
@@ -377,6 +448,10 @@ function ServerCard({
   const [togglingTool, setTogglingTool] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
+  const [expandedTab, setExpandedTab] = useState<"tools" | "history">("tools");
+  const [history, setHistory] = useState<ToolExecution[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [clearingHistory, setClearingHistory] = useState(false);
 
   const loadTools = useCallback(async () => {
     if (server.type !== "hosted") return;
@@ -421,6 +496,26 @@ function ServerCard({
     const data = await res.json();
     setTools((prev) => prev.map((t) => t.id === tool.id ? data : t));
     setTogglingTool(null);
+  };
+
+  const loadHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    const res = await fetch(`/api/mcp-toolboxes/${server.id}/history?limit=50`);
+    const data = await res.json();
+    setHistory(Array.isArray(data) ? data : []);
+    setLoadingHistory(false);
+  }, [server.id]);
+
+  useEffect(() => {
+    if (expanded && expandedTab === "history") loadHistory();
+  }, [expanded, expandedTab, loadHistory]);
+
+  const clearHistory = async () => {
+    if (!confirm("Clear all execution history for this server?")) return;
+    setClearingHistory(true);
+    await fetch(`/api/mcp-toolboxes/${server.id}/history`, { method: "DELETE" });
+    setHistory([]);
+    setClearingHistory(false);
   };
 
   const generateKey = async () => {
@@ -624,84 +719,131 @@ function ServerCard({
           </div>
         </div>
 
-        {/* Expanded tools panel */}
+        {/* Expanded panel with tabs */}
         {expanded && (
-          <div className="border-t border-gray-100 px-4 pb-4">
-            {isHosted ? (
-              <>
-                {loadingTools ? (
-                  <div className="py-4 flex justify-center"><Loader2 size={16} className="animate-spin text-violet-400" /></div>
-                ) : tools.length === 0 ? (
-                  <div className="py-6 text-center">
-                    <Wrench size={20} className="text-gray-300 mx-auto mb-2" />
-                    <p className="text-[11px] text-gray-400">No tools yet. Add a scenario as a tool.</p>
-                    <button onClick={() => setShowAddTool(true)}
-                      className="mt-2 text-[11px] text-violet-600 hover:text-violet-700 flex items-center gap-1 mx-auto">
-                      <Plus size={11} /> Add first tool
-                    </button>
+          <div className="border-t border-gray-100">
+            {/* Tab bar */}
+            <div className="flex items-center gap-1 px-4 pt-3 pb-0">
+              <button onClick={() => setExpandedTab("tools")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "tools" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
+                <Wrench size={11} /> Tools {isHosted && tools.length > 0 && `(${tools.length})`}
+              </button>
+              <button onClick={() => setExpandedTab("history")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "history" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
+                <History size={11} /> History {history.length > 0 && `(${history.length})`}
+              </button>
+              {expandedTab === "history" && history.length > 0 && (
+                <button onClick={clearHistory} disabled={clearingHistory}
+                  className="ml-auto flex items-center gap-1 text-[11px] text-red-400 hover:text-red-500 px-2 py-1 hover:bg-red-50 rounded-lg transition-colors">
+                  {clearingHistory ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />} Clear
+                </button>
+              )}
+              {expandedTab === "history" && (
+                <button onClick={loadHistory} disabled={loadingHistory}
+                  className={`${history.length > 0 ? "" : "ml-auto"} flex items-center gap-1 text-[11px] text-gray-400 hover:text-violet-600 px-2 py-1 hover:bg-violet-50 rounded-lg transition-colors`}>
+                  {loadingHistory ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                </button>
+              )}
+            </div>
+
+            <div className="px-4 pb-4">
+              {/* ── Tools tab ── */}
+              {expandedTab === "tools" && (
+                isHosted ? (
+                  <>
+                    {loadingTools ? (
+                      <div className="py-4 flex justify-center"><Loader2 size={16} className="animate-spin text-violet-400" /></div>
+                    ) : tools.length === 0 ? (
+                      <div className="py-6 text-center">
+                        <Wrench size={20} className="text-gray-300 mx-auto mb-2" />
+                        <p className="text-[11px] text-gray-400">No tools yet. Add a scenario as a tool.</p>
+                        <button onClick={() => setShowAddTool(true)}
+                          className="mt-2 text-[11px] text-violet-600 hover:text-violet-700 flex items-center gap-1 mx-auto">
+                          <Plus size={11} /> Add first tool
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {tools.map((tool) => (
+                          <div key={tool.id} className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${tool.enabled ? "border-gray-100 bg-gray-50" : "border-gray-100 bg-gray-50 opacity-50"}`}>
+                            <div className="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <Wrench size={12} className="text-violet-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-gray-800 font-mono">{tool.name}</span>
+                                {!tool.enabled && <span className="text-[10px] text-gray-400 bg-gray-200 px-1.5 rounded">disabled</span>}
+                              </div>
+                              {tool.description && <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{tool.description}</p>}
+                              <div className="flex items-center gap-1 mt-1">
+                                <Link2 size={10} className="text-violet-400" />
+                                <span className="text-[10px] text-violet-600">{tool.workflow_id ? workflowName(tool.workflow_id) : "No scenario linked"}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button onClick={() => toggleTool(tool)} disabled={togglingTool === tool.id}
+                                className="p-1 text-gray-300 hover:text-green-500 hover:bg-green-50 rounded transition-colors" title={tool.enabled ? "Disable" : "Enable"}>
+                                {togglingTool === tool.id ? <Loader2 size={12} className="animate-spin" /> : tool.enabled ? <ToggleRight size={14} className="text-green-500" /> : <ToggleLeft size={14} />}
+                              </button>
+                              <button onClick={() => deleteTool(tool.id)}
+                                className="p-1 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded transition-colors">
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <button onClick={() => setShowAddTool(true)}
+                          className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] text-violet-600 hover:bg-violet-50 rounded-lg border border-dashed border-violet-200 transition-colors">
+                          <Plus size={11} /> Add another tool
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* External server discovered tools */
+                  <div className="mt-3 space-y-2">
+                    {externalTools.length === 0 ? (
+                      <div className="py-4 text-center">
+                        <AlertCircle size={16} className="text-gray-300 mx-auto mb-2" />
+                        <p className="text-[11px] text-gray-400">Click &quot;Discover Tools&quot; to load available tools.</p>
+                      </div>
+                    ) : externalTools.map((tool, i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
+                        <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Settings size={12} className="text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-semibold text-gray-800 font-mono">{tool.name}</span>
+                          {tool.description && <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{tool.description}</p>}
+                        </div>
+                        <CheckCircle2 size={14} className="text-green-400 flex-shrink-0 mt-0.5" />
+                      </div>
+                    ))}
+                    {server.last_discovered_at && (
+                      <p className="text-[10px] text-gray-400 text-right">Last discovered {new Date(server.last_discovered_at).toLocaleString()}</p>
+                    )}
+                  </div>
+                )
+              )}
+
+              {/* ── History tab ── */}
+              {expandedTab === "history" && (
+                loadingHistory ? (
+                  <div className="py-6 flex justify-center"><Loader2 size={16} className="animate-spin text-violet-400" /></div>
+                ) : history.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <History size={20} className="text-gray-300 mx-auto mb-2" />
+                    <p className="text-[11px] text-gray-400">No executions yet. Tool calls will appear here.</p>
                   </div>
                 ) : (
                   <div className="mt-3 space-y-2">
-                    {tools.map((tool) => (
-                      <div key={tool.id} className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${tool.enabled ? "border-gray-100 bg-gray-50" : "border-gray-100 bg-gray-50 opacity-50"}`}>
-                        <div className="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Wrench size={12} className="text-violet-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-gray-800 font-mono">{tool.name}</span>
-                            {!tool.enabled && <span className="text-[10px] text-gray-400 bg-gray-200 px-1.5 rounded">disabled</span>}
-                          </div>
-                          {tool.description && <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{tool.description}</p>}
-                          <div className="flex items-center gap-1 mt-1">
-                            <Link2 size={10} className="text-violet-400" />
-                            <span className="text-[10px] text-violet-600">{tool.workflow_id ? workflowName(tool.workflow_id) : "No scenario linked"}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button onClick={() => toggleTool(tool)} disabled={togglingTool === tool.id}
-                            className="p-1 text-gray-300 hover:text-green-500 hover:bg-green-50 rounded transition-colors" title={tool.enabled ? "Disable" : "Enable"}>
-                            {togglingTool === tool.id ? <Loader2 size={12} className="animate-spin" /> : tool.enabled ? <ToggleRight size={14} className="text-green-500" /> : <ToggleLeft size={14} />}
-                          </button>
-                          <button onClick={() => deleteTool(tool.id)}
-                            className="p-1 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded transition-colors">
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </div>
+                    {history.map((exec) => (
+                      <ExecutionRow key={exec.id} exec={exec} />
                     ))}
-                    <button onClick={() => setShowAddTool(true)}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] text-violet-600 hover:bg-violet-50 rounded-lg border border-dashed border-violet-200 transition-colors">
-                      <Plus size={11} /> Add another tool
-                    </button>
                   </div>
-                )}
-              </>
-            ) : (
-              /* External server discovered tools */
-              <div className="mt-3 space-y-2">
-                {externalTools.length === 0 ? (
-                  <div className="py-4 text-center">
-                    <AlertCircle size={16} className="text-gray-300 mx-auto mb-2" />
-                    <p className="text-[11px] text-gray-400">Click &quot;Discover Tools&quot; to load available tools.</p>
-                  </div>
-                ) : externalTools.map((tool, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
-                    <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Settings size={12} className="text-blue-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-xs font-semibold text-gray-800 font-mono">{tool.name}</span>
-                      {tool.description && <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{tool.description}</p>}
-                    </div>
-                    <CheckCircle2 size={14} className="text-green-400 flex-shrink-0 mt-0.5" />
-                  </div>
-                ))}
-                {server.last_discovered_at && (
-                  <p className="text-[10px] text-gray-400 text-right">Last discovered {new Date(server.last_discovered_at).toLocaleString()}</p>
-                )}
-              </div>
-            )}
+                )
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -84,10 +84,34 @@ async function runWorkflowForTool(workflowId: string, orgId: string, args: Recor
   return "Workflow executed successfully";
 }
 
+/** Log a tool execution to mcp_tool_executions (non-fatal) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logExecution(
+  admin: any,
+  params: {
+    org_id: string;
+    server_id: string;
+    tool_id: string | null;
+    tool_name: string;
+    input_data: Record<string, unknown>;
+    output_text: string | null;
+    status: "success" | "error";
+    error_message: string | null;
+    duration_ms: number;
+    transport: string;
+  }
+) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from("mcp_tool_executions").insert(params);
+  } catch { /* non-fatal */ }
+}
+
 /** Main MCP request dispatcher */
 export async function handleMcpRequest(
   rpc: JsonRpcRequest,
-  slug: string
+  slug: string,
+  transport: "sse" | "http" = "sse"
 ): Promise<JsonRpcResponse | null> {
   const admin = createClient(supabaseUrl, supabaseServiceKey);
   const id = rpc.id ?? null;
@@ -151,11 +175,41 @@ export async function handleMcpRequest(
       if (!tool.enabled) return err(id, -32602, `Tool "${params.name}" is disabled`);
       if (!tool.workflow_id) return err(id, -32602, `Tool "${params.name}" has no linked scenario`);
 
+      const startMs = Date.now();
+      const inputData = params.arguments ?? {};
+
       try {
-        const text = await runWorkflowForTool(tool.workflow_id, server.org_id, params.arguments ?? {});
+        const text = await runWorkflowForTool(tool.workflow_id, server.org_id, inputData);
+        const duration = Date.now() - startMs;
+        await logExecution(admin, {
+          org_id: server.org_id,
+          server_id: server.id,
+          tool_id: tool.id,
+          tool_name: tool.name,
+          input_data: inputData,
+          output_text: text,
+          status: "success",
+          error_message: null,
+          duration_ms: duration,
+          transport,
+        });
         return ok(id, { content: [{ type: "text", text }] });
       } catch (e) {
-        return err(id, -32603, e instanceof Error ? e.message : String(e));
+        const duration = Date.now() - startMs;
+        const msg = e instanceof Error ? e.message : String(e);
+        await logExecution(admin, {
+          org_id: server.org_id,
+          server_id: server.id,
+          tool_id: tool.id,
+          tool_name: tool.name,
+          input_data: inputData,
+          output_text: null,
+          status: "error",
+          error_message: msg,
+          duration_ms: duration,
+          transport,
+        });
+        return err(id, -32603, msg);
       }
     }
 

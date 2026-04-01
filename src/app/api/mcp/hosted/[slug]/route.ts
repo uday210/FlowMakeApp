@@ -63,7 +63,7 @@ export async function POST(
     );
   }
 
-  const response = await handleMcpRequest(rpc as Parameters<typeof handleMcpRequest>[0], slug);
+  const response = await handleMcpRequest(rpc as Parameters<typeof handleMcpRequest>[0], slug, "http");
 
   if (response === null) {
     // Notification — no response body
