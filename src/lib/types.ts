@@ -229,6 +229,16 @@ export interface Workflow {
   updated_at: string;
 }
 
+export interface ExecutionContext {
+  triggerData: Record<string, unknown>;
+  nodeOutputs: Record<string, unknown>;
+  logs: ExecutionLog[];
+  workflowId?: string;
+  orgId?: string;
+  variables: Record<string, unknown>;
+  secrets: Record<string, string>;
+}
+
 export interface ExecutionLog {
   node_id: string;
   node_label: string;
