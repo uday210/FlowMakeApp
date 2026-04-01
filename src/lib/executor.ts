@@ -5468,7 +5468,7 @@ async function executeNodeOnce(
         try { params = JSON.parse(config.parameters as string || "{}"); } catch { /* ignore */ }
         const body: Record<string, unknown> = { inputs: interpolate(config.inputs as string || "") };
         if (Object.keys(params).length) body.parameters = params;
-        const res = await fetch(`https://router.huggingface.co/hf-inference/models/${modelId}`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+        const res = await fetch(`https://router.huggingface.co/models/${modelId}`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
         const raw = await res.text();
         let data: unknown;
         try { data = JSON.parse(raw); } catch { throw new Error(`HuggingFace ${res.status}: ${raw}`); }
