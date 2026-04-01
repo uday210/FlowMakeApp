@@ -4,9 +4,9 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
-  ArrowLeft, Save, Eye, EyeOff, Loader2, Plus, Trash2, GripVertical,
+  ArrowLeft, Save, Eye, EyeOff, Loader2, Trash2, GripVertical,
   ChevronDown, ChevronUp, Settings, Type, MousePointer, Minus, AlignLeft,
-  Image as ImageIcon, Mail, Variable,
+  Image as ImageIcon, Mail, Variable, Copy, Send, X, Check, Monitor, Smartphone,
 } from "lucide-react";
 import {
   Block, TemplateSettings, DEFAULT_SETTINGS,
@@ -243,7 +243,9 @@ export default function EmailTemplateBuilderPage({ params }: { params: Promise<{
 
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
+  const [saveOk, setSaveOk]       = useState(false);
   const [preview, setPreview]     = useState(false);
+  const [mobilePreview, setMobilePreview] = useState(false);
   const [name, setName]           = useState("Untitled Template");
   const [description, setDescription] = useState("");
   const [category, setCategory]   = useState("custom");
@@ -253,6 +255,11 @@ export default function EmailTemplateBuilderPage({ params }: { params: Promise<{
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showVars, setShowVars]   = useState(false);
+  // Test email
+  const [showTest, setShowTest]   = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [testMsg, setTestMsg]     = useState("");
   const dragItem = useRef<number | null>(null);
   const dragOver = useRef<number | null>(null);
 
@@ -292,6 +299,38 @@ export default function EmailTemplateBuilderPage({ params }: { params: Promise<{
     if (selectedId === bid) setSelectedId(null);
   };
 
+  const duplicateBlock = (bid: string) => {
+    setBlocks((prev) => {
+      const idx = prev.findIndex((b) => b._id === bid);
+      if (idx === -1) return prev;
+      const { _id: _, ...rest } = prev[idx];
+      const copy: BlockWithId = { ...rest, _id: uid() } as BlockWithId;
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      setSelectedId(copy._id);
+      return next;
+    });
+  };
+
+  const sendTest = async () => {
+    if (!testEmail.trim()) return;
+    setTestSending(true);
+    setTestMsg("");
+    try {
+      const res = await fetch(`/api/email-templates/${id}/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: testEmail }),
+      });
+      const d = await res.json();
+      setTestMsg(res.ok ? "Test email sent!" : (d.error ?? "Failed to send"));
+    } catch {
+      setTestMsg("Failed to send");
+    } finally {
+      setTestSending(false);
+    }
+  };
+
   const moveBlock = (from: number, to: number) => {
     setBlocks((prev) => {
       const copy = [...prev];
@@ -325,6 +364,8 @@ export default function EmailTemplateBuilderPage({ params }: { params: Promise<{
       body: JSON.stringify({ name, description, category, subject, blocks: rawBlocks, settings, html_body: html, plain_body: plain, variables: unique }),
     });
     setSaving(false);
+    setSaveOk(true);
+    setTimeout(() => setSaveOk(false), 2000);
   };
 
   const previewHtml = blocks.length
@@ -360,20 +401,56 @@ export default function EmailTemplateBuilderPage({ params }: { params: Promise<{
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${showVars ? "bg-violet-600 text-white border-violet-600" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
           <Variable size={13} /> Variables
         </button>
+        <button onClick={() => { setShowTest((v) => !v); setTestMsg(""); }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${showTest ? "bg-emerald-600 text-white border-emerald-600" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+          <Send size={13} /> Test
+        </button>
         <button onClick={() => setPreview((v) => !v)}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${preview ? "bg-gray-800 text-white border-gray-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
           {preview ? <EyeOff size={13} /> : <Eye size={13} />} {preview ? "Edit" : "Preview"}
         </button>
         <button onClick={save} disabled={saving}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50">
-          {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save
+          className={`flex items-center gap-1.5 px-4 py-1.5 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 ${saveOk ? "bg-green-600 hover:bg-green-600" : "bg-indigo-600 hover:bg-indigo-700"}`}>
+          {saving ? <Loader2 size={13} className="animate-spin" /> : saveOk ? <Check size={13} /> : <Save size={13} />}
+          {saveOk ? "Saved!" : "Save"}
         </button>
       </div>
 
+      {/* ── Test email panel ── */}
+      {showTest && (
+        <div className="bg-emerald-50 border-b border-emerald-100 px-6 py-3 flex items-center gap-3">
+          <Send size={14} className="text-emerald-600 flex-shrink-0" />
+          <span className="text-xs font-semibold text-emerald-700 flex-shrink-0">Send test to:</span>
+          <input
+            type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)}
+            placeholder="you@example.com"
+            onKeyDown={(e) => e.key === "Enter" && sendTest()}
+            className="flex-1 max-w-xs border border-emerald-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+          />
+          <button onClick={sendTest} disabled={testSending || !testEmail.trim()}
+            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-colors">
+            {testSending ? <Loader2 size={12} className="animate-spin" /> : "Send"}
+          </button>
+          {testMsg && <span className={`text-xs font-medium ${testMsg.includes("sent") ? "text-emerald-600" : "text-red-500"}`}>{testMsg}</span>}
+          <button onClick={() => setShowTest(false)} className="ml-auto text-gray-400 hover:text-gray-600"><X size={14} /></button>
+        </div>
+      )}
+
       {preview ? (
         /* ── Preview mode ── */
-        <div className="flex-1 overflow-auto p-8 flex items-start justify-center">
-          <div className="w-full max-w-2xl">
+        <div className="flex-1 overflow-auto p-8 flex flex-col items-center">
+          {/* Mobile/Desktop toggle */}
+          <div className="flex items-center gap-2 mb-4 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+            <button onClick={() => setMobilePreview(false)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${!mobilePreview ? "bg-gray-800 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+              <Monitor size={13} /> Desktop
+            </button>
+            <button onClick={() => setMobilePreview(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${mobilePreview ? "bg-gray-800 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+              <Smartphone size={13} /> Mobile
+            </button>
+          </div>
+          <div className={`w-full ${mobilePreview ? "max-w-sm" : "max-w-2xl"} transition-all`}>
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
                 <p className="text-xs font-semibold text-gray-500">Subject:</p>
@@ -462,6 +539,11 @@ export default function EmailTemplateBuilderPage({ params }: { params: Promise<{
                               disabled={i === blocks.length - 1}
                               className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30">
                               <ChevronDown size={12} />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); duplicateBlock(block._id); }}
+                              title="Duplicate block"
+                              className="p-1.5 text-gray-400 hover:text-indigo-600">
+                              <Copy size={12} />
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); deleteBlock(block._id); }}
                               className="p-1.5 text-red-400 hover:text-red-600">
