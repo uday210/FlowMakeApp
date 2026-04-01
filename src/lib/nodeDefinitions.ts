@@ -920,6 +920,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     category: "trigger" as const,
     color: "#336791",
     icon: "Database",
+    connectionType: "postgres",
+    connectionFields: ["host", "port", "database", "user", "password", "ssl"],
     defaultConfig: { host: "localhost", port: "5432", database: "", user: "", password: "", ssl: "false", table: "", id_column: "id", where_clause: "", poll_interval: "15" },
     configFields: [
       { key: "host", label: "Host", type: "text" as const, required: true, placeholder: "localhost" },
@@ -946,6 +948,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     category: "trigger" as const,
     color: "#00758F",
     icon: "Database",
+    connectionType: "mysql",
+    connectionFields: ["host", "port", "database", "user", "password"],
     defaultConfig: { host: "localhost", port: "3306", database: "", user: "", password: "", table: "", id_column: "id", where_clause: "", poll_interval: "15" },
     configFields: [
       { key: "host", label: "Host", type: "text" as const, required: true, placeholder: "localhost" },
@@ -971,6 +975,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     category: "trigger" as const,
     color: "#47A248",
     icon: "Database",
+    connectionType: "mongodb",
+    connectionFields: ["uri"],
     defaultConfig: { uri: "", database: "", collection: "", filter_json: "{}", poll_interval: "15" },
     configFields: [
       { key: "uri", label: "Connection URI", type: "password" as const, required: true, placeholder: "mongodb+srv://user:pass@cluster.mongodb.net" },
