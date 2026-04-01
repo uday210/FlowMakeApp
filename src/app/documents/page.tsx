@@ -240,7 +240,7 @@ export default function DocumentsPage() {
         action={
           <div className="flex items-center gap-2">
             <Link
-              href="/docs/esign"
+              href="/help#esign"
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
             >
               <BookOpen size={14} /> API Docs

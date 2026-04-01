@@ -122,7 +122,7 @@ export default function DocTemplatesPage() {
         action={
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push("/doc-templates/guide")}
+              onClick={() => router.push("/help#doc-composer")}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
             >
               <BookOpen size={13} /> Template Guide
@@ -226,7 +226,7 @@ export default function DocTemplatesPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors">
                 <Upload size={13} /> Upload Template
               </button>
-              <button onClick={() => router.push("/doc-templates/guide")}
+              <button onClick={() => router.push("/help#doc-composer")}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
                 <BookOpen size={13} /> Read the Guide
               </button>

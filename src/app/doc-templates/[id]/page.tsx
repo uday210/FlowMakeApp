@@ -310,7 +310,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
         <input value={name} onChange={e => setName(e.target.value)}
           className="flex-1 font-semibold text-gray-800 text-sm bg-transparent outline-none border-b border-transparent focus:border-violet-400 px-1 py-0.5 min-w-0" />
         <span className="text-xs text-gray-400">{tpl.file_name} · {formatBytes(tpl.file_size)}</span>
-        <button onClick={() => router.push("/doc-templates/guide")}
+        <button onClick={() => router.push("/help#doc-composer")}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
           <BookOpen size={12} /> Guide
         </button>
@@ -459,7 +459,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                       <span className="text-gray-500">{desc}</span>
                     </div>
                   ))}
-                  <button onClick={() => router.push("/doc-templates/guide")}
+                  <button onClick={() => router.push("/help#doc-composer")}
                     className="mt-3 text-[10px] text-violet-400 hover:text-violet-300 font-sans flex items-center gap-1">
                     Full reference guide <ChevronRight size={10} />
                   </button>
