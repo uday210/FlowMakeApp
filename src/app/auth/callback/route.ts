@@ -40,17 +40,33 @@ export async function GET(request: Request) {
         .eq("id", data.user.id)
         .single();
 
+      const pendingOrgId = data.user.user_metadata?.pending_org_id as string | undefined;
+      const pendingRole = (data.user.user_metadata?.pending_role as string | undefined) ?? "member";
+
       if (!profile) {
-        // New user — create profile, then go to onboarding
-        await adminClient.from("profiles").insert({
+        // New user — create profile
+        const insertData: Record<string, unknown> = {
           id: data.user.id,
           full_name: data.user.user_metadata?.full_name ?? data.user.email?.split("@")[0] ?? "",
           avatar_url: data.user.user_metadata?.avatar_url ?? null,
-        });
-        return NextResponse.redirect(new URL("/onboarding", request.url));
+        };
+        // If invited to an org, assign them directly
+        if (pendingOrgId) {
+          insertData.org_id = pendingOrgId;
+          insertData.role = pendingRole;
+        }
+        await adminClient.from("profiles").insert(insertData);
+        return pendingOrgId
+          ? NextResponse.redirect(new URL("/org", request.url))
+          : NextResponse.redirect(new URL("/onboarding", request.url));
       }
 
       if (!profile.org_id) {
+        // Existing profile without org — check for pending invite
+        if (pendingOrgId) {
+          await adminClient.from("profiles").update({ org_id: pendingOrgId, role: pendingRole }).eq("id", data.user.id);
+          return NextResponse.redirect(new URL("/org", request.url));
+        }
         return NextResponse.redirect(new URL("/onboarding", request.url));
       }
     }

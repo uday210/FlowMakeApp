@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import { supabase } from "@/lib/supabase";
 import {
-  LayoutDashboard, Users, UserCircle, CreditCard, BarChart2,
-  Receipt, Puzzle, Variable, Settings2, Bell, Bot,
+  LayoutDashboard, Users, UserCircle, CreditCard,
+  Settings2, Bot,
   TrendingUp, AlertTriangle, CheckCircle2, Clock,
   ArrowRight, Zap, Sparkles, ChevronRight, RefreshCw,
-  Activity, Globe, Loader2, Save, Infinity, KeyRound, Plug2,
+  Activity, Globe, Loader2, Save, Infinity, Plug2,
   Table2, Check, Crown, Mail, Plus, Trash2, ShieldCheck, X,
 } from "lucide-react";
 import { PLAN_LIMITS, PLAN_LABELS, type PlanName, type ResourceKey } from "@/lib/plan-limits";
@@ -30,7 +31,6 @@ const ORG_NAV = [
     items: [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
       { id: "settings", label: "Settings", icon: Settings2 },
-      { id: "teams", label: "Teams", icon: Users },
       { id: "users", label: "Users", icon: UserCircle },
     ],
   },
@@ -38,16 +38,11 @@ const ORG_NAV = [
     section: "My Plan",
     items: [
       { id: "subscription", label: "Subscription", icon: CreditCard },
-      { id: "credit-usage", label: "Credit usage", icon: BarChart2 },
-      { id: "payments", label: "Payments", icon: Receipt },
     ],
   },
   {
     section: "Utilities",
     items: [
-      { id: "installed-apps", label: "Installed apps", icon: Puzzle },
-      { id: "variables", label: "Variables", icon: Variable },
-      { id: "notifications", label: "Notification options", icon: Bell },
       { id: "email", label: "Email Accounts", icon: Mail },
     ],
   },
@@ -139,11 +134,14 @@ export default function OrgDashboard() {
   const [loading, setLoading] = useState(true);
   const [org, setOrg] = useState<Org | null>(null);
   const [usageData, setUsageData] = useState<UsageData | null>(null);
+  const [currentUserId, setCurrentUserId] = useState("");
 
-  // Generate deterministic 30-day sparkline data (no Math.random — avoids hydration mismatch)
-  const dailyUsageData = Array.from({ length: 30 }, (_, i) =>
-    Math.max(0, Math.round(Math.sin(i * 0.4) * 3 + Math.abs(Math.sin(i * 1.3)) * 4))
-  );
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setCurrentUserId(user.id);
+    });
+  }, []);
+
 
   useEffect(() => {
     fetch("/api/org").then(r => r.json()).then(d => { if (d && !d.error) setOrg(d); }).catch(() => {});
@@ -205,6 +203,17 @@ export default function OrgDashboard() {
     );
   }
 
+  if (activeNav === "users") {
+    return (
+      <AppShell>
+        <div className="flex h-full overflow-hidden">
+          <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} org={org} />
+          <UsersPanel currentUserId={currentUserId} />
+        </div>
+      </AppShell>
+    );
+  }
+
   if (activeNav !== "dashboard") {
     return (
       <AppShell>
@@ -252,22 +261,20 @@ export default function OrgDashboard() {
           <div className="px-8 py-6 space-y-8">
 
             {/* ── Stat cards ── */}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <StatCard
-                label="Average daily usage"
-                value={`${(dailyUsageData.reduce((a, b) => a + b, 0) / 30).toFixed(1)}`}
-                sub="operations / day"
-                sparkData={dailyUsageData}
+                label="Active scenarios"
+                value={`${activeScenarios}`}
+                sub={`of ${totalScenarios} total`}
                 color="#7c3aed"
-                trend={{ dir: "up", label: "+12% this month" }}
+                trend={{ dir: activeScenarios > 0 ? "up" : "neutral", label: activeScenarios > 0 ? `${totalScenarios - activeScenarios} inactive` : "None active" }}
               />
               <StatCard
-                label="Credits left"
-                value="1,000"
-                sub="of 1,000 total"
-                sparkData={[1000, 1000, 1000, 1000, 1000, 1000, 1000]}
+                label="Plan"
+                value={org?.plan ? org.plan.charAt(0).toUpperCase() + org.plan.slice(1) : "Free"}
+                sub="current plan"
                 color="#10b981"
-                trend={{ dir: "neutral", label: "Full plan" }}
+                trend={{ dir: "neutral", label: "Manage in Subscription" }}
               />
               <StatCard
                 label="Usage resets in"
@@ -275,14 +282,6 @@ export default function OrgDashboard() {
                 sub="days"
                 color="#f59e0b"
                 trend={{ dir: "neutral", label: `Resets ${resetDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` }}
-              />
-              <StatCard
-                label="Active scenarios"
-                value={`${activeScenarios}`}
-                sub={`of ${totalScenarios} total`}
-                sparkData={Array.from({ length: 7 }, (_, i) => i < activeScenarios ? 1 : 0)}
-                color="#3b82f6"
-                trend={{ dir: activeScenarios > 0 ? "up" : "neutral", label: activeScenarios > 0 ? "Running" : "None active" }}
               />
             </div>
 
@@ -1384,6 +1383,228 @@ function EmailConfigsPanel() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Users Panel ─────────────────────────────────────────────────────────────
+
+interface OrgMember {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
+function UsersPanel({ currentUserId }: { currentUserId: string }) {
+  const [members, setMembers] = useState<OrgMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("member");
+  const [inviting, setInviting] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    fetch("/api/org/members")
+      .then(r => r.json())
+      .then(d => { setMembers(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    setInviteMsg(null);
+    setErr("");
+    try {
+      const res = await fetch("/api/org/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setInviteMsg({ type: "err", text: data.error ?? "Failed to invite" });
+      } else {
+        const msg = data.status === "added"
+          ? `${data.email} added to your org.`
+          : `Invite sent to ${data.email}.`;
+        setInviteMsg({ type: "ok", text: msg });
+        setInviteEmail("");
+        // Reload members
+        fetch("/api/org/members").then(r => r.json()).then(d => setMembers(Array.isArray(d) ? d : []));
+      }
+    } catch {
+      setInviteMsg({ type: "err", text: "Network error" });
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    if (!confirm("Remove this member from the org?")) return;
+    setRemovingId(id);
+    try {
+      const res = await fetch(`/api/org/members/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        setMembers(prev => prev.filter(m => m.id !== id));
+      } else {
+        setErr(data.error ?? "Failed to remove");
+      }
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  const handleRoleChange = async (id: string, role: string) => {
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`/api/org/members/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMembers(prev => prev.map(m => m.id === id ? { ...m, role } : m));
+      } else {
+        setErr(data.error ?? "Failed to update role");
+      }
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const isAdmin = members.find(m => m.id === currentUserId)?.role === "admin";
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-[#f8f9fc]">
+      <header className="bg-white border-b border-gray-100 px-8 py-4 sticky top-0 z-10">
+        <h1 className="text-lg font-bold text-gray-900">Users</h1>
+        <p className="text-xs text-gray-400 mt-0.5">Manage who has access to your organization</p>
+      </header>
+
+      <div className="px-8 py-6 max-w-3xl space-y-6">
+        {err && (
+          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <AlertTriangle size={14} /> {err}
+            <button onClick={() => setErr("")} className="ml-auto"><X size={14} /></button>
+          </div>
+        )}
+
+        {/* Invite form */}
+        {isAdmin && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-sm font-bold text-gray-800 mb-1">Invite a member</h2>
+            <p className="text-xs text-gray-400 mb-4">They'll receive an email invitation to join your org.</p>
+            <div className="flex items-center gap-3">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleInvite()}
+                placeholder="colleague@example.com"
+                className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400"
+              />
+              <select
+                value={inviteRole}
+                onChange={e => setInviteRole(e.target.value)}
+                className="text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 bg-white"
+              >
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button
+                onClick={handleInvite}
+                disabled={inviting || !inviteEmail.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
+              >
+                {inviting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                {inviting ? "Sending…" : "Invite"}
+              </button>
+            </div>
+            {inviteMsg && (
+              <p className={`mt-2 text-xs font-medium ${inviteMsg.type === "ok" ? "text-green-600" : "text-red-500"}`}>
+                {inviteMsg.text}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Members list */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+            <Users size={14} className="text-gray-400" />
+            <h2 className="text-sm font-semibold text-gray-800">Members</h2>
+            <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{members.length}</span>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-300" /></div>
+          ) : members.length === 0 ? (
+            <div className="px-6 py-12 text-center">
+              <UserCircle size={28} className="text-gray-200 mx-auto mb-3" />
+              <p className="text-sm text-gray-400">No members yet</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {members.map(m => (
+                <div key={m.id} className="flex items-center gap-4 px-6 py-3.5">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, #7c3aed, #ec4899)" }}>
+                    {(m.full_name || m.email || "?").charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">
+                      {m.full_name || m.email}
+                      {m.id === currentUserId && <span className="ml-2 text-[10px] font-bold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-full">You</span>}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">{m.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {isAdmin && m.id !== currentUserId ? (
+                      <select
+                        value={m.role}
+                        onChange={e => handleRoleChange(m.id, e.target.value)}
+                        disabled={updatingId === m.id}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-violet-400 bg-white disabled:opacity-50"
+                      >
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    ) : (
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${
+                        m.role === "admin" ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {m.role}
+                      </span>
+                    )}
+                    {isAdmin && m.id !== currentUserId && (
+                      <button
+                        onClick={() => handleRemove(m.id)}
+                        disabled={removingId === m.id}
+                        className="text-gray-300 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                        title="Remove from org"
+                      >
+                        {removingId === m.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-400">
+          Admins can invite members, change roles, and manage the organization. Members can use all features but cannot change org settings.
+        </p>
       </div>
     </div>
   );
