@@ -63,6 +63,9 @@ export async function GET(req: Request, { params }: Params) {
   const fieldValues: Record<string, string> = {};
   for (const r of requests) {
     let fd = (r.fields_data ?? {}) as Record<string, string>;
+    // fields_data may come back as a JSON string from some DB drivers
+    if (typeof fd === "string") { try { fd = JSON.parse(fd); } catch { fd = {}; } }
+    // If fields_data is empty, fall back to parsing signature_data (older format)
     if (Object.keys(fd).length === 0 && r.signature_type === "fields" && r.signature_data) {
       try { fd = JSON.parse(r.signature_data as string); } catch { /* ignore */ }
     }
@@ -73,7 +76,9 @@ export async function GET(req: Request, { params }: Params) {
         (r.signature_type === "draw" || r.signature_type === "type")) {
       for (const field of fields ?? []) {
         if (field.type === "signature" || field.type === "initials") {
-          if (!r.signer_email || field.signer_email === r.signer_email || !field.signer_email) {
+          const matchByEmail = !field.signer_email || field.signer_email === r.signer_email;
+          const matchByRole  = r.signer_role && field.signer_email === r.signer_role;
+          if (matchByEmail || matchByRole) {
             fieldValues[field.id] = r.signature_data as string;
           }
         }
