@@ -1,6 +1,9 @@
 [build]
 builder = "nixpacks"
 
+[build.nixpacks]
+NODE_VERSION = "20"
+
 [deploy]
 startCommand = "npm start"
 healthcheckPath = "/"
