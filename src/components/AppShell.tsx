@@ -25,7 +25,6 @@ import {
 const USER_NAV = [
   { href: "/org", icon: Building2, label: "Organization" },
   { href: "/workflows", icon: Home, label: "Scenarios" },
-  { href: "/templates", icon: LayoutTemplate, label: "Templates" },
   { href: "/tables", icon: Table2, label: "My Tables" },
   { href: "/agents", icon: Bot, label: "AI Agents" },
   { href: "/connections", icon: Shield, label: "Credentials" },
