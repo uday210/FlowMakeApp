@@ -51,7 +51,7 @@ export const handlers: Record<string, NodeHandler> = {
     const filter = config.filter as string;
     // Use poll_interval to determine the look-back window (×2 for overlap to avoid missing records)
     const pollMins = Math.max(1, Number(config.poll_interval) || 5);
-    const since = new Date(Date.now() - 2 * pollMins * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - 2 * pollMins * 60 * 1000).toISOString().replace(/\.\d+Z$/, "Z");
 
     let soql = "";
     if (event === "new_record" || event === "new_lead") {
