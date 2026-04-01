@@ -5647,11 +5647,17 @@ async function executeNode(
   connections: Record<string, Record<string, unknown>> = {}
 ): Promise<unknown> {
   const start = Date.now();
+  // Resolve connection into config so the log reflects what actually runs
+  const logConfig = { ...node.data.config };
+  const connId = node.data.config.connectionId as string | undefined;
+  if (connId && connections[connId]) {
+    Object.assign(logConfig, connections[connId]);
+  }
   const log: ExecutionLog = {
     node_id: node.id,
     node_label: node.data.label,
     status: "running",
-    input: node.data.config,
+    input: logConfig,
   };
   ctx.logs.push(log);
 
