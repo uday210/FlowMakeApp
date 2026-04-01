@@ -1106,14 +1106,14 @@ async function executeNodeOnce(
 
         const supabase = createServerClient();
 
-        // Verify document belongs to this org
-        const { data: doc, error: docError } = await supabase
+        // Fetch document (service role bypasses RLS; filter by org if available)
+        let docQuery = supabase
           .from("esign_documents")
           .select("id, name, email_template_id")
-          .eq("id", documentId)
-          .eq("org_id", ctx.orgId || "")
-          .single();
-        if (docError || !doc) throw new Error("Document template not found in your org");
+          .eq("id", documentId);
+        if (ctx.orgId) docQuery = docQuery.eq("org_id", ctx.orgId);
+        const { data: doc, error: docError } = await docQuery.single();
+        if (docError || !doc) throw new Error("Document template not found");
 
         const effectiveTemplateId = emailTemplateId || (doc as { email_template_id?: string }).email_template_id || null;
         const sessionId = crypto.randomUUID();
