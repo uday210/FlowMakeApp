@@ -1509,7 +1509,17 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
                       value={config[field.key] ?? ""}
                       onChange={(v) => setConfig((prev) => ({ ...prev, [field.key]: v }))}
                       suggestions={field.type !== "select" && field.type !== "password" && field.type !== "remote_select" ? suggestions : []}
-                      config={config}
+                      config={{
+                        // Merge selected connection credentials so remote_select can use them
+                        ...(connectionId
+                          ? Object.fromEntries(
+                              Object.entries(
+                                (connections.find(c => c.id === connectionId)?.config ?? {}) as Record<string, unknown>
+                              ).map(([k, v]) => [k, String(v)])
+                            )
+                          : {}),
+                        ...config,
+                      }}
                     />
                   </div>
                 </div>
