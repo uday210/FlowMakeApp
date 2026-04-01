@@ -180,7 +180,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     configFields: [
       ...SF_CONFIG_FIELDS,
       { key: "event", label: "Trigger On", type: "select", options: [{ label: "New Record Created", value: "new_record" }, { label: "Record Updated", value: "record_updated" }, { label: "New Lead", value: "new_lead" }, { label: "Opportunity Stage Changed", value: "opportunity_stage" }] },
-      { key: "object", label: "Salesforce Object", type: "select", options: [{ label: "Lead", value: "Lead" }, { label: "Contact", value: "Contact" }, { label: "Account", value: "Account" }, { label: "Opportunity", value: "Opportunity" }, { label: "Task", value: "Task" }, { label: "Case", value: "Case" }, { label: "Campaign", value: "Campaign" }] },
+      { key: "object", label: "Salesforce Object", type: "remote_select", fetch_action: "salesforce_objects", placeholder: "e.g. Lead, Contact, My_Custom__c" },
       { key: "filter", label: "SOQL WHERE filter (optional)", type: "text", placeholder: "Status = 'Open'" },
     ],
   },
@@ -1533,7 +1533,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     configFields: [
       ...SF_CONFIG_FIELDS,
       { key: "action", label: "Action", type: "select", required: true, options: [{ label: "Create Record", value: "create" }, { label: "Update Record", value: "update" }, { label: "Get Record by ID", value: "get" }, { label: "SOQL Query", value: "query" }, { label: "Delete Record", value: "delete" }] },
-      { key: "object", label: "Salesforce Object", type: "select", options: [{ label: "Lead", value: "Lead" }, { label: "Contact", value: "Contact" }, { label: "Account", value: "Account" }, { label: "Opportunity", value: "Opportunity" }, { label: "Task", value: "Task" }, { label: "Case", value: "Case" }, { label: "Campaign", value: "Campaign" }] },
+      { key: "object", label: "Salesforce Object", type: "remote_select", fetch_action: "salesforce_objects", placeholder: "e.g. Lead, Contact, My_Custom__c" },
       { key: "record_id", label: "Record ID (for get/update/delete)", type: "text", placeholder: "003xx000004GYL0" },
       { key: "fields", label: "Fields (JSON — for create/update)", type: "textarea", placeholder: '{"FirstName":"John","LastName":"Doe","Email":"john@example.com","Company":"Acme"}' },
       { key: "soql", label: "SOQL Query (for query action)", type: "textarea", placeholder: "SELECT Id, Name FROM Lead WHERE Status = 'Open' LIMIT 10" },

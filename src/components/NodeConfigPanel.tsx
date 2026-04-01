@@ -376,6 +376,85 @@ function CronBuilder({ value, onChange }: { value: string; onChange: (cron: stri
   );
 }
 
+// ─── Remote Select — fetches options dynamically from an integration API ────────
+
+function RemoteSelectField({ field, value, onChange, config, base }: {
+  field: ConfigField;
+  value: string;
+  onChange: (v: string) => void;
+  config: Record<string, string>;
+  base: string;
+}) {
+  const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [fetched, setFetched] = useState(false);
+
+  const fetchOptions = async () => {
+    if (field.fetch_action === "salesforce_objects") {
+      setLoading(true); setError("");
+      try {
+        const res = await fetch("/api/integrations/salesforce/objects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            auth_flow: config.auth_flow,
+            environment: config.environment,
+            login_url: config.login_url,
+            client_id: config.client_id,
+            client_secret: config.client_secret,
+            username: config.username,
+            password: config.password,
+            security_token: config.security_token,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to load objects");
+        setOptions(data.objects ?? []);
+        setFetched(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <div className="flex gap-1.5">
+        {fetched && options.length > 0 ? (
+          <select className={base} value={value} onChange={(e) => onChange(e.target.value)}>
+            {value && !options.find(o => o.value === value) && (
+              <option value={value}>{value}</option>
+            )}
+            {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        ) : (
+          <input
+            className={`${base} flex-1`}
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={field.placeholder ?? "e.g. Contact, Account, My_Object__c"}
+          />
+        )}
+        <button
+          type="button"
+          onClick={fetchOptions}
+          disabled={loading}
+          className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap"
+          title="Connect to Salesforce and load all available objects"
+        >
+          {loading ? "Loading…" : fetched ? "↺ Reload" : "Browse"}
+        </button>
+      </div>
+      {error && <p className="text-[10px] text-red-500">{error}</p>}
+      {fetched && <p className="text-[10px] text-gray-400">{options.length} objects loaded — or type any API name</p>}
+    </div>
+  );
+}
+
 // ─── Field Input with {{ autocomplete ─────────────────────────────────────────
 
 function FieldInput({
@@ -383,11 +462,13 @@ function FieldInput({
   value,
   onChange,
   suggestions = [],
+  config = {},
 }: {
   field: ConfigField;
   value: string;
   onChange: (v: string) => void;
   suggestions?: Suggestion[];
+  config?: Record<string, string>;
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -448,6 +529,10 @@ function FieldInput({
         {field.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     );
+  }
+
+  if (field.type === "remote_select") {
+    return <RemoteSelectField field={field} value={value} onChange={onChange} config={config} base={base} />;
   }
 
   if (field.type === "email_template_select") {
@@ -1423,7 +1508,8 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
                       field={field}
                       value={config[field.key] ?? ""}
                       onChange={(v) => setConfig((prev) => ({ ...prev, [field.key]: v }))}
-                      suggestions={field.type !== "select" && field.type !== "password" ? suggestions : []}
+                      suggestions={field.type !== "select" && field.type !== "password" && field.type !== "remote_select" ? suggestions : []}
+                      config={config}
                     />
                   </div>
                 </div>

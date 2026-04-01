@@ -327,8 +327,10 @@ export interface NodeDefinition {
 export interface ConfigField {
   key: string;
   label: string;
-  type: "text" | "textarea" | "select" | "number" | "password" | "email_template_select" | "esign_template_select" | "doc_template_select";
+  type: "text" | "textarea" | "select" | "number" | "password" | "email_template_select" | "esign_template_select" | "doc_template_select" | "remote_select";
   placeholder?: string;
   required?: boolean;
   options?: { label: string; value: string }[];
+  /** For remote_select: identifies which fetch handler to call */
+  fetch_action?: string;
 }
