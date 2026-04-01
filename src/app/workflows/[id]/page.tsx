@@ -366,6 +366,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [execNodeStatuses, setExecNodeStatuses] = useState<Record<string, string>>({});
+  const [canvasKey, setCanvasKey] = useState(0);
   const prevNodeCount = useRef(0);
   const prevEdgeCount = useRef(0);
 
@@ -504,14 +505,29 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
   }, [showVersions, id]);
 
   const handleRestoreVersion = useCallback(async (versionId: string) => {
+    if (!workflow) return;
     try {
       const res = await fetch(`/api/workflows/${id}/versions/${versionId}`);
       if (!res.ok) return;
       const version = await res.json();
       const snapshot = version.snapshot as { nodes?: unknown[]; edges?: unknown[] };
-      if (snapshot.nodes) setNodes((snapshot.nodes as Node[]).map(n => ({ ...n, type: "workflowNode" })));
-      if (snapshot.edges) setEdges(snapshot.edges as Edge[]);
+      const restoredNodes = snapshot.nodes
+        ? (snapshot.nodes as Node[]).map(n => ({ ...n, type: "workflowNode" }))
+        : nodes;
+      const restoredEdges = (snapshot.edges as Edge[]) ?? edges;
+      // Update page state
+      setNodes(restoredNodes);
+      setEdges(restoredEdges);
+      // Force Canvas to remount with the restored nodes/edges
+      setCanvasKey(k => k + 1);
+      setExecNodeStatuses({});
       setShowVersions(false);
+      // Persist the restored state to DB so it's not lost on navigation
+      await fetch(`/api/workflows/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...workflow, nodes: restoredNodes, edges: restoredEdges }),
+      });
     } catch { /* silent */ }
   }, [id]);
 
@@ -658,6 +674,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
           {/* Canvas */}
           <div className="flex-1 relative overflow-hidden">
             <Canvas
+              key={canvasKey}
               initialNodes={nodes}
               initialEdges={edges}
               onNodesChange={handleNodesChange}
