@@ -10,10 +10,19 @@
  *   {#flag}...{/flag}               — show if truthy
  *   {^flag}...{/flag}               — show if falsy / empty
  *   {.}                             — current item in simple array loop
+ *   {%logo}                         — image field (value = base64 data URI or HTTPS URL)
  */
 
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ImageModule = require("docxtemplater-image-module-free") as new (opts: ImageModuleOpts) => object;
+
+interface ImageModuleOpts {
+  centered?: boolean;
+  getImage(tagValue: unknown): Buffer | null | Promise<Buffer | null>;
+  getSize(img: Buffer, tagValue: unknown, tagName: string): [number, number];
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,7 +30,7 @@ export interface DetectedField {
   key: string;        // raw tag text, e.g. "amount | currency:USD"
   path: string;       // resolved path, e.g. "amount"
   formatter: string;  // e.g. "currency:USD" or ""
-  kind: "field" | "loop_start" | "loop_end" | "condition_if" | "condition_else";
+  kind: "field" | "loop_start" | "loop_end" | "condition_if" | "condition_else" | "image";
 }
 
 export interface MergeResult {
@@ -208,6 +217,43 @@ function buildParser(data: Record<string, unknown>) {
   };
 }
 
+// ── Image helpers ─────────────────────────────────────────────────────────────
+
+/** Detect image dimensions from buffer header (PNG exact, others default) */
+function getImageSize(buffer: Buffer): [number, number] {
+  try {
+    // PNG: magic bytes 89 50 4E 47, width at offset 16, height at 20
+    if (buffer.length > 24 &&
+        buffer[0] === 0x89 && buffer[1] === 0x50 &&
+        buffer[2] === 0x4E && buffer[3] === 0x47) {
+      return [buffer.readUInt32BE(16), buffer.readUInt32BE(20)];
+    }
+  } catch { /* fallback */ }
+  return [300, 200]; // JPEG / GIF / WEBP default
+}
+
+/** Resolve an image field value to a Buffer (base64 data URI or HTTPS URL) */
+async function resolveImage(tagValue: unknown): Promise<Buffer | null> {
+  if (Buffer.isBuffer(tagValue)) return tagValue;
+  if (typeof tagValue !== "string" || !tagValue) return null;
+
+  // data URI: data:image/png;base64,iVBORw0K...
+  if (tagValue.startsWith("data:image/")) {
+    const b64 = tagValue.split(",")[1];
+    return b64 ? Buffer.from(b64, "base64") : null;
+  }
+
+  // HTTPS URL: fetch and return buffer
+  if (/^https?:\/\//i.test(tagValue)) {
+    try {
+      const res = await fetch(tagValue, { signal: AbortSignal.timeout(8000) });
+      if (res.ok) return Buffer.from(await res.arrayBuffer());
+    } catch { /* unreachable URL */ }
+  }
+
+  return null;
+}
+
 // ── Field detection ───────────────────────────────────────────────────────────
 
 /** Extracts all {tag} patterns from DOCX XML */
@@ -233,8 +279,11 @@ export function detectFields(docxBuffer: Buffer): DetectedField[] {
       const isLoopStart = raw.startsWith("#");
       const isLoopEnd = raw.startsWith("/");
       const isCondElse = raw.startsWith("^");
+      const isImage = raw.startsWith("%");
 
-      if (isLoopStart) {
+      if (isImage) {
+        fields.push({ key: raw, path: raw.slice(1), formatter: "", kind: "image" });
+      } else if (isLoopStart) {
         fields.push({ key: raw, path: raw.slice(1), formatter: "", kind: "loop_start" });
       } else if (isLoopEnd) {
         fields.push({ key: raw, path: raw.slice(1), formatter: "", kind: "loop_end" });
@@ -264,7 +313,20 @@ export async function mergeDocx(
   const zip = new PizZip(templateBuffer);
   const warnings: string[] = [];
 
+  const imageModule = new ImageModule({
+    centered: false,
+    async getImage(tagValue: unknown) {
+      const buf = await resolveImage(tagValue);
+      if (!buf) warnings.push(`Image field could not be resolved: ${String(tagValue).slice(0, 60)}`);
+      return buf;
+    },
+    getSize(img: Buffer) {
+      return getImageSize(img);
+    },
+  });
+
   const doc = new Docxtemplater(zip, {
+    modules: [imageModule],
     paragraphLoop: true,
     linebreaks: true,
     parser: buildParser(data),
