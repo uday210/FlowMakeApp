@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
+import { useEffect, useRef, useState, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Node, Edge } from "@xyflow/react";
@@ -365,6 +365,9 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
   const [statsKey, setStatsKey] = useState(0); // force-refresh stats panel
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [execNodeStatuses, setExecNodeStatuses] = useState<Record<string, string>>({});
+  const prevNodeCount = useRef(0);
+  const prevEdgeCount = useRef(0);
 
   useEffect(() => {
     const handler = () => setShowConnections(true);
@@ -383,9 +386,27 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
       .finally(() => setLoading(false));
   }, [id]);
 
+  // Reset edge highlight colors when nodes or edges are structurally changed
+  const handleNodesChange = useCallback((newNodes: Node[]) => {
+    if (prevNodeCount.current !== 0 && newNodes.length !== prevNodeCount.current) {
+      setExecNodeStatuses({});
+    }
+    prevNodeCount.current = newNodes.length;
+    setNodes(newNodes);
+  }, []);
+
+  const handleEdgesChange = useCallback((newEdges: Edge[]) => {
+    if (prevEdgeCount.current !== 0 && newEdges.length !== prevEdgeCount.current) {
+      setExecNodeStatuses({});
+    }
+    prevEdgeCount.current = newEdges.length;
+    setEdges(newEdges);
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (!workflow) return;
     setSaving(true);
+    setExecNodeStatuses({});
     try {
       const res = await fetch(`/api/workflows/${id}`, {
         method: "PUT",
@@ -401,6 +422,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
   const handleRun = useCallback(async () => {
     setExecStatus("running");
     setExecLogs([]);
+    setExecNodeStatuses({});
     setShowExec(true);
     try {
       const res = await fetch(`/api/execute/${id}`, {
@@ -411,7 +433,13 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
       const data = await res.json();
       setExecStatus(data.status === "success" ? "success" : "failed");
       setExecLogs(data.logs || []);
-      setStatsKey(k => k + 1); // refresh stats
+      setStatsKey(k => k + 1);
+      // Build node status map for edge highlighting
+      const statusMap: Record<string, string> = {};
+      for (const log of (data.logs || []) as ExecutionLog[]) {
+        statusMap[log.node_id] = log.status;
+      }
+      setExecNodeStatuses(statusMap);
     } catch { setExecStatus("failed"); }
   }, [id]);
 
@@ -632,11 +660,12 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
             <Canvas
               initialNodes={nodes}
               initialEdges={edges}
-              onNodesChange={setNodes}
-              onEdgesChange={setEdges}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
               onNodeSelect={setSelectedNode}
               nodeDataPatch={nodeDataPatch}
               onNodePatchApplied={() => setNodeDataPatch(null)}
+              nodeStatuses={execNodeStatuses}
             />
             {showExec && (
               <WorkflowLogger logs={execLogs} status={execStatus} onClose={() => setShowExec(false)} />
