@@ -221,4 +221,77 @@ export const handlers: Record<string, NodeHandler> = {
     if (!res.ok) throw new Error((data as { message?: string }).message || `ActiveCampaign ${res.status}`);
     return { new_items: data.contacts ?? [], count: (data.contacts ?? []).length, polled_at: new Date().toISOString() };
   },
+
+  "trigger_postgres_row": async ({ config }) => {
+    const { Client } = await import("pg");
+    const host = config.host as string || "localhost";
+    const port = Number(config.port) || 5432;
+    const database = config.database as string;
+    const user = config.user as string;
+    const password = config.password as string;
+    const ssl = config.ssl === "true";
+    const table = config.table as string;
+    const idColumn = (config.id_column as string) || "id";
+    const whereClause = config.where_clause as string || "";
+    if (!database || !table) throw new Error("Database and table name required");
+    const mins = (Number(config.poll_interval) || 15) * 2;
+    const client = new Client({ host, port, database, user, password, ssl: ssl ? { rejectUnauthorized: false } : false });
+    await client.connect();
+    try {
+      const extra = whereClause ? ` AND (${whereClause})` : "";
+      const q = `SELECT * FROM ${table} WHERE ${idColumn} > (NOW() - INTERVAL '${mins} minutes')${extra} ORDER BY ${idColumn} DESC LIMIT 50`;
+      const result = await client.query(q);
+      return { new_items: result.rows, count: result.rowCount ?? result.rows.length, polled_at: new Date().toISOString() };
+    } finally {
+      await client.end();
+    }
+  },
+
+  "trigger_mysql_row": async ({ config }) => {
+    const mysql = await import("mysql2/promise");
+    const host = config.host as string || "localhost";
+    const port = Number(config.port) || 3306;
+    const database = config.database as string;
+    const user = config.user as string;
+    const password = config.password as string;
+    const table = config.table as string;
+    const idColumn = (config.id_column as string) || "id";
+    const whereClause = config.where_clause as string || "";
+    if (!database || !table) throw new Error("Database and table name required");
+    const mins = (Number(config.poll_interval) || 15) * 2;
+    const conn = await mysql.createConnection({ host, port, database, user, password });
+    try {
+      const extra = whereClause ? ` AND (${whereClause})` : "";
+      const q = `SELECT * FROM \`${table}\` WHERE \`${idColumn}\` > (NOW() - INTERVAL ${mins} MINUTE)${extra} ORDER BY \`${idColumn}\` DESC LIMIT 50`;
+      const [rows] = await conn.query(q);
+      const items = rows as Record<string, unknown>[];
+      return { new_items: items, count: items.length, polled_at: new Date().toISOString() };
+    } finally {
+      await conn.end();
+    }
+  },
+
+  "trigger_mongodb_document": async ({ config }) => {
+    const { MongoClient, ObjectId } = await import("mongodb");
+    const uri = config.uri as string;
+    const database = config.database as string;
+    const collection = config.collection as string;
+    const filterJson = config.filter_json as string || "{}";
+    if (!uri || !database || !collection) throw new Error("URI, database, and collection required");
+    const mins = (Number(config.poll_interval) || 15) * 2;
+    const since = new Date(Date.now() - mins * 60 * 1000);
+    const client = new MongoClient(uri);
+    await client.connect();
+    try {
+      let extraFilter: Record<string, unknown> = {};
+      try { extraFilter = JSON.parse(filterJson); } catch { /* ignore invalid JSON */ }
+      // Use _id ObjectId timestamp for efficient polling on default collections
+      const minId = ObjectId.createFromTime(Math.floor(since.getTime() / 1000));
+      const filter = { _id: { $gte: minId }, ...extraFilter };
+      const docs = await client.db(database).collection(collection).find(filter).sort({ _id: -1 }).limit(50).toArray();
+      return { new_items: docs, count: docs.length, polled_at: new Date().toISOString() };
+    } finally {
+      await client.close();
+    }
+  },
 };

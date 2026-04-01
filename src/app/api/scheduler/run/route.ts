@@ -28,6 +28,7 @@ export async function POST() {
     "trigger_dropbox_file", "trigger_onedrive_file", "trigger_trello_card",
     "trigger_monday_item", "trigger_mailchimp_subscriber", "trigger_activecampaign",
     "trigger_rss_poll", "trigger_salesforce",
+    "trigger_postgres_row", "trigger_mysql_row", "trigger_mongodb_document",
   ]);
 
   for (const wf of workflows) {
