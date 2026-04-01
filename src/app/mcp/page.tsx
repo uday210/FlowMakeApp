@@ -181,8 +181,8 @@ function CreateServerModal({
                   <label className="text-xs font-medium text-gray-600 mb-1 block">Transport</label>
                   <select value={form.transport} onChange={(e) => setForm({ ...form, transport: e.target.value })}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400 bg-white">
-                    <option value="sse">SSE (Cline compatible)</option>
-                    <option value="http">Streamable HTTP (modern)</option>
+                    <option value="sse">SSE</option>
+                    <option value="http">Streamable HTTP</option>
                     <option value="both">Both</option>
                   </select>
                 </div>
