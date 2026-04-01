@@ -819,6 +819,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                         const signedCount = reqs.filter(r => r.status === "signed").length;
                         const sentAt      = new Date(reqs[0].created_at);
                         const dlBase      = `/api/documents/${id}/download?session_id=${sessionId}`;
+                        // Parallel = all signers share the same signing_order; each needs their own copy
+                        const isParallelSession = reqs.length > 1 && reqs.every(r => r.signing_order === reqs[0].signing_order);
 
                         return (
                           <div key={sessionId} className={`rounded-2xl border overflow-hidden ${allSigned ? "border-green-200" : "border-gray-200"}`}>
@@ -877,11 +879,15 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isSigned ? "bg-green-100 text-green-700" : isPending ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}>
                                         {isSigned ? "Signed" : isPending ? "Pending" : "Waiting"}
                                       </span>
-                                      {/* Individual download */}
+                                      {/* Individual download — parallel: per-signer copy; sequential: accumulated PDF */}
                                       {isSigned && (
-                                        <a href={`${dlBase}&until_order=${r.signing_order}`} target="_blank" rel="noreferrer"
+                                        <a
+                                          href={isParallelSession
+                                            ? `/api/documents/${id}/download?request_id=${r.id}`
+                                            : `${dlBase}&until_order=${r.signing_order}`}
+                                          target="_blank" rel="noreferrer"
                                           className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100">
-                                          <Download size={10} /> PDF
+                                          <Download size={10} /> {isParallelSession ? "Copy" : "PDF"}
                                         </a>
                                       )}
                                     </div>

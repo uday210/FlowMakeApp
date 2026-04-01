@@ -326,6 +326,15 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
         <p className="text-sm text-gray-500">
           Thank you, {req.signer_name || req.signer_email}. Your signature has been recorded.
         </p>
+        {req.document_id && (
+          <a
+            href={`/api/documents/${req.document_id}/download?request_id=${req.id}`}
+            className="inline-flex items-center gap-2 mt-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors"
+            download
+          >
+            Download Your Signed Copy
+          </a>
+        )}
       </div>
     </div>
   );

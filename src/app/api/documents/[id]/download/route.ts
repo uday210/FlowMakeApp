@@ -15,6 +15,8 @@ export async function GET(req: Request, { params }: Params) {
   const untilOrder = url.searchParams.get("until_order");
   const maxOrder = untilOrder ? parseInt(untilOrder, 10) : Infinity;
   const sessionId = url.searchParams.get("session_id");
+  // request_id = single-signer copy (used in parallel mode so each signer gets their own PDF)
+  const requestId = url.searchParams.get("request_id");
 
   const { data: doc, error: docError } = await supabase
     .from("esign_documents")
@@ -28,22 +30,27 @@ export async function GET(req: Request, { params }: Params) {
     .select("*")
     .eq("document_id", id);
 
-  // Fetch signed requests — scope to session when provided so multiple API
-  // sessions on the same template don't bleed into each other's PDFs
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let allRequests: any[] | null = null;
 
-  if (sessionId) {
+  if (requestId) {
+    // Single-signer copy: only include this one request
+    const { data } = await supabase
+      .from("esign_requests")
+      .select("*")
+      .eq("id", requestId)
+      .eq("status", "signed")
+      .single();
+    allRequests = data ? [data] : [];
+  } else if (sessionId) {
+    // Scope to session so multiple API sessions on the same template don't bleed
     const { data } = await supabase
       .from("esign_requests")
       .select("*")
       .eq("session_id", sessionId)
       .eq("status", "signed")
       .order("signing_order");
-    // If session_id matched nothing, fall back to document-level query
-    if (data && data.length > 0) {
-      allRequests = data;
-    }
+    if (data && data.length > 0) allRequests = data;
   }
 
   if (!allRequests) {
