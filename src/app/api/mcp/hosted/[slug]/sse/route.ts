@@ -35,7 +35,12 @@ export async function GET(
   pruneOldSessions();
 
   const sessionId = randomUUID();
-  const origin = req.headers.get("origin") ?? req.nextUrl.origin;
+  // Derive public origin from forwarded headers (Railway proxy) or request URL
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const forwardedProto = req.headers.get("x-forwarded-proto") ?? "https";
+  const origin = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : req.headers.get("origin") ?? req.nextUrl.origin;
   const messageUrl = `${origin}/api/mcp/hosted/${slug}/message?sessionId=${sessionId}`;
 
   const stream = new ReadableStream({
