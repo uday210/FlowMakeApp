@@ -428,7 +428,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                   <Users size={12} className="text-gray-400" />
                   <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Recipients</span>
                 </div>
-                {!isTemplate && (
+                {!isTemplate && signingMode !== "groups" && (
                   <button
                     onClick={() => { setAddingRecipient(true); setEditingIdx(null); }}
                     className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5"
@@ -509,7 +509,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                 </button>
               )}
 
-              {displaySigners.length === 0 && !addingRecipient && (
+              {displaySigners.length === 0 && !addingRecipient && signingMode !== "groups" && (
                 <div className="text-center py-3">
                   <p className="text-[11px] text-gray-400 mb-2">No recipients yet</p>
                   <button onClick={() => setAddingRecipient(true)}
@@ -528,59 +528,102 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                         <>
                           {groupNums.map((g) => {
                             const groupSigners = signers.map((s, i) => ({ s, i })).filter(({ s }) => s.group === g);
+                            const isAddingToThisGroup = addingRecipient && newGroup === g;
                             return (
-                              <div key={g} className="mb-2">
-                                <div className="flex items-center gap-1.5 mb-1">
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full">
+                              <div key={g} className="mb-2 rounded-xl border border-gray-100 overflow-hidden">
+                                {/* Group header */}
+                                <div className="flex items-center gap-1.5 px-2 py-1.5 bg-indigo-50 border-b border-indigo-100">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-600">
                                     Group {g}
                                   </span>
-                                  <div className="flex-1 h-px bg-indigo-100" />
+                                  <span className="text-[9px] text-indigo-400">· {groupSigners.length} signer{groupSigners.length !== 1 ? "s" : ""}</span>
+                                  <div className="flex-1" />
+                                  <button
+                                    onClick={() => { setNewGroup(g); setAddingRecipient(true); setEditingIdx(null); }}
+                                    className="text-[9px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-indigo-100 transition-colors"
+                                  >+ Add</button>
+                                  <button
+                                    onClick={() => {
+                                      setSigners(prev => prev.filter(s => s.group !== g));
+                                      if (activeSignerIdx >= 0 && signers[activeSignerIdx]?.group === g) setActiveSignerIdx(0);
+                                      // shrink groupCount if this was the last group
+                                      if (g === groupCount) setGroupCount(c => Math.max(1, c - 1));
+                                    }}
+                                    className="text-[9px] font-semibold text-red-400 hover:text-red-600 px-1 py-0.5 rounded hover:bg-red-50 transition-colors"
+                                    title="Delete group and all its signers"
+                                  >✕</button>
                                 </div>
-                                {groupSigners.map(({ s, i }) => {
-                                  const color = SIGNER_COLORS[i % SIGNER_COLORS.length];
-                                  const isActive = activeSignerIdx === i;
-                                  return (
-                                    <div key={i} className="mb-1">
-                                      {editingIdx === i ? (
-                                        <div className="space-y-1.5 p-2 rounded-lg border border-indigo-200 bg-indigo-50">
-                                          <input autoFocus type="email" placeholder="Email address" value={s.email}
-                                            onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, email: e.target.value } : x))}
-                                            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
-                                          <input type="text" placeholder="Name (optional)" value={s.name}
-                                            onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x))}
-                                            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
-                                          <div className="flex items-center gap-1">
-                                            <span className="text-[10px] text-gray-500">Group:</span>
-                                            <select value={s.group} onChange={e => setSignerGroup(i, Number(e.target.value))}
-                                              className="flex-1 text-xs border border-gray-200 rounded px-1 py-1 outline-none bg-white">
-                                              {[...existingGroups, Math.max(...existingGroups, 0) + 1].filter((v, idx, arr) => arr.indexOf(v) === idx).sort((a,b)=>a-b).map(gn => (
-                                                <option key={gn} value={gn}>{gn === Math.max(...existingGroups, 0) + 1 ? `${gn} (new)` : `Group ${gn}`}</option>
-                                              ))}
-                                            </select>
+                                {/* Signers in group */}
+                                <div className="p-1 space-y-0.5">
+                                  {groupSigners.length === 0 && !isAddingToThisGroup && (
+                                    <p className="text-[10px] text-gray-400 text-center py-2">No signers yet — click + Add</p>
+                                  )}
+                                  {groupSigners.map(({ s, i }) => {
+                                    const color = SIGNER_COLORS[i % SIGNER_COLORS.length];
+                                    const isActive = activeSignerIdx === i;
+                                    return (
+                                      <div key={i}>
+                                        {editingIdx === i ? (
+                                          <div className="space-y-1.5 p-2 rounded-lg border border-indigo-200 bg-indigo-50">
+                                            <input autoFocus type="email" placeholder="Email address" value={s.email}
+                                              onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, email: e.target.value } : x))}
+                                              className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
+                                            <input type="text" placeholder="Name (optional)" value={s.name}
+                                              onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x))}
+                                              className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-[10px] text-gray-500">Move to group:</span>
+                                              <select value={s.group} onChange={e => setSignerGroup(i, Number(e.target.value))}
+                                                className="flex-1 text-xs border border-gray-200 rounded px-1 py-1 outline-none bg-white">
+                                                {existingGroups.map(gn => (
+                                                  <option key={gn} value={gn}>Group {gn}</option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                            <div className="flex gap-1">
+                                              <button onClick={() => setEditingIdx(null)} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold">Done</button>
+                                              <button onClick={() => { setEditingIdx(null); removeRecipient(i); }} className="text-[11px] text-red-500 px-2">Remove</button>
+                                            </div>
                                           </div>
-                                          <div className="flex gap-1">
-                                            <button onClick={() => setEditingIdx(null)} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold">Done</button>
-                                            <button onClick={() => { setEditingIdx(null); removeRecipient(i); }} className="text-[11px] text-red-500 px-2">Remove</button>
+                                        ) : (
+                                          <div
+                                            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all group/signer ${isActive ? "shadow-sm" : "hover:bg-gray-50"}`}
+                                            style={isActive ? { backgroundColor: `${color}12`, border: `1px solid ${color}40` } : { border: "1px solid transparent" }}
+                                            onClick={() => { setActiveSignerIdx(i); setActiveTool(null); }}
+                                          >
+                                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0" style={{ backgroundColor: color }}>{i + 1}</span>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-xs font-medium text-gray-800 truncate">{s.name || s.email.split("@")[0]}</p>
+                                              <p className="text-[10px] text-gray-400 truncate">{s.email}</p>
+                                            </div>
+                                            {isActive && <span className="text-[9px] font-bold flex-shrink-0" style={{ color }}>active</span>}
+                                            <button onClick={e => { e.stopPropagation(); setEditingIdx(i); }}
+                                              className="opacity-0 group-hover/signer:opacity-100 text-[10px] text-gray-400 hover:text-gray-600 transition-opacity">edit</button>
+                                            <button onClick={e => { e.stopPropagation(); removeRecipient(i); if (activeSignerIdx === i) setActiveSignerIdx(0); }}
+                                              className="opacity-0 group-hover/signer:opacity-100 text-[10px] text-red-400 hover:text-red-600 transition-opacity ml-0.5">✕</button>
                                           </div>
-                                        </div>
-                                      ) : (
-                                        <div
-                                          className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all group ${isActive ? "shadow-sm" : "hover:bg-gray-50"}`}
-                                          style={isActive ? { backgroundColor: `${color}12`, border: `1px solid ${color}40` } : { border: "1px solid transparent" }}
-                                          onClick={() => { setActiveSignerIdx(i); setActiveTool(null); }}
-                                        >
-                                          <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0" style={{ backgroundColor: color }}>{i + 1}</span>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-medium text-gray-800 truncate">{s.name || s.email.split("@")[0]}</p>
-                                            <p className="text-[10px] text-gray-400 truncate">{s.email}</p>
-                                          </div>
-                                          {isActive && <span className="text-[9px] font-bold flex-shrink-0" style={{ color }}>active</span>}
-                                          <button onClick={e => { e.stopPropagation(); setEditingIdx(i); }} className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-400 hover:text-gray-600 transition-opacity">edit</button>
-                                        </div>
-                                      )}
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                  {/* Inline add form inside this group */}
+                                  {isAddingToThisGroup && (
+                                    <div className="space-y-1.5 p-2 rounded-lg border border-indigo-200 bg-indigo-50">
+                                      <input autoFocus type="email" placeholder="Email address *" value={newEmail}
+                                        onChange={e => setNewEmail(e.target.value)}
+                                        onKeyDown={e => { if (e.key === "Enter") addRecipient(); if (e.key === "Escape") { setAddingRecipient(false); setNewEmail(""); setNewName(""); } }}
+                                        className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
+                                      <input type="text" placeholder="Name (optional)" value={newName}
+                                        onChange={e => setNewName(e.target.value)}
+                                        onKeyDown={e => { if (e.key === "Enter") addRecipient(); if (e.key === "Escape") { setAddingRecipient(false); setNewEmail(""); setNewName(""); } }}
+                                        className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
+                                      <div className="flex gap-1">
+                                        <button onClick={addRecipient} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold">Add</button>
+                                        <button onClick={() => { setAddingRecipient(false); setNewEmail(""); setNewName(""); }} className="text-[11px] text-gray-400 px-2">Cancel</button>
+                                      </div>
                                     </div>
-                                  );
-                                })}
+                                  )}
+                                </div>
                               </div>
                             );
                           })}
@@ -632,8 +675,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                 }
               </div>
 
-              {/* Inline add form */}
-              {addingRecipient && !isTemplate && (
+              {/* Inline add form — not shown in groups mode (each group has its own) */}
+              {addingRecipient && !isTemplate && signingMode !== "groups" && (
                 <div className="mt-2 space-y-1.5 p-2 rounded-lg border border-indigo-200 bg-indigo-50">
                   <input autoFocus type="email" placeholder="Email address *" value={newEmail}
                     onChange={e => setNewEmail(e.target.value)}
