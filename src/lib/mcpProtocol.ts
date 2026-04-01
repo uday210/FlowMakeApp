@@ -43,20 +43,36 @@ async function runWorkflowForTool(workflowId: string, orgId: string, args: Recor
     .single();
 
   if (!workflow) throw new Error("Workflow not found");
-  if (!workflow.is_active) throw new Error("Workflow is inactive");
+  if (!workflow.is_active) throw new Error("Workflow is inactive — activate it first");
 
-  // Execute using executor
+  // Load connections referenced by nodes (same as execute route)
+  const nodes = (workflow.nodes ?? []) as Array<{ data?: { config?: { connectionId?: string } } }>;
+  const connectionIds = [...new Set(
+    nodes.map((n) => n.data?.config?.connectionId).filter(Boolean) as string[]
+  )];
+  const connectionsMap: Record<string, Record<string, unknown>> = {};
+  if (connectionIds.length > 0) {
+    const { data: conns } = await admin
+      .from("connections")
+      .select("id, config")
+      .in("id", connectionIds);
+    for (const conn of conns ?? []) {
+      connectionsMap[conn.id] = conn.config as Record<string, unknown>;
+    }
+  }
+
+  // Execute
   const { executeWorkflow } = await import("@/lib/executor");
   const ctx = await executeWorkflow(
     workflow.nodes ?? [],
     workflow.edges ?? [],
     args,
-    {},
+    connectionsMap,
     workflowId,
     orgId
   );
 
-  // Return agent_reply if present, else last non-trigger node output as JSON
+  // Return agent_reply if present, else last node output as JSON
   const agentReply = ctx.nodeOutputs["__agent_reply__"];
   if (agentReply != null) return String(agentReply);
 
