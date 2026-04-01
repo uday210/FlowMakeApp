@@ -228,19 +228,24 @@ export const handlers: Record<string, NodeHandler> = {
     const modelId = config.model_id as string;
     if (!token || !modelId) throw new Error("Hugging Face API token and model ID are required");
     const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-    let params: Record<string, unknown> = {};
-    try { params = JSON.parse(config.parameters as string || "{}"); } catch { /* ignore */ }
-    const body: Record<string, unknown> = { inputs: interpolate(config.inputs as string || "") };
-    if (Object.keys(params).length) body.parameters = params;
-    const res = await fetch(`https://router.huggingface.co/models/${modelId}`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+    const prompt = interpolate(config.prompt as string || "");
+    const systemPrompt = config.system_prompt as string || "";
+    const maxTokens = Number(config.max_tokens) || 512;
+    const messages: { role: string; content: string }[] = [];
+    if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
+    messages.push({ role: "user", content: prompt });
+    const body = { model: modelId, messages, max_tokens: maxTokens };
+    const res = await fetch("https://router.huggingface.co/v1/chat/completions", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
     const raw = await res.text();
     let data: unknown;
     try { data = JSON.parse(raw); } catch { throw new Error(`HuggingFace ${res.status}: ${raw}`); }
     if (!res.ok) {
       const err = data as Record<string, unknown>;
-      throw new Error(String(err?.error ?? err?.message ?? raw) + (res.status === 404 ? " — check the model ID exists and is available on the HuggingFace Inference API" : res.status === 403 ? " — you may need to accept the model license on huggingface.co" : ""));
+      const errObj = err?.error as Record<string, unknown> | undefined;
+      throw new Error(String(errObj?.message ?? err?.error ?? err?.message ?? raw));
     }
-    return data;
+    const result = data as { choices: { message: { content: string } }[] };
+    return { content: result.choices?.[0]?.message?.content ?? "", raw: data };
   },
 
   "action_agent": async ({ config, ctx }) => {

@@ -2852,16 +2852,17 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
-    type: "action_huggingface", label: "Hugging Face", description: "Run inference on Hugging Face models.",
+    type: "action_huggingface", label: "Hugging Face", description: "Run chat inference via HuggingFace Router (OpenAI-compatible). Supports Llama, Mistral, Qwen, and other hosted models.",
     category: "action", subcategory: "AI & ML", color: "#ff9d00", icon: "Sparkles",
-    defaultConfig: { api_key: "", model_id: "", inputs: "" },
+    defaultConfig: { api_key: "", model_id: "meta-llama/Llama-3.1-8B-Instruct", prompt: "", system_prompt: "", max_tokens: "512" },
     connectionType: "huggingface",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Token", type: "password", required: true },
-      { key: "model_id", label: "Model ID", type: "text", required: true, placeholder: "gpt2 or owner/model-name" },
-      { key: "inputs", label: "Inputs", type: "textarea", required: true, placeholder: "{{trigger.text}}" },
-      { key: "parameters", label: "Parameters (JSON, optional)", type: "textarea", placeholder: '{"max_new_tokens": 200}' },
+      { key: "model_id", label: "Model ID", type: "text", required: true, placeholder: "meta-llama/Llama-3.1-8B-Instruct" },
+      { key: "system_prompt", label: "System Prompt (optional)", type: "textarea", placeholder: "You are a helpful assistant." },
+      { key: "prompt", label: "User Prompt", type: "textarea", required: true, placeholder: "{{trigger.text}}" },
+      { key: "max_tokens", label: "Max Tokens", type: "number", placeholder: "512" },
     ],
   },
   // ── Productivity (additional) ─────────────────────────────────────────────
