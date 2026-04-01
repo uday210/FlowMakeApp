@@ -3465,6 +3465,1607 @@ async function executeNodeOnce(
         break;
       }
 
+      // ── Project Management ──────────────────────────────────────────────────
+      case "action_asana": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "create_task";
+        if (!token) throw new Error("Asana Personal Access Token is required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        if (action === "create_task") {
+          const body: Record<string, unknown> = { name: interpolate(config.name as string || ""), notes: interpolate(config.notes as string || "") };
+          if (config.project_id) body.projects = [config.project_id];
+          if (config.assignee) body.assignee = config.assignee;
+          if (config.due_on) body.due_on = config.due_on;
+          const res = await fetch("https://app.asana.com/api/1.0/tasks", { method: "POST", headers: hdrs, body: JSON.stringify({ data: body }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.message || `Asana ${res.status}`);
+          output = data.data;
+        } else if (action === "update_task") {
+          const taskId = config.task_id as string;
+          if (!taskId) throw new Error("Task GID required");
+          const body = { name: interpolate(config.name as string || ""), notes: interpolate(config.notes as string || "") };
+          const res = await fetch(`https://app.asana.com/api/1.0/tasks/${taskId}`, { method: "PUT", headers: hdrs, body: JSON.stringify({ data: body }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.message || `Asana ${res.status}`);
+          output = data.data;
+        } else if (action === "get_task") {
+          const res = await fetch(`https://app.asana.com/api/1.0/tasks/${config.task_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.message || `Asana ${res.status}`);
+          output = data.data;
+        } else if (action === "list_tasks") {
+          const url = config.project_id ? `https://app.asana.com/api/1.0/projects/${config.project_id}/tasks` : `https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${config.workspace_id || ""}`;
+          const res = await fetch(url, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.message || `Asana ${res.status}`);
+          output = data.data;
+        }
+        break;
+      }
+
+      case "action_trello": {
+        const key = config.api_key as string;
+        const token = config.token as string;
+        const action = (config.action as string) || "create_card";
+        if (!key || !token) throw new Error("Trello API key and token are required");
+        const base = `https://api.trello.com/1`;
+        const auth = `key=${key}&token=${token}`;
+        if (action === "create_card") {
+          const res = await fetch(`${base}/cards?${auth}&idList=${config.list_id}&name=${encodeURIComponent(interpolate(config.name as string || ""))}&desc=${encodeURIComponent(interpolate(config.desc as string || ""))}&due=${config.due || ""}`, { method: "POST" });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Trello ${res.status}`);
+          output = data;
+        } else if (action === "update_card") {
+          const res = await fetch(`${base}/cards/${config.card_id}?${auth}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: interpolate(config.name as string || ""), desc: interpolate(config.desc as string || "") }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Trello ${res.status}`);
+          output = data;
+        } else if (action === "get_card") {
+          const res = await fetch(`${base}/cards/${config.card_id}?${auth}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Trello ${res.status}`);
+          output = data;
+        } else if (action === "archive_card") {
+          const res = await fetch(`${base}/cards/${config.card_id}?${auth}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ closed: true }) });
+          output = { archived: res.ok };
+        }
+        break;
+      }
+
+      case "action_monday": {
+        const apiKey = config.api_key as string;
+        const action = (config.action as string) || "create_item";
+        if (!apiKey) throw new Error("Monday.com API key is required");
+        const hdrs = { Authorization: apiKey, "Content-Type": "application/json" };
+        if (action === "create_item") {
+          const colVals = config.column_values ? JSON.stringify(config.column_values) : "{}";
+          const query = `mutation { create_item (board_id: ${config.board_id}, group_id: "${config.group_id || "topics"}", item_name: "${interpolate(config.item_name as string || "")}", column_values: ${JSON.stringify(colVals)}) { id name } }`;
+          const res = await fetch("https://api.monday.com/v2", { method: "POST", headers: hdrs, body: JSON.stringify({ query }) });
+          const data = await res.json();
+          if (data.errors) throw new Error(data.errors[0].message);
+          output = data.data?.create_item;
+        } else if (action === "get_item") {
+          const query = `query { items (ids: [${config.item_id}]) { id name column_values { id text } } }`;
+          const res = await fetch("https://api.monday.com/v2", { method: "POST", headers: hdrs, body: JSON.stringify({ query }) });
+          const data = await res.json();
+          if (data.errors) throw new Error(data.errors[0].message);
+          output = data.data?.items?.[0];
+        }
+        break;
+      }
+
+      case "action_clickup": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "create_task";
+        if (!token) throw new Error("ClickUp API key is required");
+        const hdrs = { Authorization: token, "Content-Type": "application/json" };
+        if (action === "create_task") {
+          const body: Record<string, unknown> = { name: interpolate(config.name as string || ""), description: interpolate(config.description as string || "") };
+          if (config.priority) body.priority = parseInt(config.priority as string);
+          if (config.status) body.status = config.status;
+          const res = await fetch(`https://api.clickup.com/api/v2/list/${config.list_id}/task`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.err || `ClickUp ${res.status}`);
+          output = data;
+        } else if (action === "update_task") {
+          const body: Record<string, unknown> = {};
+          if (config.name) body.name = interpolate(config.name as string);
+          if (config.status) body.status = config.status;
+          const res = await fetch(`https://api.clickup.com/api/v2/task/${config.task_id}`, { method: "PUT", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.err || `ClickUp ${res.status}`);
+          output = data;
+        } else if (action === "get_task") {
+          const res = await fetch(`https://api.clickup.com/api/v2/task/${config.task_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.err || `ClickUp ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_basecamp": {
+        const token = config.access_token as string;
+        const accountId = config.account_id as string;
+        const projectId = config.project_id as string;
+        if (!token || !accountId || !projectId) throw new Error("Access token, account ID, and project ID are required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "User-Agent": "FlowMake (flowmake.app)" };
+        const action = (config.action as string) || "create_message";
+        if (action === "create_message") {
+          const res = await fetch(`https://3.basecampapi.com/${accountId}/buckets/${projectId}/message_boards/${config.message_board_id}/messages.json`, { method: "POST", headers: hdrs, body: JSON.stringify({ subject: interpolate(config.subject as string || ""), content: interpolate(config.content as string || "") }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(`Basecamp ${res.status}`);
+          output = data;
+        } else if (action === "create_todo") {
+          const res = await fetch(`https://3.basecampapi.com/${accountId}/buckets/${projectId}/todolists/${config.todolist_id}/todos.json`, { method: "POST", headers: hdrs, body: JSON.stringify({ content: interpolate(config.subject as string || ""), description: interpolate(config.content as string || "") }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(`Basecamp ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_todoist": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "create_task";
+        if (!token) throw new Error("Todoist API token is required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        if (action === "create_task") {
+          const body: Record<string, unknown> = { content: interpolate(config.content as string || "") };
+          if (config.description) body.description = interpolate(config.description as string);
+          if (config.project_id) body.project_id = config.project_id;
+          if (config.due_string) body.due_string = config.due_string;
+          if (config.priority) body.priority = parseInt(config.priority as string);
+          const res = await fetch("https://api.todoist.com/rest/v2/tasks", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(`Todoist ${res.status}`);
+          output = data;
+        } else if (action === "close_task") {
+          const res = await fetch(`https://api.todoist.com/rest/v2/tasks/${config.task_id}/close`, { method: "POST", headers: hdrs });
+          output = { closed: res.ok };
+        } else if (action === "get_task") {
+          const res = await fetch(`https://api.todoist.com/rest/v2/tasks/${config.task_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(`Todoist ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      // ── CRM & Sales ─────────────────────────────────────────────────────────
+      case "action_pipedrive": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "create_deal";
+        if (!token) throw new Error("Pipedrive API token is required");
+        const base = `https://api.pipedrive.com/v1`;
+        const auth = `api_token=${token}`;
+        const hdrs = { "Content-Type": "application/json" };
+        if (action === "create_deal") {
+          const body: Record<string, unknown> = { title: interpolate(config.title as string || "New Deal") };
+          if (config.value) body.value = config.value;
+          if (config.currency) body.currency = config.currency;
+          const res = await fetch(`${base}/deals?${auth}`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error(data.error || `Pipedrive ${res.status}`);
+          output = data.data;
+        } else if (action === "create_person") {
+          const body: Record<string, unknown> = { name: interpolate(config.name as string || "") };
+          if (config.email) body.email = [{ value: interpolate(config.email as string), primary: true }];
+          if (config.phone) body.phone = [{ value: config.phone, primary: true }];
+          const res = await fetch(`${base}/persons?${auth}`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error(data.error || `Pipedrive ${res.status}`);
+          output = data.data;
+        } else if (action === "create_organization") {
+          const body = { name: interpolate(config.name as string || "") };
+          const res = await fetch(`${base}/organizations?${auth}`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error(data.error || `Pipedrive ${res.status}`);
+          output = data.data;
+        } else if (action === "update_deal") {
+          const body: Record<string, unknown> = {};
+          if (config.title) body.title = interpolate(config.title as string);
+          const res = await fetch(`${base}/deals/${config.record_id}?${auth}`, { method: "PUT", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `Pipedrive ${res.status}`);
+          output = data.data;
+        } else if (action === "search_persons") {
+          const res = await fetch(`${base}/persons/search?${auth}&term=${encodeURIComponent(config.email as string || "")}`, { headers: hdrs });
+          const data = await res.json();
+          output = data.data?.items || [];
+        }
+        break;
+      }
+
+      case "action_zoho_crm": {
+        const token = config.access_token as string;
+        const action = (config.action as string) || "create_lead";
+        if (!token) throw new Error("Zoho CRM access token is required");
+        const hdrs = { Authorization: `Zoho-oauthtoken ${token}`, "Content-Type": "application/json" };
+        const moduleMap: Record<string, string> = { create_lead: "Leads", create_contact: "Contacts", create_deal: "Deals" };
+        const mod = moduleMap[action] || config.module as string || "Leads";
+        let fields: Record<string, unknown> = {};
+        try { fields = JSON.parse(config.fields as string || "{}"); } catch { /* ignore */ }
+        if (action === "search_records") {
+          const res = await fetch(`https://www.zohoapis.com/crm/v3/${mod}/search?criteria=${encodeURIComponent(config.search_criteria as string || "")}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Zoho CRM ${res.status}`);
+          output = data.data || [];
+        } else {
+          const res = await fetch(`https://www.zohoapis.com/crm/v3/${mod}`, { method: "POST", headers: hdrs, body: JSON.stringify({ data: [fields] }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Zoho CRM ${res.status}`);
+          output = data.data?.[0];
+        }
+        break;
+      }
+
+      case "action_close": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "create_lead";
+        if (!token) throw new Error("Close CRM API key is required");
+        const auth = Buffer.from(`${token}:`).toString("base64");
+        const hdrs = { Authorization: `Basic ${auth}`, "Content-Type": "application/json" };
+        if (action === "create_lead") {
+          const body: Record<string, unknown> = { name: interpolate(config.name as string || "") };
+          if (config.email) body.contacts = [{ emails: [{ email: interpolate(config.email as string) }] }];
+          const res = await fetch("https://api.close.com/api/v1/lead/", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Close ${res.status}`);
+          output = data;
+        } else if (action === "create_contact") {
+          const body = { name: interpolate(config.name as string || ""), emails: config.email ? [{ email: interpolate(config.email as string), type: "office" }] : [] };
+          const res = await fetch("https://api.close.com/api/v1/contact/", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Close ${res.status}`);
+          output = data;
+        } else if (action === "create_activity") {
+          const body = { _type: "Note", note: interpolate(config.note as string || "") };
+          const res = await fetch("https://api.close.com/api/v1/activity/note/", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Close ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      // ── Support ─────────────────────────────────────────────────────────────
+      case "action_zendesk": {
+        const subdomain = config.subdomain as string;
+        const email = config.email as string;
+        const apiToken = config.api_token as string;
+        const action = (config.action as string) || "create_ticket";
+        if (!subdomain || !email || !apiToken) throw new Error("Zendesk subdomain, email, and API token are required");
+        const auth = Buffer.from(`${email}/token:${apiToken}`).toString("base64");
+        const hdrs = { Authorization: `Basic ${auth}`, "Content-Type": "application/json" };
+        const base = `https://${subdomain}.zendesk.com/api/v2`;
+        if (action === "create_ticket") {
+          const body = { ticket: { subject: interpolate(config.subject as string || ""), comment: { body: interpolate(config.body as string || "") }, priority: config.priority as string || "normal" } };
+          const res = await fetch(`${base}/tickets.json`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.description || `Zendesk ${res.status}`);
+          output = data.ticket;
+        } else if (action === "update_ticket") {
+          const upd: Record<string, unknown> = {};
+          if (config.status) upd.status = config.status;
+          if (config.priority) upd.priority = config.priority;
+          const res = await fetch(`${base}/tickets/${config.ticket_id}.json`, { method: "PUT", headers: hdrs, body: JSON.stringify({ ticket: upd }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.description || `Zendesk ${res.status}`);
+          output = data.ticket;
+        } else if (action === "get_ticket") {
+          const res = await fetch(`${base}/tickets/${config.ticket_id}.json`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.description || `Zendesk ${res.status}`);
+          output = data.ticket;
+        }
+        break;
+      }
+
+      case "action_intercom": {
+        const token = config.access_token as string;
+        const action = (config.action as string) || "create_contact";
+        if (!token) throw new Error("Intercom access token is required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Intercom-Version": "2.10" };
+        if (action === "create_contact") {
+          const body: Record<string, unknown> = { role: "user" };
+          if (config.email) body.email = interpolate(config.email as string);
+          if (config.name) body.name = interpolate(config.name as string);
+          const res = await fetch("https://api.intercom.io/contacts", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Intercom ${res.status}`);
+          output = data;
+        } else if (action === "update_contact") {
+          const body: Record<string, unknown> = {};
+          if (config.email) body.email = interpolate(config.email as string);
+          if (config.name) body.name = interpolate(config.name as string);
+          const res = await fetch(`https://api.intercom.io/contacts/${config.contact_id}`, { method: "PUT", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Intercom ${res.status}`);
+          output = data;
+        } else if (action === "create_note") {
+          const body = { contact_id: config.contact_id, body: interpolate(config.body as string || "") };
+          const res = await fetch("https://api.intercom.io/notes", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Intercom ${res.status}`);
+          output = data;
+        } else if (action === "send_message") {
+          const body = { from: { type: "admin", id: "0" }, to: { type: "user", id: config.contact_id }, body: interpolate(config.body as string || ""), message_type: "inapp" };
+          const res = await fetch("https://api.intercom.io/messages", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Intercom ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_freshdesk": {
+        const apiKey = config.api_key as string;
+        const domain = config.domain as string;
+        const action = (config.action as string) || "create_ticket";
+        if (!apiKey || !domain) throw new Error("Freshdesk API key and domain are required");
+        const auth = Buffer.from(`${apiKey}:X`).toString("base64");
+        const hdrs = { Authorization: `Basic ${auth}`, "Content-Type": "application/json" };
+        const base = `https://${domain}/api/v2`;
+        if (action === "create_ticket") {
+          const body: Record<string, unknown> = { subject: interpolate(config.subject as string || ""), description: interpolate(config.description as string || ""), email: interpolate(config.email as string || "") };
+          if (config.priority) body.priority = parseInt(config.priority as string);
+          if (config.status) body.status = parseInt(config.status as string);
+          const res = await fetch(`${base}/tickets`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.description || `Freshdesk ${res.status}`);
+          output = data;
+        } else if (action === "update_ticket") {
+          const body: Record<string, unknown> = {};
+          if (config.status) body.status = parseInt(config.status as string);
+          if (config.priority) body.priority = parseInt(config.priority as string);
+          const res = await fetch(`${base}/tickets/${config.ticket_id}`, { method: "PUT", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.description || `Freshdesk ${res.status}`);
+          output = data;
+        } else if (action === "get_ticket") {
+          const res = await fetch(`${base}/tickets/${config.ticket_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.description || `Freshdesk ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      // ── Marketing ───────────────────────────────────────────────────────────
+      case "action_activecampaign": {
+        const token = config.api_key as string;
+        const baseUrl = (config.base_url as string || "").replace(/\/$/, "");
+        const action = (config.action as string) || "create_contact";
+        if (!token || !baseUrl) throw new Error("ActiveCampaign API key and URL are required");
+        const hdrs = { "Api-Token": token, "Content-Type": "application/json" };
+        if (action === "create_contact") {
+          const body = { contact: { email: interpolate(config.email as string || ""), firstName: interpolate(config.first_name as string || ""), lastName: interpolate(config.last_name as string || "") } };
+          const res = await fetch(`${baseUrl}/api/3/contact/sync`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `ActiveCampaign ${res.status}`);
+          output = data.contact;
+        } else if (action === "add_tag") {
+          // First resolve tag id, then apply
+          const tagRes = await fetch(`${baseUrl}/api/3/tags?search=${encodeURIComponent(config.tag as string || "")}`, { headers: hdrs });
+          const tagData = await tagRes.json();
+          const tagId = tagData.tags?.[0]?.id;
+          if (!tagId) { output = { added: false, reason: "Tag not found" }; break; }
+          const contactRes = await fetch(`${baseUrl}/api/3/contacts?email=${encodeURIComponent(interpolate(config.email as string || ""))}`, { headers: hdrs });
+          const contactData = await contactRes.json();
+          const contactId = contactData.contacts?.[0]?.id;
+          if (!contactId) { output = { added: false, reason: "Contact not found" }; break; }
+          const res = await fetch(`${baseUrl}/api/3/contactTags`, { method: "POST", headers: hdrs, body: JSON.stringify({ contactTag: { contact: contactId, tag: tagId } }) });
+          const data = await res.json();
+          output = data.contactTag || data;
+        }
+        break;
+      }
+
+      case "action_klaviyo": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "track_event";
+        if (!token) throw new Error("Klaviyo API key is required");
+        const hdrs = { Authorization: `Klaviyo-API-Key ${token}`, "Content-Type": "application/json", revision: "2024-02-15" };
+        if (action === "track_event") {
+          let props: Record<string, unknown> = {};
+          try { props = JSON.parse(interpolate(config.properties as string || "{}")); } catch { /* ignore */ }
+          const body = { data: { type: "event", attributes: { properties: props, metric: { data: { type: "metric", attributes: { name: interpolate(config.event as string || "Event") } } }, profile: { data: { type: "profile", attributes: { email: interpolate(config.email as string || "") } } } } } };
+          const res = await fetch("https://a.klaviyo.com/api/events/", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          if (!res.ok) { const d = await res.json(); throw new Error(d.detail || `Klaviyo ${res.status}`); }
+          output = { tracked: true, event: config.event };
+        } else if (action === "upsert_profile") {
+          let props: Record<string, unknown> = {};
+          try { props = JSON.parse(interpolate(config.properties as string || "{}")); } catch { /* ignore */ }
+          const body = { data: { type: "profile", attributes: { email: interpolate(config.email as string || ""), ...props } } };
+          const res = await fetch("https://a.klaviyo.com/api/profile-import/", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Klaviyo ${res.status}`);
+          output = data.data;
+        } else if (action === "subscribe_list") {
+          const body = { data: { type: "profile-subscription-bulk-create-job", attributes: { profiles: { data: [{ type: "profile", attributes: { email: interpolate(config.email as string || "") } }] } }, relationships: { list: { data: { type: "list", id: config.list_id } } } } };
+          const res = await fetch("https://a.klaviyo.com/api/profile-subscription-bulk-create-jobs/", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          if (!res.ok) { const d = await res.json(); throw new Error(d.detail || `Klaviyo ${res.status}`); }
+          output = { subscribed: true };
+        }
+        break;
+      }
+
+      case "action_convertkit": {
+        const apiKey = config.api_key as string;
+        const action = (config.action as string) || "subscribe";
+        if (!apiKey) throw new Error("ConvertKit API key is required");
+        const base = "https://api.convertkit.com/v3";
+        if (action === "subscribe") {
+          const body = { api_key: apiKey, email: interpolate(config.email as string || ""), first_name: interpolate(config.first_name as string || "") };
+          const res = await fetch(`${base}/forms/${config.form_id}/subscribe`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `ConvertKit ${res.status}`);
+          output = data.subscription;
+        } else if (action === "add_tag") {
+          const res = await fetch(`${base}/tags/${config.tag_id}/subscribe`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_key: apiKey, email: interpolate(config.email as string || "") }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `ConvertKit ${res.status}`);
+          output = data.subscription;
+        } else if (action === "unsubscribe") {
+          const res = await fetch(`${base}/unsubscribe`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_key: apiKey, email: interpolate(config.email as string || "") }) });
+          const data = await res.json();
+          output = data;
+        }
+        break;
+      }
+
+      case "action_brevo": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "send_email";
+        if (!token) throw new Error("Brevo API key is required");
+        const hdrs = { "api-key": token, "Content-Type": "application/json" };
+        if (action === "send_email") {
+          const body = { sender: { email: "noreply@flowmake.app", name: "FlowMake" }, to: [{ email: interpolate(config.to_email as string || ""), name: interpolate(config.to_name as string || "") }], subject: interpolate(config.subject as string || ""), htmlContent: interpolate(config.html_content as string || "") };
+          const res = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Brevo ${res.status}`);
+          output = { sent: true, messageId: data.messageId };
+        } else if (action === "upsert_contact") {
+          const body: Record<string, unknown> = { email: interpolate(config.to_email as string || "") };
+          const res = await fetch("https://api.brevo.com/v3/contacts", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          output = data;
+        }
+        break;
+      }
+
+      case "action_typeform": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "get_responses";
+        const formId = config.form_id as string;
+        if (!token || !formId) throw new Error("Typeform token and form ID are required");
+        const hdrs = { Authorization: `Bearer ${token}` };
+        if (action === "get_responses") {
+          const res = await fetch(`https://api.typeform.com/forms/${formId}/responses?page_size=${config.page_size || 25}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.description || `Typeform ${res.status}`);
+          output = data;
+        } else if (action === "get_form") {
+          const res = await fetch(`https://api.typeform.com/forms/${formId}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.description || `Typeform ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      // ── E-commerce ──────────────────────────────────────────────────────────
+      case "action_shopify": {
+        const domain = config.store_domain as string;
+        const token = config.access_token as string;
+        const action = (config.action as string) || "get_order";
+        if (!domain || !token) throw new Error("Shopify store domain and access token are required");
+        const hdrs = { "X-Shopify-Access-Token": token, "Content-Type": "application/json" };
+        const base = `https://${domain}/admin/api/2024-01`;
+        if (action === "get_order") {
+          const res = await fetch(`${base}/orders/${config.record_id}.json`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors || `Shopify ${res.status}`);
+          output = data.order;
+        } else if (action === "list_orders") {
+          const res = await fetch(`${base}/orders.json?limit=${config.limit || 50}&status=${config.status || "any"}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors || `Shopify ${res.status}`);
+          output = data.orders;
+        } else if (action === "get_product") {
+          const res = await fetch(`${base}/products/${config.record_id}.json`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors || `Shopify ${res.status}`);
+          output = data.product;
+        } else if (action === "list_products") {
+          const res = await fetch(`${base}/products.json?limit=${config.limit || 50}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors || `Shopify ${res.status}`);
+          output = data.products;
+        } else if (action === "create_customer") {
+          let custData: Record<string, unknown> = {};
+          try { custData = JSON.parse(interpolate(config.customer_data as string || "{}")); } catch { /* ignore */ }
+          const res = await fetch(`${base}/customers.json`, { method: "POST", headers: hdrs, body: JSON.stringify({ customer: custData }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(JSON.stringify(data.errors) || `Shopify ${res.status}`);
+          output = data.customer;
+        } else if (action === "get_customer") {
+          const res = await fetch(`${base}/customers/${config.record_id}.json`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors || `Shopify ${res.status}`);
+          output = data.customer;
+        }
+        break;
+      }
+
+      case "action_woocommerce": {
+        const siteUrl = (config.site_url as string || "").replace(/\/$/, "");
+        const ck = config.consumer_key as string;
+        const cs = config.consumer_secret as string;
+        const action = (config.action as string) || "list_orders";
+        if (!siteUrl || !ck || !cs) throw new Error("WooCommerce site URL, consumer key, and secret are required");
+        const auth = Buffer.from(`${ck}:${cs}`).toString("base64");
+        const hdrs = { Authorization: `Basic ${auth}`, "Content-Type": "application/json" };
+        const base = `${siteUrl}/wp-json/wc/v3`;
+        if (action === "get_order") {
+          const res = await fetch(`${base}/orders/${config.record_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `WooCommerce ${res.status}`);
+          output = data;
+        } else if (action === "list_orders") {
+          const res = await fetch(`${base}/orders?per_page=20`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `WooCommerce ${res.status}`);
+          output = data;
+        } else if (action === "update_order") {
+          const body: Record<string, unknown> = {};
+          if (config.status) body.status = config.status;
+          const res = await fetch(`${base}/orders/${config.record_id}`, { method: "PUT", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `WooCommerce ${res.status}`);
+          output = data;
+        } else if (action === "get_product") {
+          const res = await fetch(`${base}/products/${config.record_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `WooCommerce ${res.status}`);
+          output = data;
+        } else if (action === "list_products") {
+          const res = await fetch(`${base}/products?per_page=20`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `WooCommerce ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_paddle": {
+        const apiKey = config.api_key as string;
+        const action = (config.action as string) || "get_subscription";
+        if (!apiKey) throw new Error("Paddle API key is required");
+        const base = "https://api.paddle.com";
+        const hdrs = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+        if (action === "get_subscription") {
+          const res = await fetch(`${base}/subscriptions/${config.subscription_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.detail || `Paddle ${res.status}`);
+          output = data.data;
+        } else if (action === "cancel_subscription") {
+          const res = await fetch(`${base}/subscriptions/${config.subscription_id}/cancel`, { method: "POST", headers: hdrs, body: JSON.stringify({ effective_from: "next_billing_period" }) });
+          const data = await res.json();
+          output = data.data;
+        } else if (action === "get_transaction") {
+          const res = await fetch(`${base}/transactions/${config.transaction_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.detail || `Paddle ${res.status}`);
+          output = data.data;
+        } else if (action === "list_customers") {
+          const res = await fetch(`${base}/customers`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.detail || `Paddle ${res.status}`);
+          output = data.data;
+        }
+        break;
+      }
+
+      // ── Analytics ───────────────────────────────────────────────────────────
+      case "action_mixpanel": {
+        const token = config.project_token as string;
+        const action = (config.action as string) || "track_event";
+        if (!token) throw new Error("Mixpanel project token is required");
+        let props: Record<string, unknown> = {};
+        try { props = JSON.parse(interpolate(config.properties as string || "{}")); } catch { /* ignore */ }
+        if (action === "track_event") {
+          const body = [{ event: interpolate(config.event as string || "Event"), properties: { token, distinct_id: interpolate(config.distinct_id as string || ""), ...props } }];
+          const res = await fetch("https://api.mixpanel.com/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          if (!res.ok) throw new Error(`Mixpanel ${res.status}`);
+          output = { tracked: true };
+        } else if (action === "set_profile") {
+          const body = [{ $token: token, $distinct_id: interpolate(config.distinct_id as string || ""), $set: props }];
+          const res = await fetch("https://api.mixpanel.com/engage#profile-set", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          output = { updated: res.ok };
+        }
+        break;
+      }
+
+      case "action_amplitude": {
+        const apiKey = config.api_key as string;
+        const action = (config.action as string) || "track_event";
+        if (!apiKey) throw new Error("Amplitude API key is required");
+        let eventProps: Record<string, unknown> = {};
+        try { eventProps = JSON.parse(interpolate(config.event_properties as string || "{}")); } catch { /* ignore */ }
+        let userProps: Record<string, unknown> = {};
+        try { userProps = JSON.parse(interpolate(config.user_properties as string || "{}")); } catch { /* ignore */ }
+        if (action === "track_event") {
+          const event: Record<string, unknown> = { event_type: interpolate(config.event_type as string || "Event"), event_properties: eventProps };
+          if (config.user_id) event.user_id = interpolate(config.user_id as string);
+          if (config.device_id) event.device_id = config.device_id;
+          if (Object.keys(userProps).length) event.user_properties = userProps;
+          const res = await fetch("https://api2.amplitude.com/2/httpapi", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_key: apiKey, events: [event] }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `Amplitude ${res.status}`);
+          output = data;
+        } else if (action === "identify") {
+          const identification = { user_id: interpolate(config.user_id as string || ""), user_properties: { $set: userProps } };
+          const res = await fetch(`https://api2.amplitude.com/identify?api_key=${apiKey}&identification=${encodeURIComponent(JSON.stringify(identification))}`, { method: "POST" });
+          output = { identified: res.ok };
+        }
+        break;
+      }
+
+      case "action_segment": {
+        const writeKey = config.write_key as string;
+        const action = (config.action as string) || "track";
+        if (!writeKey) throw new Error("Segment write key is required");
+        const auth = Buffer.from(`${writeKey}:`).toString("base64");
+        const hdrs = { Authorization: `Basic ${auth}`, "Content-Type": "application/json" };
+        let props: Record<string, unknown> = {};
+        try { props = JSON.parse(interpolate(config.properties as string || "{}")); } catch { /* ignore */ }
+        const userId = interpolate(config.user_id as string || "");
+        const anonId = config.anonymous_id as string;
+        if (action === "track") {
+          const body: Record<string, unknown> = { event: interpolate(config.event as string || "Event"), properties: props };
+          if (userId) body.userId = userId; else body.anonymousId = anonId || "anon";
+          const res = await fetch("https://api.segment.io/v1/track", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          output = { ok: res.ok };
+        } else if (action === "identify") {
+          const body: Record<string, unknown> = { traits: props };
+          if (userId) body.userId = userId; else body.anonymousId = anonId || "anon";
+          const res = await fetch("https://api.segment.io/v1/identify", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          output = { ok: res.ok };
+        } else if (action === "page") {
+          const body: Record<string, unknown> = { name: config.event as string, properties: props };
+          if (userId) body.userId = userId; else body.anonymousId = anonId || "anon";
+          const res = await fetch("https://api.segment.io/v1/page", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          output = { ok: res.ok };
+        } else if (action === "group") {
+          const body: Record<string, unknown> = { groupId: interpolate(config.event as string || ""), traits: props };
+          if (userId) body.userId = userId;
+          const res = await fetch("https://api.segment.io/v1/group", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          output = { ok: res.ok };
+        }
+        break;
+      }
+
+      case "action_posthog": {
+        const apiKey = config.api_key as string;
+        const action = (config.action as string) || "capture";
+        const host = (config.host as string || "https://app.posthog.com").replace(/\/$/, "");
+        if (!apiKey) throw new Error("PostHog API key is required");
+        let props: Record<string, unknown> = {};
+        try { props = JSON.parse(interpolate(config.properties as string || "{}")); } catch { /* ignore */ }
+        const distinctId = interpolate(config.distinct_id as string || "anon");
+        if (action === "capture") {
+          const body = { api_key: apiKey, event: interpolate(config.event as string || "Event"), distinct_id: distinctId, properties: props };
+          const res = await fetch(`${host}/capture/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          output = { ok: res.ok };
+        } else if (action === "identify") {
+          const body = { api_key: apiKey, event: "$identify", distinct_id: distinctId, properties: { $set: props } };
+          const res = await fetch(`${host}/capture/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          output = { ok: res.ok };
+        }
+        break;
+      }
+
+      case "action_google_analytics": {
+        const measurementId = config.measurement_id as string;
+        const apiSecret = config.api_secret as string;
+        if (!measurementId || !apiSecret) throw new Error("GA4 measurement ID and API secret are required");
+        let params: Record<string, unknown> = {};
+        try { params = JSON.parse(interpolate(config.params as string || "{}")); } catch { /* ignore */ }
+        const body = { client_id: interpolate(config.client_id as string || "555"), events: [{ name: interpolate(config.event_name as string || "event"), params }] };
+        const res = await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        output = { sent: true, status: res.status };
+        break;
+      }
+
+      // ── Finance ─────────────────────────────────────────────────────────────
+      case "action_quickbooks": {
+        const token = config.access_token as string;
+        const realmId = config.realm_id as string;
+        const action = (config.action as string) || "create_invoice";
+        if (!token || !realmId) throw new Error("QuickBooks access token and realm ID are required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" };
+        const base = `https://quickbooks.api.intuit.com/v3/company/${realmId}`;
+        if (action === "create_invoice") {
+          let inv: Record<string, unknown> = {};
+          try { inv = JSON.parse(interpolate(config.invoice_data as string || "{}")); } catch { /* ignore */ }
+          const res = await fetch(`${base}/invoice`, { method: "POST", headers: hdrs, body: JSON.stringify(inv) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.Fault?.Error?.[0]?.Message || `QuickBooks ${res.status}`);
+          output = data.Invoice;
+        } else if (action === "create_customer") {
+          let cust: Record<string, unknown> = {};
+          try { cust = JSON.parse(interpolate(config.customer_data as string || "{}")); } catch { /* ignore */ }
+          const res = await fetch(`${base}/customer`, { method: "POST", headers: hdrs, body: JSON.stringify(cust) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.Fault?.Error?.[0]?.Message || `QuickBooks ${res.status}`);
+          output = data.Customer;
+        } else if (action === "get_invoice") {
+          const res = await fetch(`${base}/invoice/${config.record_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(`QuickBooks ${res.status}`);
+          output = data.Invoice;
+        }
+        break;
+      }
+
+      case "action_xero": {
+        const token = config.access_token as string;
+        const tenantId = config.tenant_id as string;
+        const action = (config.action as string) || "create_invoice";
+        if (!token || !tenantId) throw new Error("Xero access token and tenant ID are required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Xero-Tenant-Id": tenantId, "Content-Type": "application/json", Accept: "application/json" };
+        if (action === "create_invoice") {
+          let inv: Record<string, unknown> = {};
+          try { inv = JSON.parse(interpolate(config.invoice_data as string || "{}")); } catch { /* ignore */ }
+          const res = await fetch("https://api.xero.com/api.xro/2.0/Invoices", { method: "POST", headers: hdrs, body: JSON.stringify({ Invoices: [inv] }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.Message || `Xero ${res.status}`);
+          output = data.Invoices?.[0];
+        } else if (action === "create_contact") {
+          const contact: Record<string, unknown> = { Name: interpolate(config.contact_name as string || "") };
+          if (config.contact_email) contact.EmailAddress = interpolate(config.contact_email as string);
+          const res = await fetch("https://api.xero.com/api.xro/2.0/Contacts", { method: "POST", headers: hdrs, body: JSON.stringify({ Contacts: [contact] }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.Message || `Xero ${res.status}`);
+          output = data.Contacts?.[0];
+        } else if (action === "get_invoice") {
+          const res = await fetch(`https://api.xero.com/api.xro/2.0/Invoices/${config.invoice_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.Message || `Xero ${res.status}`);
+          output = data.Invoices?.[0];
+        }
+        break;
+      }
+
+      // ── Payments ────────────────────────────────────────────────────────────
+      case "action_paypal": {
+        const clientId = config.client_id as string;
+        const secret = config.client_secret as string;
+        const sandbox = config.sandbox !== "false";
+        const action = (config.action as string) || "create_order";
+        if (!clientId || !secret) throw new Error("PayPal client ID and secret are required");
+        const base = sandbox ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
+        // Get access token
+        const tokenRes = await fetch(`${base}/v1/oauth2/token`, { method: "POST", headers: { Authorization: `Basic ${Buffer.from(`${clientId}:${secret}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" }, body: "grant_type=client_credentials" });
+        const tokenData = await tokenRes.json();
+        if (!tokenRes.ok) throw new Error(tokenData.error_description || "PayPal auth failed");
+        const ppToken = tokenData.access_token;
+        const hdrs = { Authorization: `Bearer ${ppToken}`, "Content-Type": "application/json" };
+        if (action === "create_order") {
+          const body = { intent: "CAPTURE", purchase_units: [{ amount: { currency_code: config.currency || "USD", value: String(config.amount || "0") } }] };
+          const res = await fetch(`${base}/v2/checkout/orders`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `PayPal ${res.status}`);
+          output = data;
+        } else if (action === "capture_order") {
+          const res = await fetch(`${base}/v2/checkout/orders/${config.order_id}/capture`, { method: "POST", headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `PayPal ${res.status}`);
+          output = data;
+        } else if (action === "get_order") {
+          const res = await fetch(`${base}/v2/checkout/orders/${config.order_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `PayPal ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_square": {
+        const token = config.access_token as string;
+        const sandbox = config.sandbox !== "false";
+        const action = (config.action as string) || "create_customer";
+        if (!token) throw new Error("Square access token is required");
+        const base = sandbox ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Square-Version": "2024-01-18" };
+        if (action === "create_customer") {
+          const body: Record<string, unknown> = {};
+          if (config.given_name) body.given_name = interpolate(config.given_name as string);
+          if (config.family_name) body.family_name = interpolate(config.family_name as string);
+          if (config.email_address) body.email_address = interpolate(config.email_address as string);
+          const res = await fetch(`${base}/v2/customers`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.detail || `Square ${res.status}`);
+          output = data.customer;
+        } else if (action === "get_customer") {
+          const res = await fetch(`${base}/v2/customers/${config.customer_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.detail || `Square ${res.status}`);
+          output = data.customer;
+        } else if (action === "list_payments") {
+          const res = await fetch(`${base}/v2/payments`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.detail || `Square ${res.status}`);
+          output = data.payments;
+        }
+        break;
+      }
+
+      case "action_braintree": {
+        const merchantId = config.merchant_id as string;
+        const publicKey = config.public_key as string;
+        const privateKey = config.private_key as string;
+        const sandbox = config.sandbox !== "false";
+        const action = (config.action as string) || "create_customer";
+        if (!merchantId || !publicKey || !privateKey) throw new Error("Braintree merchant ID, public key, and private key are required");
+        const base = sandbox ? "https://api.sandbox.braintreegateway.com" : "https://api.braintreegateway.com";
+        const auth = Buffer.from(`${publicKey}:${privateKey}`).toString("base64");
+        const hdrs = { Authorization: `Basic ${auth}`, "Content-Type": "application/json", Accept: "application/json" };
+        if (action === "create_customer") {
+          const body = { customer: { firstName: config.first_name, lastName: config.last_name, email: interpolate(config.email as string || "") } };
+          const res = await fetch(`${base}/merchants/${merchantId}/customers`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Braintree ${res.status}`);
+          output = data.customer;
+        } else if (action === "create_transaction") {
+          const body = { transaction: { amount: String(config.amount || "0"), paymentMethodNonce: config.payment_method_nonce, customerId: config.customer_id } };
+          const res = await fetch(`${base}/merchants/${merchantId}/transactions`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Braintree ${res.status}`);
+          output = data.transaction;
+        } else if (action === "find_customer") {
+          const res = await fetch(`${base}/merchants/${merchantId}/customers/${config.customer_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Braintree ${res.status}`);
+          output = data.customer;
+        }
+        break;
+      }
+
+      // ── Social ──────────────────────────────────────────────────────────────
+      case "action_twitter": {
+        const bearerToken = config.bearer_token as string;
+        const action = (config.action as string) || "create_tweet";
+        if (!bearerToken) throw new Error("Twitter Bearer Token is required");
+        const hdrs = { Authorization: `Bearer ${bearerToken}`, "Content-Type": "application/json" };
+        if (action === "create_tweet") {
+          const res = await fetch("https://api.twitter.com/2/tweets", { method: "POST", headers: hdrs, body: JSON.stringify({ text: interpolate(config.text as string || "") }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Twitter ${res.status}`);
+          output = data.data;
+        } else if (action === "get_user") {
+          const res = await fetch(`https://api.twitter.com/2/users/by/username/${config.username}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Twitter ${res.status}`);
+          output = data.data;
+        } else if (action === "search_tweets") {
+          const res = await fetch(`https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(config.query as string || "")}&max_results=10`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Twitter ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_linkedin": {
+        const token = config.access_token as string;
+        const action = (config.action as string) || "create_post";
+        if (!token) throw new Error("LinkedIn access token is required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        if (action === "get_profile") {
+          const res = await fetch("https://api.linkedin.com/v2/userinfo", { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `LinkedIn ${res.status}`);
+          output = data;
+        } else if (action === "create_post") {
+          // Get author urn first
+          const meRes = await fetch("https://api.linkedin.com/v2/userinfo", { headers: hdrs });
+          const me = await meRes.json();
+          const urn = `urn:li:person:${me.sub}`;
+          const body = { author: urn, lifecycleState: "PUBLISHED", specificContent: { "com.linkedin.ugc.ShareContent": { shareCommentary: { text: interpolate(config.text as string || "") }, shareMediaCategory: "NONE" } }, visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" } };
+          const res = await fetch("https://api.linkedin.com/v2/ugcPosts", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `LinkedIn ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_youtube": {
+        const apiKey = config.api_key as string;
+        const action = (config.action as string) || "get_video";
+        if (!apiKey) throw new Error("YouTube API key is required");
+        const base = "https://www.googleapis.com/youtube/v3";
+        if (action === "get_video") {
+          const res = await fetch(`${base}/videos?part=snippet,statistics&id=${config.video_id}&key=${apiKey}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `YouTube ${res.status}`);
+          output = data.items?.[0];
+        } else if (action === "search_videos") {
+          const res = await fetch(`${base}/search?part=snippet&q=${encodeURIComponent(config.query as string || "")}&maxResults=${config.max_results || 10}&type=video&key=${apiKey}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `YouTube ${res.status}`);
+          output = data.items;
+        } else if (action === "get_channel") {
+          const res = await fetch(`${base}/channels?part=snippet,statistics&id=${config.channel_id}&key=${apiKey}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `YouTube ${res.status}`);
+          output = data.items?.[0];
+        }
+        break;
+      }
+
+      // ── Messaging (additional) ───────────────────────────────────────────────
+      case "action_teams": {
+        const webhookUrl = config.webhook_url as string;
+        if (!webhookUrl) throw new Error("Microsoft Teams webhook URL is required");
+        const body: Record<string, unknown> = { "@type": "MessageCard", "@context": "http://schema.org/extensions", text: interpolate(config.message as string || "") };
+        if (config.title) body.title = config.title;
+        if (config.color) body.themeColor = config.color;
+        const res = await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error(`Teams responded with ${res.status}`);
+        output = { sent: true };
+        break;
+      }
+
+      case "action_zoom": {
+        const token = config.access_token as string;
+        const action = (config.action as string) || "create_meeting";
+        const userId = config.user_id as string || "me";
+        if (!token) throw new Error("Zoom access token is required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        if (action === "create_meeting") {
+          const body: Record<string, unknown> = { topic: interpolate(config.topic as string || "Meeting"), type: 2 };
+          if (config.start_time) body.start_time = config.start_time;
+          if (config.duration) body.duration = parseInt(config.duration as string);
+          const res = await fetch(`https://api.zoom.us/v2/users/${userId}/meetings`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Zoom ${res.status}`);
+          output = data;
+        } else if (action === "get_meeting") {
+          const res = await fetch(`https://api.zoom.us/v2/meetings/${config.meeting_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Zoom ${res.status}`);
+          output = data;
+        } else if (action === "delete_meeting") {
+          const res = await fetch(`https://api.zoom.us/v2/meetings/${config.meeting_id}`, { method: "DELETE", headers: hdrs });
+          output = { deleted: res.ok };
+        }
+        break;
+      }
+
+      case "action_vonage": {
+        const apiKey = config.api_key as string;
+        const apiSecret = config.api_secret as string;
+        if (!apiKey || !apiSecret) throw new Error("Vonage API key and secret are required");
+        const body = { from: config.from, to: interpolate(config.to as string || ""), text: interpolate(config.text as string || ""), api_key: apiKey, api_secret: apiSecret };
+        const res = await fetch("https://rest.nexmo.com/sms/json", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (data.messages?.[0]?.status !== "0") throw new Error(data.messages?.[0]?.["error-text"] || "Vonage SMS failed");
+        output = { sent: true, message_id: data.messages?.[0]?.["message-id"] };
+        break;
+      }
+
+      case "action_aws_ses": {
+        // Uses AWS Signature V4 — simplified via raw HTTPS call with query-string auth
+        const accessKey = config.access_key_id as string;
+        const secretKey = config.secret_access_key as string;
+        const region = (config.region as string) || "us-east-1";
+        if (!accessKey || !secretKey) throw new Error("AWS Access Key ID and Secret are required");
+        // Build raw SES SendEmail request (query-string API, simpler than JSON for V4 signing)
+        const toEmail = interpolate(config.to as string || "");
+        const fromEmail = config.from as string;
+        const subject = interpolate(config.subject as string || "");
+        const bodyHtml = interpolate(config.body_html as string || "");
+        const bodyText = interpolate(config.body_text as string || "");
+        // Use AWS SDK-style date
+        const now = new Date();
+        const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "").slice(0, 15) + "Z";
+        const dateStamp = amzDate.slice(0, 8);
+        const host = `email.${region}.amazonaws.com`;
+        const params = new URLSearchParams({ Action: "SendEmail", "Source": fromEmail, "Destination.ToAddresses.member.1": toEmail, "Message.Subject.Data": subject, "Message.Body.Html.Data": bodyHtml, "Message.Body.Text.Data": bodyText });
+        // Simple HMAC-SHA256 signing helper
+        const enc = new TextEncoder();
+        const sign = async (key: ArrayBuffer | Uint8Array<ArrayBuffer>, msg: string) => {
+          const raw: ArrayBuffer = key instanceof Uint8Array ? key.buffer as ArrayBuffer : key;
+          const k = await crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+          return new Uint8Array(await crypto.subtle.sign("HMAC", k, enc.encode(msg))) as Uint8Array<ArrayBuffer>;
+        };
+        const getSigningKey = async () => {
+          const kDate = await sign(enc.encode(`AWS4${secretKey}`), dateStamp);
+          const kRegion = await sign(kDate, region);
+          const kService = await sign(kRegion, "ses");
+          return sign(kService, "aws4_request");
+        };
+        const payloadHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(params.toString())))).map(b => b.toString(16).padStart(2, "0")).join("");
+        const canonicalReq = `POST\n/\n\ncontent-type:application/x-www-form-urlencoded\nhost:${host}\nx-amz-date:${amzDate}\n\ncontent-type;host;x-amz-date\n${payloadHash}`;
+        const credScope = `${dateStamp}/${region}/ses/aws4_request`;
+        const strToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credScope}\n${Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(canonicalReq)))).map(b => b.toString(16).padStart(2, "0")).join("")}`;
+        const signingKey = await getSigningKey();
+        const sig = Array.from(await sign(signingKey, strToSign)).map(b => b.toString(16).padStart(2, "0")).join("");
+        const authHeader = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credScope}, SignedHeaders=content-type;host;x-amz-date, Signature=${sig}`;
+        const res = await fetch(`https://${host}/`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Amz-Date": amzDate, Authorization: authHeader, Host: host }, body: params.toString() });
+        const text = await res.text();
+        if (!res.ok) throw new Error(`AWS SES ${res.status}: ${text}`);
+        output = { sent: true };
+        break;
+      }
+
+      // ── Storage (additional) ─────────────────────────────────────────────────
+      case "action_dropbox": {
+        const token = config.access_token as string;
+        const action = (config.action as string) || "upload_file";
+        if (!token) throw new Error("Dropbox access token is required");
+        const hdrs = { Authorization: `Bearer ${token}` };
+        if (action === "upload_file") {
+          const content = interpolate(config.content as string || "");
+          const res = await fetch("https://content.dropboxapi.com/2/files/upload", { method: "POST", headers: { ...hdrs, "Content-Type": "application/octet-stream", "Dropbox-API-Arg": JSON.stringify({ path: config.path, mode: config.mode || "add", autorename: true }) }, body: content });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error_summary || `Dropbox ${res.status}`);
+          output = data;
+        } else if (action === "get_metadata") {
+          const res = await fetch("https://api.dropboxapi.com/2/files/get_metadata", { method: "POST", headers: { ...hdrs, "Content-Type": "application/json" }, body: JSON.stringify({ path: config.path }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error_summary || `Dropbox ${res.status}`);
+          output = data;
+        } else if (action === "list_folder") {
+          const res = await fetch("https://api.dropboxapi.com/2/files/list_folder", { method: "POST", headers: { ...hdrs, "Content-Type": "application/json" }, body: JSON.stringify({ path: config.path || "" }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error_summary || `Dropbox ${res.status}`);
+          output = data.entries;
+        } else if (action === "delete") {
+          const res = await fetch("https://api.dropboxapi.com/2/files/delete_v2", { method: "POST", headers: { ...hdrs, "Content-Type": "application/json" }, body: JSON.stringify({ path: config.path }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error_summary || `Dropbox ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_onedrive": {
+        const token = config.access_token as string;
+        const action = (config.action as string) || "upload_file";
+        if (!token) throw new Error("OneDrive access token is required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        const base = "https://graph.microsoft.com/v1.0/me/drive";
+        if (action === "upload_file") {
+          const content = interpolate(config.content as string || "");
+          const path = config.path as string;
+          const res = await fetch(`${base}/root:${path}:/content`, { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "text/plain" }, body: content });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `OneDrive ${res.status}`);
+          output = data;
+        } else if (action === "get_file") {
+          const itemId = config.item_id as string;
+          const res = await fetch(`${base}/items/${itemId}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `OneDrive ${res.status}`);
+          output = data;
+        } else if (action === "list_children") {
+          const path = config.path as string;
+          const res = await fetch(`${base}/root:${path}:/children`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `OneDrive ${res.status}`);
+          output = data.value;
+        } else if (action === "delete_item") {
+          const res = await fetch(`${base}/items/${config.item_id}`, { method: "DELETE", headers: hdrs });
+          output = { deleted: res.ok };
+        }
+        break;
+      }
+
+      case "action_cloudinary": {
+        const cloudName = config.cloud_name as string;
+        const apiKey = config.api_key as string;
+        const apiSecret = config.api_secret as string;
+        const action = (config.action as string) || "upload";
+        if (!cloudName || !apiKey || !apiSecret) throw new Error("Cloudinary cloud name, API key, and secret are required");
+        if (action === "upload") {
+          const timestamp = Math.floor(Date.now() / 1000);
+          const sigStr = `timestamp=${timestamp}${apiSecret}`;
+          const sigBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sigStr));
+          const signature = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+          const form = new FormData();
+          form.append("file", interpolate(config.file as string || ""));
+          form.append("timestamp", String(timestamp));
+          form.append("api_key", apiKey);
+          form.append("signature", signature);
+          if (config.public_id) form.append("public_id", config.public_id as string);
+          if (config.folder) form.append("folder", config.folder as string);
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: form });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Cloudinary ${res.status}`);
+          output = data;
+        } else if (action === "get_resource") {
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image/upload/${config.public_id}`, { headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}` } });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Cloudinary ${res.status}`);
+          output = data;
+        } else if (action === "delete_resource") {
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image/upload`, { method: "DELETE", headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}`, "Content-Type": "application/json" }, body: JSON.stringify({ public_ids: [config.public_id] }) });
+          const data = await res.json();
+          output = data;
+        }
+        break;
+      }
+
+      case "action_box": {
+        const token = config.access_token as string;
+        const action = (config.action as string) || "upload_file";
+        if (!token) throw new Error("Box access token is required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        const base = "https://api.box.com/2.0";
+        if (action === "upload_file") {
+          const form = new FormData();
+          form.append("attributes", JSON.stringify({ name: config.file_name || "file.txt", parent: { id: config.folder_id || "0" } }));
+          form.append("file", new Blob([interpolate(config.content as string || "")], { type: "text/plain" }), config.file_name as string || "file.txt");
+          const res = await fetch("https://upload.box.com/api/2.0/files/content", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Box ${res.status}`);
+          output = data.entries?.[0];
+        } else if (action === "get_file") {
+          const res = await fetch(`${base}/files/${config.file_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Box ${res.status}`);
+          output = data;
+        } else if (action === "list_folder") {
+          const res = await fetch(`${base}/folders/${config.folder_id || "0"}/items`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Box ${res.status}`);
+          output = data.entries;
+        } else if (action === "delete_file") {
+          const res = await fetch(`${base}/files/${config.file_id}`, { method: "DELETE", headers: hdrs });
+          output = { deleted: res.ok };
+        }
+        break;
+      }
+
+      // ── Dev Tools ────────────────────────────────────────────────────────────
+      case "action_gitlab": {
+        const token = config.api_token as string;
+        const baseUrl = (config.base_url as string || "https://gitlab.com").replace(/\/$/, "");
+        const projectId = encodeURIComponent(config.project_id as string || "");
+        const action = (config.action as string) || "create_issue";
+        if (!token || !projectId) throw new Error("GitLab token and project ID are required");
+        const hdrs = { "PRIVATE-TOKEN": token, "Content-Type": "application/json" };
+        const api = `${baseUrl}/api/v4/projects/${projectId}`;
+        if (action === "create_issue") {
+          const body: Record<string, unknown> = { title: interpolate(config.title as string || "") };
+          if (config.description) body.description = interpolate(config.description as string);
+          if (config.labels) body.labels = config.labels;
+          const res = await fetch(`${api}/issues`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitLab ${res.status}`);
+          output = data;
+        } else if (action === "update_issue") {
+          const body: Record<string, unknown> = {};
+          if (config.title) body.title = interpolate(config.title as string);
+          if (config.description) body.description = interpolate(config.description as string);
+          const res = await fetch(`${api}/issues/${config.iid}`, { method: "PUT", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitLab ${res.status}`);
+          output = data;
+        } else if (action === "create_mr") {
+          const body = { title: interpolate(config.title as string || ""), source_branch: config.source_branch, target_branch: config.target_branch || "main", description: interpolate(config.description as string || "") };
+          const res = await fetch(`${api}/merge_requests`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitLab ${res.status}`);
+          output = data;
+        } else if (action === "list_issues") {
+          const res = await fetch(`${api}/issues?state=opened`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitLab ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_sentry": {
+        const token = config.auth_token as string;
+        const org = config.org_slug as string;
+        const action = (config.action as string) || "list_issues";
+        if (!token || !org) throw new Error("Sentry auth token and org slug are required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        const base = "https://sentry.io/api/0";
+        if (action === "list_issues") {
+          const url = config.project_slug ? `${base}/projects/${org}/${config.project_slug}/issues/` : `${base}/organizations/${org}/issues/`;
+          const res = await fetch(url, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Sentry ${res.status}`);
+          output = data;
+        } else if (action === "get_issue") {
+          const res = await fetch(`${base}/issues/${config.issue_id}/`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Sentry ${res.status}`);
+          output = data;
+        } else if (action === "update_issue") {
+          const body = { status: config.status as string };
+          const res = await fetch(`${base}/issues/${config.issue_id}/`, { method: "PUT", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Sentry ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_datadog": {
+        const apiKey = config.api_key as string;
+        const action = (config.action as string) || "submit_metric";
+        if (!apiKey) throw new Error("Datadog API key is required");
+        const hdrs = { "DD-API-KEY": apiKey, "Content-Type": "application/json" };
+        if (action === "submit_metric") {
+          const now = Math.floor(Date.now() / 1000);
+          let tags: string[] = [];
+          try { tags = JSON.parse(config.tags as string || "[]"); } catch { /* ignore */ }
+          const body = { series: [{ metric: config.metric_name as string, type: config.metric_type as string || "gauge", points: [[now, parseFloat(config.metric_value as string || "0")]], tags }] };
+          const res = await fetch("https://api.datadoghq.com/api/v2/series", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          if (!res.ok) { const d = await res.json(); throw new Error(d.errors?.[0] || `Datadog ${res.status}`); }
+          output = { submitted: true, metric: config.metric_name };
+        } else if (action === "create_event") {
+          const body = { title: interpolate(config.event_title as string || ""), text: interpolate(config.event_text as string || "") };
+          const res = await fetch("https://api.datadoghq.com/api/v1/events", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0] || `Datadog ${res.status}`);
+          output = data.event;
+        }
+        break;
+      }
+
+      case "action_pagerduty": {
+        const apiKey = config.api_key as string;
+        const action = (config.action as string) || "create_incident";
+        if (!apiKey) throw new Error("PagerDuty API key is required");
+        const hdrs = { Authorization: `Token token=${apiKey}`, "Content-Type": "application/json", Accept: "application/vnd.pagerduty+json;version=2", From: "automation@flowmake.app" };
+        if (action === "trigger_alert") {
+          const body = { routing_key: config.routing_key as string, event_action: "trigger", payload: { summary: interpolate(config.title as string || "Alert"), source: "FlowMake", severity: config.severity as string || "error", custom_details: { details: interpolate(config.body as string || "") } } };
+          const res = await fetch("https://events.pagerduty.com/v2/enqueue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `PagerDuty ${res.status}`);
+          output = data;
+        } else if (action === "create_incident") {
+          const body = { incident: { type: "incident", title: interpolate(config.title as string || "Incident"), service: { id: config.service_id as string, type: "service_reference" } } };
+          const res = await fetch("https://api.pagerduty.com/incidents", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `PagerDuty ${res.status}`);
+          output = data.incident;
+        } else if (action === "resolve_incident") {
+          const body = { incident: { type: "incident", status: "resolved" } };
+          const res = await fetch(`https://api.pagerduty.com/incidents/${config.incident_id}`, { method: "PUT", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `PagerDuty ${res.status}`);
+          output = data.incident;
+        }
+        break;
+      }
+
+      case "action_vercel": {
+        const token = config.access_token as string;
+        const action = (config.action as string) || "list_deployments";
+        if (!token) throw new Error("Vercel access token is required");
+        const teamQuery = config.team_id ? `?teamId=${config.team_id}` : "";
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        if (action === "list_deployments") {
+          const url = config.project_id ? `https://api.vercel.com/v6/deployments?projectId=${config.project_id}${config.team_id ? `&teamId=${config.team_id}` : ""}` : `https://api.vercel.com/v6/deployments${teamQuery}`;
+          const res = await fetch(url, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Vercel ${res.status}`);
+          output = data.deployments;
+        } else if (action === "get_deployment") {
+          const res = await fetch(`https://api.vercel.com/v13/deployments/${config.deployment_id}${teamQuery}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Vercel ${res.status}`);
+          output = data;
+        } else if (action === "list_projects") {
+          const res = await fetch(`https://api.vercel.com/v9/projects${teamQuery}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Vercel ${res.status}`);
+          output = data.projects;
+        }
+        break;
+      }
+
+      case "action_circleci": {
+        const token = config.api_token as string;
+        const action = (config.action as string) || "trigger_pipeline";
+        if (!token) throw new Error("CircleCI API token is required");
+        const hdrs = { "Circle-Token": token, "Content-Type": "application/json" };
+        if (action === "trigger_pipeline") {
+          const body: Record<string, unknown> = {};
+          if (config.branch) body.branch = config.branch;
+          let params: Record<string, unknown> = {};
+          try { params = JSON.parse(config.parameters as string || "{}"); } catch { /* ignore */ }
+          if (Object.keys(params).length) body.parameters = params;
+          const res = await fetch(`https://circleci.com/api/v2/project/${config.project_slug}/pipeline`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `CircleCI ${res.status}`);
+          output = data;
+        } else if (action === "get_pipeline") {
+          const res = await fetch(`https://circleci.com/api/v2/pipeline/${config.pipeline_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `CircleCI ${res.status}`);
+          output = data;
+        } else if (action === "get_workflow") {
+          const res = await fetch(`https://circleci.com/api/v2/workflow/${config.workflow_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `CircleCI ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_bitbucket": {
+        const username = config.username as string;
+        const appPassword = config.app_password as string;
+        const workspace = config.workspace as string;
+        const repoSlug = config.repo_slug as string;
+        const action = (config.action as string) || "create_issue";
+        if (!username || !appPassword || !workspace || !repoSlug) throw new Error("Bitbucket credentials, workspace, and repo are required");
+        const auth = Buffer.from(`${username}:${appPassword}`).toString("base64");
+        const hdrs = { Authorization: `Basic ${auth}`, "Content-Type": "application/json" };
+        const base = `https://api.bitbucket.org/2.0/repositories/${workspace}/${repoSlug}`;
+        if (action === "create_issue") {
+          const body: Record<string, unknown> = { title: interpolate(config.title as string || "") };
+          if (config.content) body.content = { raw: interpolate(config.content as string) };
+          if (config.priority) body.priority = config.priority;
+          const res = await fetch(`${base}/issues`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Bitbucket ${res.status}`);
+          output = data;
+        } else if (action === "get_issue") {
+          const res = await fetch(`${base}/issues/${config.issue_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Bitbucket ${res.status}`);
+          output = data;
+        } else if (action === "list_commits") {
+          const res = await fetch(`${base}/commits`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Bitbucket ${res.status}`);
+          output = data.values;
+        }
+        break;
+      }
+
+      // ── AI & ML (additional) ─────────────────────────────────────────────────
+      case "action_cohere": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "generate";
+        if (!token) throw new Error("Cohere API key is required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        if (action === "generate") {
+          const body = { model: config.model as string || "command-r-plus", message: interpolate(config.prompt as string || ""), max_tokens: config.max_tokens ? parseInt(config.max_tokens as string) : 500, temperature: config.temperature ? parseFloat(config.temperature as string) : 0.7 };
+          const res = await fetch("https://api.cohere.com/v2/chat", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Cohere ${res.status}`);
+          output = { text: data.message?.content?.[0]?.text, usage: data.usage };
+        } else if (action === "embed") {
+          let texts: string[] = [];
+          try { texts = JSON.parse(config.texts as string || "[]"); } catch { texts = [config.texts as string]; }
+          const body = { model: config.model as string || "embed-english-v3.0", texts, input_type: "search_document" };
+          const res = await fetch("https://api.cohere.com/v2/embed", { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Cohere ${res.status}`);
+          output = { embeddings: data.embeddings };
+        }
+        break;
+      }
+
+      case "action_replicate": {
+        const token = config.api_token as string;
+        const action = (config.action as string) || "run_model";
+        if (!token) throw new Error("Replicate API token is required");
+        const hdrs = { Authorization: `Token ${token}`, "Content-Type": "application/json" };
+        if (action === "run_model") {
+          let input: Record<string, unknown> = {};
+          try { input = JSON.parse(interpolate(config.input as string || "{}")); } catch { /* ignore */ }
+          const [owner_model, version] = (config.model_version as string || "").split(":");
+          const body = { version, input };
+          const res = await fetch(`https://api.replicate.com/v1/predictions`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const pred = await res.json();
+          if (!res.ok) throw new Error(pred.detail || `Replicate ${res.status}`);
+          // Poll for result (up to 30s)
+          let result = pred;
+          let attempts = 0;
+          while (result.status !== "succeeded" && result.status !== "failed" && attempts < 15) {
+            await new Promise(r => setTimeout(r, 2000));
+            const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, { headers: hdrs });
+            result = await pollRes.json();
+            attempts++;
+          }
+          if (result.status === "failed") throw new Error(result.error || "Replicate prediction failed");
+          output = { output: result.output, status: result.status, id: result.id };
+          void owner_model; // suppress unused warning
+        } else if (action === "get_prediction") {
+          const res = await fetch(`https://api.replicate.com/v1/predictions/${config.prediction_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Replicate ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_huggingface": {
+        const token = config.api_key as string;
+        const modelId = config.model_id as string;
+        if (!token || !modelId) throw new Error("Hugging Face API token and model ID are required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        let params: Record<string, unknown> = {};
+        try { params = JSON.parse(config.parameters as string || "{}"); } catch { /* ignore */ }
+        const body: Record<string, unknown> = { inputs: interpolate(config.inputs as string || "") };
+        if (Object.keys(params).length) body.parameters = params;
+        const res = await fetch(`https://api-inference.huggingface.co/models/${modelId}`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HuggingFace ${res.status}`);
+        output = data;
+        break;
+      }
+
+      // ── Productivity (additional) ────────────────────────────────────────────
+      case "action_wordpress": {
+        const siteUrl = (config.site_url as string || "").replace(/\/$/, "");
+        const username = config.username as string;
+        const appPassword = config.app_password as string;
+        const action = (config.action as string) || "create_post";
+        if (!siteUrl || !username || !appPassword) throw new Error("WordPress site URL, username, and app password are required");
+        const auth = Buffer.from(`${username}:${appPassword}`).toString("base64");
+        const hdrs = { Authorization: `Basic ${auth}`, "Content-Type": "application/json" };
+        const base = `${siteUrl}/wp-json/wp/v2`;
+        if (action === "create_post") {
+          const body: Record<string, unknown> = { title: interpolate(config.title as string || ""), content: interpolate(config.content as string || ""), status: config.status as string || "draft" };
+          const res = await fetch(`${base}/posts`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `WordPress ${res.status}`);
+          output = data;
+        } else if (action === "update_post") {
+          const body: Record<string, unknown> = {};
+          if (config.title) body.title = interpolate(config.title as string);
+          if (config.content) body.content = interpolate(config.content as string);
+          if (config.status) body.status = config.status;
+          const res = await fetch(`${base}/posts/${config.post_id}`, { method: "POST", headers: hdrs, body: JSON.stringify(body) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `WordPress ${res.status}`);
+          output = data;
+        } else if (action === "get_post") {
+          const res = await fetch(`${base}/posts/${config.post_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `WordPress ${res.status}`);
+          output = data;
+        } else if (action === "list_posts") {
+          const res = await fetch(`${base}/posts?per_page=20`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `WordPress ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_contentful": {
+        const token = config.access_token as string;
+        const spaceId = config.space_id as string;
+        const envId = (config.environment_id as string) || "master";
+        const action = (config.action as string) || "create_entry";
+        if (!token || !spaceId) throw new Error("Contentful token and space ID are required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/vnd.contentful.management.v1+json" };
+        const base = `https://api.contentful.com/spaces/${spaceId}/environments/${envId}`;
+        if (action === "create_entry") {
+          let fields: Record<string, unknown> = {};
+          try { fields = JSON.parse(interpolate(config.fields as string || "{}")); } catch { /* ignore */ }
+          const res = await fetch(`${base}/entries`, { method: "POST", headers: { ...hdrs, "X-Contentful-Content-Type": config.content_type_id as string || "" }, body: JSON.stringify({ fields }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Contentful ${res.status}`);
+          output = data;
+        } else if (action === "update_entry") {
+          let fields: Record<string, unknown> = {};
+          try { fields = JSON.parse(interpolate(config.fields as string || "{}")); } catch { /* ignore */ }
+          const getRes = await fetch(`${base}/entries/${config.entry_id}`, { headers: hdrs });
+          const existing = await getRes.json();
+          const res = await fetch(`${base}/entries/${config.entry_id}`, { method: "PUT", headers: { ...hdrs, "X-Contentful-Version": String(existing.sys?.version || 0) }, body: JSON.stringify({ fields }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Contentful ${res.status}`);
+          output = data;
+        } else if (action === "publish_entry") {
+          const getRes = await fetch(`${base}/entries/${config.entry_id}`, { headers: hdrs });
+          const existing = await getRes.json();
+          const res = await fetch(`${base}/entries/${config.entry_id}/published`, { method: "PUT", headers: { ...hdrs, "X-Contentful-Version": String(existing.sys?.version || 0) } });
+          output = { published: res.ok };
+        } else if (action === "get_entry") {
+          const res = await fetch(`${base}/entries/${config.entry_id}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Contentful ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_calendly": {
+        const token = config.api_token as string;
+        const action = (config.action as string) || "list_events";
+        if (!token) throw new Error("Calendly API token is required");
+        const hdrs = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        if (action === "get_user") {
+          const res = await fetch("https://api.calendly.com/users/me", { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Calendly ${res.status}`);
+          output = data.resource;
+        } else if (action === "list_events") {
+          // Need user URI first
+          const meRes = await fetch("https://api.calendly.com/users/me", { headers: hdrs });
+          const me = await meRes.json();
+          const userUri = me.resource?.uri;
+          const url = `https://api.calendly.com/scheduled_events?user=${encodeURIComponent(userUri)}&count=${config.count || 20}${config.status ? `&status=${config.status}` : ""}`;
+          const res = await fetch(url, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Calendly ${res.status}`);
+          output = data;
+        } else if (action === "get_event") {
+          const res = await fetch(`https://api.calendly.com/scheduled_events/${config.event_uuid}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Calendly ${res.status}`);
+          output = data.resource;
+        }
+        break;
+      }
+
+      case "action_clearbit": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "enrich_person";
+        if (!token) throw new Error("Clearbit API key is required");
+        const auth = Buffer.from(`${token}:`).toString("base64");
+        const hdrs = { Authorization: `Basic ${auth}` };
+        if (action === "enrich_person") {
+          const res = await fetch(`https://person.clearbit.com/v2/people/find?email=${encodeURIComponent(interpolate(config.email as string || ""))}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Clearbit ${res.status}`);
+          output = data;
+        } else if (action === "enrich_company") {
+          const res = await fetch(`https://company.clearbit.com/v2/companies/find?domain=${encodeURIComponent(interpolate(config.domain as string || ""))}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Clearbit ${res.status}`);
+          output = data;
+        } else if (action === "find_company") {
+          const res = await fetch(`https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(interpolate(config.domain as string || ""))}`, { headers: hdrs });
+          const data = await res.json();
+          if (!res.ok) throw new Error(`Clearbit ${res.status}`);
+          output = data;
+        }
+        break;
+      }
+
+      case "action_hunter": {
+        const token = config.api_key as string;
+        const action = (config.action as string) || "find_email";
+        if (!token) throw new Error("Hunter.io API key is required");
+        if (action === "find_email") {
+          const url = `https://api.hunter.io/v2/email-finder?domain=${encodeURIComponent(config.domain as string || "")}&first_name=${encodeURIComponent(interpolate(config.first_name as string || ""))}&last_name=${encodeURIComponent(interpolate(config.last_name as string || ""))}&api_key=${token}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.details || `Hunter ${res.status}`);
+          output = data.data;
+        } else if (action === "verify_email") {
+          const res = await fetch(`https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(interpolate(config.email as string || ""))}&api_key=${token}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.details || `Hunter ${res.status}`);
+          output = data.data;
+        } else if (action === "domain_search") {
+          const res = await fetch(`https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(config.domain as string || "")}&api_key=${token}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errors?.[0]?.details || `Hunter ${res.status}`);
+          output = data.data;
+        }
+        break;
+      }
+
       default:
         throw new Error(`Unknown node type: ${type}`);
     }

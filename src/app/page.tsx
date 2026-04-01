@@ -44,7 +44,7 @@ const CORE = [
     icon: Plug,
     color: "#8b5cf6",
     title: "100+ Integrations",
-    desc: "Slack, Notion, HubSpot, Stripe, GitHub, Gmail, Airtable and dozens more — pre-built connections ready to use.",
+    desc: "Slack, Notion, HubSpot, Shopify, Stripe, GitHub, Asana, Zendesk, Salesforce and 90+ more — all built in.",
   },
 ];
 

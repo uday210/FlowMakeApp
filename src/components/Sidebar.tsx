@@ -43,8 +43,16 @@ const SUBCATEGORY_ORDER = [
   "Data Processing",
   "Storage",
   "Productivity",
+  "Project Management",
   "CRM & Sales",
+  "Support",
+  "Marketing",
+  "E-commerce",
+  "Analytics",
+  "Finance",
   "Payments",
+  "Social",
+  "Dev Tools",
   "E-Sign",
   "Databases",
   "Message Brokers",
@@ -154,6 +162,76 @@ const SUBCATEGORY_MAP: Record<string, string> = {
   action_sftp:             "Infrastructure",
   // Custom Tables
   action_user_table:       "Storage",
+  // Project Management
+  action_asana:            "Project Management",
+  action_trello:           "Project Management",
+  action_monday:           "Project Management",
+  action_clickup:          "Project Management",
+  action_basecamp:         "Project Management",
+  action_todoist:          "Project Management",
+  // CRM & Sales (additional)
+  action_pipedrive:        "CRM & Sales",
+  action_zoho_crm:         "CRM & Sales",
+  action_close:            "CRM & Sales",
+  // Support
+  action_zendesk:          "Support",
+  action_intercom:         "Support",
+  action_freshdesk:        "Support",
+  // Marketing
+  action_activecampaign:   "Marketing",
+  action_klaviyo:          "Marketing",
+  action_convertkit:       "Marketing",
+  action_brevo:            "Marketing",
+  action_typeform:         "Marketing",
+  // E-commerce
+  action_shopify:          "E-commerce",
+  action_woocommerce:      "E-commerce",
+  action_paddle:           "E-commerce",
+  // Analytics
+  action_mixpanel:         "Analytics",
+  action_amplitude:        "Analytics",
+  action_segment:          "Analytics",
+  action_posthog:          "Analytics",
+  action_google_analytics: "Analytics",
+  // Finance
+  action_quickbooks:       "Finance",
+  action_xero:             "Finance",
+  // Payments (additional)
+  action_paypal:           "Payments",
+  action_square:           "Payments",
+  action_braintree:        "Payments",
+  // Social
+  action_twitter:          "Social",
+  action_linkedin:         "Social",
+  action_youtube:          "Social",
+  // Messaging (additional)
+  action_teams:            "Messaging",
+  action_zoom:             "Messaging",
+  action_vonage:           "Messaging",
+  action_aws_ses:          "Email",
+  // Storage (additional)
+  action_dropbox:          "Storage",
+  action_onedrive:         "Storage",
+  action_cloudinary:       "Storage",
+  action_box:              "Storage",
+  // Dev Tools
+  action_gitlab:           "Dev Tools",
+  action_sentry:           "Dev Tools",
+  action_datadog:          "Dev Tools",
+  action_pagerduty:        "Dev Tools",
+  action_vercel:           "Dev Tools",
+  action_circleci:         "Dev Tools",
+  action_bitbucket:        "Dev Tools",
+  // AI & ML (additional)
+  action_cohere:           "AI & ML",
+  action_replicate:        "AI & ML",
+  action_huggingface:      "AI & ML",
+  // Productivity (additional)
+  action_wordpress:        "Productivity",
+  action_contentful:       "Productivity",
+  action_calendly:         "Productivity",
+  action_clearbit:         "Productivity",
+  action_hunter:           "Productivity",
   // Documents
   action_generate_document: "Documents",
 };

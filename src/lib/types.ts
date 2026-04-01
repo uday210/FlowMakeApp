@@ -105,7 +105,77 @@ export type NodeType =
   | "action_ftp"
   | "action_sftp"
   // Custom Tables
-  | "action_user_table";
+  | "action_user_table"
+  // Project Management
+  | "action_asana"
+  | "action_trello"
+  | "action_monday"
+  | "action_clickup"
+  | "action_basecamp"
+  | "action_todoist"
+  // CRM & Sales
+  | "action_pipedrive"
+  | "action_zoho_crm"
+  | "action_close"
+  // Support
+  | "action_zendesk"
+  | "action_intercom"
+  | "action_freshdesk"
+  // Marketing
+  | "action_activecampaign"
+  | "action_klaviyo"
+  | "action_convertkit"
+  | "action_brevo"
+  | "action_typeform"
+  // E-commerce
+  | "action_shopify"
+  | "action_woocommerce"
+  | "action_paddle"
+  // Analytics
+  | "action_mixpanel"
+  | "action_amplitude"
+  | "action_segment"
+  | "action_posthog"
+  | "action_google_analytics"
+  // Finance
+  | "action_quickbooks"
+  | "action_xero"
+  // Payments
+  | "action_paypal"
+  | "action_square"
+  | "action_braintree"
+  // Social
+  | "action_twitter"
+  | "action_linkedin"
+  | "action_youtube"
+  // Messaging
+  | "action_teams"
+  | "action_zoom"
+  | "action_vonage"
+  | "action_aws_ses"
+  // Storage
+  | "action_dropbox"
+  | "action_onedrive"
+  | "action_cloudinary"
+  | "action_box"
+  // Dev Tools
+  | "action_gitlab"
+  | "action_sentry"
+  | "action_datadog"
+  | "action_pagerduty"
+  | "action_vercel"
+  | "action_circleci"
+  | "action_bitbucket"
+  // AI & ML
+  | "action_cohere"
+  | "action_replicate"
+  | "action_huggingface"
+  // Productivity
+  | "action_wordpress"
+  | "action_contentful"
+  | "action_calendly"
+  | "action_clearbit"
+  | "action_hunter";
 
 export interface UserTable {
   id: string;
