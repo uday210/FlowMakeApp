@@ -5812,7 +5812,8 @@ export async function executeWorkflow(
         branchOutputs[node.id] = (result as Record<string, unknown>)._branch as string;
       }
     } catch {
-      // Continue but don't record branch (failed nodes don't route)
+      // Node failed — mark it as skipped so all downstream nodes are skipped too
+      skippedNodes.add(node.id);
     }
   }
 
