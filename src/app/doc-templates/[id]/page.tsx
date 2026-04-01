@@ -120,16 +120,19 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
 
   // Preview
   const [previewHtml, setPreviewHtml] = useState("");
+  const [previewIsRaw, setPreviewIsRaw] = useState(true);
   const [previewing, setPreviewing] = useState(false);
   const [previewErr, setPreviewErr] = useState("");
   const [previewWarnings, setPreviewWarnings] = useState<string[]>([]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const rawHtmlCache = useRef<string | null>(null);
 
   // History
   const [history, setHistory] = useState<{ id: string; name: string; created_at: string; file_size: number }[]>([]);
   const [histLoading, setHistLoading] = useState(false);
 
   useEffect(() => { load(); }, [id]);
+  useEffect(() => { if (activeTab === "test") loadRawPreview(); }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Write to iframe whenever previewHtml changes
   useEffect(() => {
@@ -153,6 +156,27 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
       setSampleJson(JSON.stringify(d.sample_data ?? {}, null, 2));
     }
     setLoading(false);
+  }
+
+  async function loadRawPreview(force = false) {
+    if (!force && rawHtmlCache.current !== null) {
+      setPreviewHtml(rawHtmlCache.current);
+      setPreviewIsRaw(true);
+      return;
+    }
+    setPreviewing(true);
+    setPreviewErr("");
+    const res = await fetch(`/api/doc-templates/${id}/preview-html`);
+    const d = await res.json();
+    if (res.ok) {
+      rawHtmlCache.current = d.html ?? "";
+      setPreviewHtml(d.html ?? "");
+      setPreviewIsRaw(true);
+      setPreviewWarnings(d.warnings ?? []);
+    } else {
+      setPreviewErr(d.error ?? "Could not load template preview");
+    }
+    setPreviewing(false);
   }
 
   async function loadHistory() {
@@ -211,6 +235,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
     const d = await res.json();
     if (res.ok) {
       setPreviewHtml(d.html ?? "");
+      setPreviewIsRaw(false);
       setPreviewWarnings(d.warnings ?? []);
     } else {
       setPreviewErr(d.error ?? "Preview failed");
@@ -543,16 +568,25 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                 <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-100 flex-shrink-0">
                   <Eye size={12} className="text-gray-400" />
                   <span className="text-xs font-semibold text-gray-500">Document Preview</span>
-                  {previewHtml && (
-                    <span className="ml-auto text-[10px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-semibold">
-                      Live
-                    </span>
-                  )}
-                  {previewing && (
+                  {previewing ? (
                     <span className="ml-auto text-[10px] text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
                       <Loader2 size={9} className="animate-spin" /> Rendering
                     </span>
-                  )}
+                  ) : previewHtml ? (
+                    <>
+                      <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold ${previewIsRaw ? "text-amber-600 bg-amber-50" : "text-green-600 bg-green-50"}`}>
+                        {previewIsRaw ? "Template" : "Merged"}
+                      </span>
+                      {!previewIsRaw && (
+                        <button
+                          onClick={() => { setPreviewHtml(""); setPreviewIsRaw(true); loadRawPreview(); }}
+                          className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
+                          title="Back to template view">
+                          <RotateCcw size={9} /> Reset
+                        </button>
+                      )}
+                    </>
+                  ) : null}
                 </div>
 
                 {previewErr && (
