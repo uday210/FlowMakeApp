@@ -72,13 +72,15 @@ export async function GET(req: Request, { params }: Params) {
     for (const [k, v] of Object.entries(fd)) {
       fieldValues[k] = v;
     }
-    if (Object.keys(fieldValues).length === 0 && r.signature_data &&
+    if (Object.keys(fd).length === 0 && r.signature_data &&
         (r.signature_type === "draw" || r.signature_type === "type")) {
+      // Map canvas/typed signature to matching signature fields
       for (const field of fields ?? []) {
         if (field.type === "signature" || field.type === "initials") {
-          const matchByEmail = !field.signer_email || field.signer_email === r.signer_email;
-          const matchByRole  = r.signer_role && field.signer_email === r.signer_role;
-          if (matchByEmail || matchByRole) {
+          const isAllSigners = !field.signer_email;  // empty = All Signers slot
+          const matchByEmail = field.signer_email === r.signer_email;
+          const matchByRole  = !!(r.signer_role && field.signer_email === r.signer_role);
+          if (isAllSigners || matchByEmail || matchByRole) {
             fieldValues[field.id] = r.signature_data as string;
           }
         }

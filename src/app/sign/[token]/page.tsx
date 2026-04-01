@@ -90,6 +90,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
             const hasAssignedFields = allFields.some((f) => f.signer_email);
             const myFields = hasAssignedFields
               ? allFields.filter((f) =>
+                  !f.signer_email ||                                              // "All Signers" field
                   f.signer_email === data.signer_email ||
                   (data.signer_role && f.signer_email === data.signer_role)
                 )
@@ -113,7 +114,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
               const myFieldIds = new Set(myFields.map((f) => f.id));
               const prevFields = allFields.filter(
                 (f) =>
-                  f.signer_email &&
+                  f.signer_email &&           // skip "All Signers" fields (empty signer_email)
                   !myFieldIds.has(f.id) &&
                   (prevEmails.has(f.signer_email) || prevRoles.has(f.signer_email))
               );
