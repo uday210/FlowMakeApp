@@ -45,59 +45,47 @@ function MakeEdge({
 
   const sourceStatus = nodeStatuses[source];
   const hasRun = Object.keys(nodeStatuses).length > 0;
+  const isSuccess = hasRun && sourceStatus === "success";
+  const isError   = hasRun && sourceStatus === "error";
+  const isSkipped = hasRun && !sourceStatus;
 
-  // Color logic
-  let baseColor = "#cbd5e1";      // default gray
-  let dotColor  = "#94a3b8";
-  let opacity   = 1;
+  // When a run has happened, completed edges become solid — no animation
+  const strokeColor = selected ? "#7c3aed"
+    : isSuccess ? "#4ade80"   // green-400 — softer than pure green
+    : isError   ? "#f87171"   // red-400
+    : "#cbd5e1";              // default gray
 
-  if (selected) {
-    baseColor = "#7c3aed";
-    dotColor  = "#7c3aed";
-  } else if (hasRun) {
-    if (sourceStatus === "success") {
-      baseColor = "#22c55e";
-      dotColor  = "#16a34a";
-    } else if (sourceStatus === "error") {
-      baseColor = "#ef4444";
-      dotColor  = "#dc2626";
-    } else {
-      // not reached / skipped
-      opacity = 0.35;
-    }
-  }
-
-  const arrowFill = selected ? "#7c3aed" : hasRun && sourceStatus === "success" ? "#16a34a" : hasRun && sourceStatus === "error" ? "#dc2626" : "#94a3b8";
+  const arrowFill = selected ? "#7c3aed"
+    : isSuccess ? "#4ade80"
+    : isError   ? "#f87171"
+    : "#94a3b8";
 
   return (
     <>
-      {/* Glow when selected */}
+      {/* Selection glow */}
       {selected && (
-        <path d={edgePath} fill="none" stroke="#7c3aed" strokeWidth={6} strokeOpacity={0.15} strokeLinecap="round" />
-      )}
-      {/* Glow on success */}
-      {!selected && sourceStatus === "success" && hasRun && (
-        <path d={edgePath} fill="none" stroke="#22c55e" strokeWidth={6} strokeOpacity={0.15} strokeLinecap="round" />
-      )}
-      {/* Glow on error */}
-      {!selected && sourceStatus === "error" && hasRun && (
-        <path d={edgePath} fill="none" stroke="#ef4444" strokeWidth={6} strokeOpacity={0.15} strokeLinecap="round" />
+        <path d={edgePath} fill="none" stroke="#7c3aed" strokeWidth={8} strokeOpacity={0.12} strokeLinecap="round" />
       )}
       {/* Wider invisible hit area */}
       <path d={edgePath} fill="none" stroke="transparent" strokeWidth={12} />
-      {/* Base path */}
+      {/* Main edge line */}
       <path
         d={edgePath} fill="none"
-        stroke={baseColor} strokeWidth={2} strokeLinecap="round"
-        style={{ opacity }}
+        stroke={strokeColor}
+        strokeWidth={isSuccess || isError ? 2.5 : 2}
+        strokeLinecap="round"
+        style={{ opacity: isSkipped ? 0.3 : 1 }}
       />
-      {/* Animated running dots */}
-      <path
-        d={edgePath} fill="none"
-        stroke={dotColor} strokeWidth={2.5} strokeLinecap="round"
-        strokeDasharray="6 16"
-        style={{ animation: "makeEdgeDash 1.2s linear infinite", opacity }}
-      />
+      {/* Animated dashes — only shown when no run result yet */}
+      {!hasRun && (
+        <path
+          d={edgePath} fill="none"
+          stroke={selected ? "#7c3aed" : "#94a3b8"}
+          strokeWidth={2.5} strokeLinecap="round"
+          strokeDasharray="6 16"
+          style={{ animation: "makeEdgeDash 1.2s linear infinite" }}
+        />
+      )}
       {markerEnd && (
         <defs>
           <marker id={`arrow-${id}`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
