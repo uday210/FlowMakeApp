@@ -84,6 +84,46 @@ async function runWorkflowForTool(workflowId: string, orgId: string, args: Recor
   return "Workflow executed successfully";
 }
 
+/** Check alert thresholds and fire notifications (non-fatal) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function checkAlerts(admin: any, serverId: string, orgId: string) {
+  try {
+    const { data: alerts } = await admin
+      .from("mcp_alert_configs")
+      .select("*")
+      .eq("server_id", serverId)
+      .eq("org_id", orgId)
+      .eq("enabled", true);
+    if (!alerts?.length) return;
+
+    for (const alert of alerts) {
+      const since = new Date(Date.now() - alert.window_minutes * 60 * 1000).toISOString();
+      const { data: execs } = await admin
+        .from("mcp_tool_executions")
+        .select("status")
+        .eq("server_id", serverId)
+        .eq("org_id", orgId)
+        .gte("created_at", since);
+      if (!execs?.length) continue;
+      const errorRate = execs.filter((e: { status: string }) => e.status === "error").length / execs.length;
+      if (errorRate < alert.threshold) continue;
+
+      const msg = `⚠️ MCP Alert: error rate ${(errorRate * 100).toFixed(1)}% over last ${alert.window_minutes}min (threshold: ${(alert.threshold * 100).toFixed(0)}%) — server ${serverId}`;
+      if (alert.notify_slack_url) {
+        await fetch(alert.notify_slack_url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: msg }),
+        }).catch(() => {});
+      }
+      if (alert.notify_email) {
+        const { sendEmail } = await import("./emailSender");
+        await sendEmail({ orgId, to: alert.notify_email, subject: "MCP Tool Alert", htmlBody: `<p>${msg}</p>`, plainBody: msg }).catch(() => {});
+      }
+    }
+  } catch { /* non-fatal */ }
+}
+
 /** Log a tool execution to mcp_tool_executions (non-fatal) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function logExecution(
@@ -193,6 +233,7 @@ export async function handleMcpRequest(
           duration_ms: duration,
           transport,
         });
+        await checkAlerts(admin, server.id, server.org_id);
         return ok(id, { content: [{ type: "text", text }] });
       } catch (e) {
         const duration = Date.now() - startMs;
@@ -209,6 +250,7 @@ export async function handleMcpRequest(
           duration_ms: duration,
           transport,
         });
+        await checkAlerts(admin, server.id, server.org_id);
         return err(id, -32603, msg);
       }
     }

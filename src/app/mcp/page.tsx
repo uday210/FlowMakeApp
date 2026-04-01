@@ -8,6 +8,7 @@ import {
   ChevronUp, ToggleLeft, ToggleRight, Link2, AlertCircle,
   CheckCircle2, Settings, Zap, ShieldCheck, ShieldOff, Eye, EyeOff, RotateCcw,
   History, Clock, XCircle, ChevronRight,
+  BarChart2, Bell, Code2, Package, Download,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -72,6 +73,52 @@ interface InputParam {
   required: boolean;
 }
 
+// Analytics types
+interface AnalyticsData {
+  total_calls: number;
+  error_rate: number;
+  avg_duration_ms: number;
+  calls_by_tool: Record<string, number>;
+  calls_by_day: { date: string; calls: number }[];
+}
+
+// Alerts types
+interface McpAlert {
+  id: string;
+  error_threshold: number;
+  window_minutes: number;
+  slack_webhook?: string;
+  email?: string;
+  enabled: boolean;
+  created_at: string;
+}
+
+// Marketplace entry type
+interface MarketplaceEntry {
+  name: string;
+  description: string;
+  url: string;
+  installUrl: string;
+  icon: string;
+}
+
+// ── Marketplace Data ──────────────────────────────────────────────────────────
+
+const MARKETPLACE_ENTRIES: MarketplaceEntry[] = [
+  { name: "Brave Search", description: "Web search via Brave Search API", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search", installUrl: "https://mcp.bravesearch.com/sse", icon: "🔍" },
+  { name: "GitHub", description: "Search repos, issues, PRs via GitHub API", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/github", installUrl: "https://api.githubcopilot.com/mcp/", icon: "🐙" },
+  { name: "Filesystem", description: "Read/write local files and directories", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem", installUrl: "", icon: "📁" },
+  { name: "PostgreSQL", description: "Query and inspect PostgreSQL databases", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/postgres", installUrl: "", icon: "🐘" },
+  { name: "Slack", description: "Post messages and read channels via Slack API", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/slack", installUrl: "", icon: "💬" },
+  { name: "Puppeteer", description: "Browser automation and web scraping", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer", installUrl: "", icon: "🤖" },
+  { name: "AWS KB Retrieval", description: "Retrieve data from AWS Knowledge Base", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/aws-kb-retrieval-server", installUrl: "", icon: "☁️" },
+  { name: "Google Maps", description: "Places search, directions, geocoding", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/google-maps", installUrl: "", icon: "🗺️" },
+  { name: "Fetch", description: "HTTP fetch and web content extraction", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch", installUrl: "", icon: "🌐" },
+  { name: "Memory", description: "Persistent key-value memory for agents", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/memory", installUrl: "", icon: "🧠" },
+  { name: "Sentry", description: "Query issues and events from Sentry", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/sentry", installUrl: "", icon: "🚨" },
+  { name: "Stripe", description: "Manage payments, customers, subscriptions", url: "https://mcp.stripe.com/", installUrl: "https://mcp.stripe.com/", icon: "💳" },
+];
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function StatusDot({ status }: { status: McpServer["status"] }) {
@@ -93,20 +140,341 @@ function buildInputSchema(params: InputParam[]): Record<string, unknown> {
   return { type: "object", properties, required };
 }
 
+// ── Marketplace Modal ─────────────────────────────────────────────────────────
+
+function MarketplaceModal({
+  onClose,
+  onInstall,
+}: {
+  onClose: () => void;
+  onInstall: (entry: MarketplaceEntry) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
+  const filtered = MARKETPLACE_ENTRIES.filter((e) =>
+    e.name.toLowerCase().includes(search.toLowerCase()) ||
+    e.description.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const copyUrl = async (url: string) => {
+    await navigator.clipboard.writeText(url);
+    setCopiedUrl(url);
+    setTimeout(() => setCopiedUrl(null), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Package size={16} className="text-violet-600" />
+            <h2 className="text-sm font-semibold text-gray-800">MCP Server Marketplace</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
+        </div>
+
+        <div className="px-6 py-3 border-b border-gray-100">
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search servers by name or description…"
+              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-violet-400"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {filtered.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 text-sm">No servers match your search.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filtered.map((entry) => (
+                <div key={entry.name} className="border border-gray-200 rounded-xl p-4 flex flex-col gap-3 hover:border-violet-200 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl flex-shrink-0">{entry.icon}</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{entry.name}</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{entry.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-auto">
+                    <a
+                      href={entry.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      <ExternalLink size={10} /> View Docs
+                    </a>
+                    <div className="ml-auto">
+                      {entry.installUrl ? (
+                        <button
+                          onClick={() => onInstall(entry)}
+                          className="flex items-center gap-1 text-[11px] bg-violet-600 text-white px-2.5 py-1 rounded-lg hover:bg-violet-700 transition-colors"
+                        >
+                          <Download size={10} /> Install
+                        </button>
+                      ) : (
+                        <div className="flex flex-col items-end gap-1">
+                          <button
+                            onClick={() => copyUrl(entry.url)}
+                            className="flex items-center gap-1 text-[11px] text-gray-600 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg transition-colors"
+                          >
+                            {copiedUrl === entry.url ? <CheckCheck size={10} className="text-green-500" /> : <Copy size={10} />}
+                            Copy URL
+                          </button>
+                          <span className="text-[10px] text-gray-400">Requires local setup</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SDK Modal ─────────────────────────────────────────────────────────────────
+
+function SdkModal({ server, onClose }: { server: McpServer; onClose: () => void }) {
+  const [sdkTab, setSdkTab] = useState<"python" | "javascript">("python");
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://yourapp.com";
+  const slug = server.slug ?? "your-server-slug";
+  const mcpUrl = `${origin}/api/mcp/hosted/${slug}`;
+  const sseUrl = `${origin}/api/mcp/hosted/${slug}/sse`;
+
+  const pythonSnippet = `import requests
+
+MCP_URL = "${mcpUrl}"
+# or SSE: "${sseUrl}"
+
+def call_tool(tool_name: str, arguments: dict):
+    response = requests.post(
+        MCP_URL,
+        json={
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": {"name": tool_name, "arguments": arguments},
+            "id": 1
+        },
+        headers={"Content-Type": "application/json"}
+    )
+    return response.json()
+
+# Example
+result = call_tool("your_tool_name", {"param1": "value1"})
+print(result)`;
+
+  const jsSnippet = `const MCP_URL = "${mcpUrl}";
+
+async function callTool(toolName, arguments) {
+  const response = await fetch(MCP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: "tools/call",
+      params: { name: toolName, arguments },
+      id: 1
+    })
+  });
+  return response.json();
+}
+
+// Example
+const result = await callTool("your_tool_name", { param1: "value1" });
+console.log(result);`;
+
+  const copySnippet = async (text: string, key: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const activeSnippet = sdkTab === "python" ? pythonSnippet : jsSnippet;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Code2 size={16} className="text-violet-600" />
+            <h2 className="text-sm font-semibold text-gray-800">SDK Code Export — {server.name}</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
+        </div>
+
+        <div className="px-6 pt-4 pb-2">
+          <div className="flex gap-1">
+            {(["python", "javascript"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setSdkTab(t)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${sdkTab === t ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+              >
+                {t === "python" ? "Python" : "JavaScript"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="relative mt-2">
+            <pre className="text-[11px] font-mono bg-gray-950 text-gray-100 rounded-xl p-4 overflow-x-auto whitespace-pre leading-relaxed">
+              {activeSnippet}
+            </pre>
+            <button
+              onClick={() => copySnippet(activeSnippet, sdkTab)}
+              className="absolute top-3 right-3 flex items-center gap-1 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded-lg transition-colors"
+            >
+              {copied === sdkTab ? <CheckCheck size={10} className="text-green-400" /> : <Copy size={10} />}
+              {copied === sdkTab ? "Copied!" : "Copy"}
+            </button>
+          </div>
+
+          <div className="mt-3 bg-violet-50 rounded-lg px-3 py-2">
+            <p className="text-[11px] text-violet-700">
+              <strong>Endpoint:</strong>{" "}
+              <code className="bg-violet-100 px-1 rounded font-mono">{mcpUrl}</code>
+            </p>
+            {server.auth_key && (
+              <p className="text-[11px] text-violet-600 mt-1">
+                Add <code className="bg-violet-100 px-1 rounded font-mono">Authorization: Bearer &lt;your-key&gt;</code> header for authentication.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── OpenAPI Importer Modal ────────────────────────────────────────────────────
+
+function OpenApiImporterModal({
+  serverId,
+  onClose,
+  onImported,
+}: {
+  serverId: string;
+  onClose: () => void;
+  onImported: () => void;
+}) {
+  const [spec, setSpec] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<{ tools: string[] } | null>(null);
+  const [error, setError] = useState("");
+
+  const doImport = async () => {
+    if (!spec.trim()) { setError("Paste an OpenAPI/Swagger JSON spec first"); return; }
+    setImporting(true); setError(""); setResult(null);
+    try {
+      const res = await fetch(`/api/mcp-toolboxes/${serverId}/import-openapi`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spec }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Import failed"); setImporting(false); return; }
+      setResult({ tools: data.tools ?? [] });
+      setImporting(false);
+    } catch {
+      setError("Network error");
+      setImporting(false);
+    }
+  };
+
+  const handleDone = () => {
+    if (result) onImported();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Download size={16} className="text-violet-600" />
+            <h2 className="text-sm font-semibold text-gray-800">Import from OpenAPI</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {result ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-green-600 bg-green-50 rounded-lg px-3 py-2">
+                <CheckCircle2 size={14} />
+                <span className="text-sm font-medium">Imported {result.tools.length} tool{result.tools.length !== 1 ? "s" : ""}</span>
+              </div>
+              {result.tools.length > 0 && (
+                <div className="text-[11px] text-gray-600 bg-gray-50 rounded-lg px-3 py-2 font-mono">
+                  {result.tools.join(", ")}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1.5 block">OpenAPI / Swagger JSON Spec</label>
+                <textarea
+                  value={spec}
+                  onChange={(e) => setSpec(e.target.value)}
+                  placeholder={'{\n  "openapi": "3.0.0",\n  "info": { "title": "My API", "version": "1.0.0" },\n  "paths": { ... }\n}'}
+                  rows={14}
+                  className="w-full px-3 py-2 text-xs font-mono border border-gray-200 rounded-xl focus:outline-none focus:border-violet-400 resize-none leading-relaxed"
+                />
+              </div>
+              {error && <p className="text-xs text-red-500">{error}</p>}
+            </>
+          )}
+        </div>
+
+        <div className="flex gap-2 px-6 pb-5 border-t border-gray-100 pt-3">
+          {result ? (
+            <button onClick={handleDone}
+              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 transition-colors">
+              Done
+            </button>
+          ) : (
+            <button onClick={doImport} disabled={importing}
+              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors">
+              {importing ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+              {importing ? "Importing…" : "Import"}
+            </button>
+          )}
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Create Server Modal ───────────────────────────────────────────────────────
 
 function CreateServerModal({
   onClose,
   onCreated,
   initialType = "hosted",
+  initialUrl = "",
 }: {
   onClose: () => void;
   onCreated: (s: McpServer) => void;
   initialType?: "hosted" | "external";
+  initialUrl?: string;
 }) {
   const [tab, setTab] = useState<"external" | "hosted">(initialType);
   const [form, setForm] = useState({
-    name: "", url: "", auth_key: "", description: "", slug: "", transport: "sse",
+    name: "", url: initialUrl, auth_key: "", description: "", slug: "", transport: "sse",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -426,6 +794,318 @@ function ExecutionRow({ exec }: { exec: ToolExecution }) {
   );
 }
 
+// ── Analytics Tab Content ─────────────────────────────────────────────────────
+
+function AnalyticsTabContent({ serverId }: { serverId: string }) {
+  const [days, setDays] = useState<7 | 30>(7);
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const fetchAnalytics = useCallback(async (d: number) => {
+    setLoading(true); setError("");
+    try {
+      const res = await fetch(`/api/mcp-toolboxes/${serverId}/analytics?days=${d}`);
+      if (!res.ok) { setError("Failed to load analytics"); setLoading(false); return; }
+      const json = await res.json();
+      setData(json);
+    } catch {
+      setError("Network error");
+    }
+    setLoading(false);
+  }, [serverId]);
+
+  useEffect(() => { fetchAnalytics(days); }, [fetchAnalytics, days]);
+
+  const maxToolCalls = data ? Math.max(...Object.values(data.calls_by_tool), 1) : 1;
+  const maxDayCalls = data ? Math.max(...data.calls_by_day.map((d) => d.calls), 1) : 1;
+
+  return (
+    <div className="mt-3 space-y-4">
+      {/* Period toggle */}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-gray-500 font-medium">Call Analytics</span>
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+          {([7, 30] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-colors ${days === d ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+            >
+              {d}d
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-8 flex justify-center"><Loader2 size={16} className="animate-spin text-violet-400" /></div>
+      ) : error ? (
+        <div className="py-6 text-center">
+          <AlertCircle size={16} className="text-red-300 mx-auto mb-2" />
+          <p className="text-[11px] text-red-400">{error}</p>
+        </div>
+      ) : data ? (
+        <>
+          {/* Stat cards */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-violet-50 rounded-xl px-3 py-2.5 text-center">
+              <p className="text-[10px] text-violet-500 font-medium uppercase tracking-wide">Total Calls</p>
+              <p className="text-lg font-bold text-violet-700 mt-0.5">{data.total_calls.toLocaleString()}</p>
+            </div>
+            <div className="bg-red-50 rounded-xl px-3 py-2.5 text-center">
+              <p className="text-[10px] text-red-400 font-medium uppercase tracking-wide">Error Rate</p>
+              <p className="text-lg font-bold text-red-500 mt-0.5">{(data.error_rate * 100).toFixed(1)}%</p>
+            </div>
+            <div className="bg-indigo-50 rounded-xl px-3 py-2.5 text-center">
+              <p className="text-[10px] text-indigo-400 font-medium uppercase tracking-wide">Avg Duration</p>
+              <p className="text-lg font-bold text-indigo-600 mt-0.5">{Math.round(data.avg_duration_ms)}ms</p>
+            </div>
+          </div>
+
+          {/* Calls by Tool */}
+          {Object.keys(data.calls_by_tool).length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Calls by Tool</p>
+              <div className="space-y-1.5">
+                {Object.entries(data.calls_by_tool)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([toolName, count]) => (
+                    <div key={toolName} className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-gray-600 w-28 flex-shrink-0 truncate">{toolName}</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-2">
+                        <div
+                          className="bg-violet-400 rounded-full h-2 transition-all"
+                          style={{ width: `${Math.max(2, (count / maxToolCalls) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-gray-500 w-8 text-right flex-shrink-0">{count}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Last N days trend */}
+          {data.calls_by_day.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Last {days} Days Trend</p>
+              <div className="space-y-1.5">
+                {data.calls_by_day.map((entry) => (
+                  <div key={entry.date} className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-500 w-16 flex-shrink-0">
+                      {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-2">
+                      <div
+                        className="bg-indigo-400 rounded-full h-2 transition-all"
+                        style={{ width: `${Math.max(entry.calls > 0 ? 2 : 0, (entry.calls / maxDayCalls) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-gray-500 w-8 text-right flex-shrink-0">{entry.calls}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+// ── Alerts Tab Content ────────────────────────────────────────────────────────
+
+function AlertsTabContent({ serverId }: { serverId: string }) {
+  const [alerts, setAlerts] = useState<McpAlert[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    error_threshold_pct: 10,
+    window_minutes: 15,
+    slack_webhook: "",
+    email: "",
+    enabled: true,
+  });
+
+  const loadAlerts = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/mcp-toolboxes/${serverId}/alerts`);
+    const data = await res.json();
+    setAlerts(Array.isArray(data) ? data : []);
+    setLoading(false);
+  }, [serverId]);
+
+  useEffect(() => { loadAlerts(); }, [loadAlerts]);
+
+  const saveAlert = async () => {
+    if (!form.slack_webhook && !form.email) {
+      setError("Provide at least a Slack webhook URL or email address");
+      return;
+    }
+    setSaving(true); setError("");
+    const res = await fetch(`/api/mcp-toolboxes/${serverId}/alerts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        error_threshold: form.error_threshold_pct / 100,
+        window_minutes: form.window_minutes,
+        slack_webhook: form.slack_webhook || undefined,
+        email: form.email || undefined,
+        enabled: form.enabled,
+      }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) { setError(data.error ?? "Failed to save"); return; }
+    setAlerts((prev) => [...prev, data as McpAlert]);
+    setShowForm(false);
+    setForm({ error_threshold_pct: 10, window_minutes: 15, slack_webhook: "", email: "", enabled: true });
+  };
+
+  const deleteAlert = async (alertId: string) => {
+    if (!confirm("Delete this alert?")) return;
+    setDeletingId(alertId);
+    await fetch(`/api/mcp-toolboxes/${serverId}/alerts?alert_id=${alertId}`, { method: "DELETE" });
+    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+    setDeletingId(null);
+  };
+
+  return (
+    <div className="mt-3 space-y-3">
+      {loading ? (
+        <div className="py-6 flex justify-center"><Loader2 size={16} className="animate-spin text-violet-400" /></div>
+      ) : (
+        <>
+          {alerts.length === 0 && !showForm && (
+            <div className="py-4 text-center">
+              <Bell size={18} className="text-gray-300 mx-auto mb-2" />
+              <p className="text-[11px] text-gray-400">No alerts configured. Add one to get notified on errors.</p>
+            </div>
+          )}
+
+          {alerts.map((alert) => (
+            <div key={alert.id} className="flex items-start justify-between bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Bell size={11} className="text-amber-500" />
+                  <span className="text-[11px] font-medium text-gray-700">
+                    Error &gt; {(alert.error_threshold * 100).toFixed(0)}% in {alert.window_minutes}m window
+                  </span>
+                  {!alert.enabled && (
+                    <span className="text-[10px] bg-gray-200 text-gray-500 px-1.5 rounded">disabled</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 pl-4">
+                  {alert.slack_webhook && (
+                    <span className="text-[10px] text-gray-500">Slack: configured</span>
+                  )}
+                  {alert.email && (
+                    <span className="text-[10px] text-gray-500">Email: {alert.email}</span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => deleteAlert(alert.id)}
+                disabled={deletingId === alert.id}
+                className="p-1 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+              >
+                {deletingId === alert.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+              </button>
+            </div>
+          ))}
+
+          {showForm ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-3">
+              <p className="text-[11px] font-semibold text-gray-700">New Alert</p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-medium text-gray-600 mb-1 block">Error Threshold %</label>
+                  <input
+                    type="number" min={1} max={100}
+                    value={form.error_threshold_pct}
+                    onChange={(e) => setForm({ ...form, error_threshold_pct: Number(e.target.value) })}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-medium text-gray-600 mb-1 block">Window (minutes)</label>
+                  <select
+                    value={form.window_minutes}
+                    onChange={(e) => setForm({ ...form, window_minutes: Number(e.target.value) })}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-violet-400"
+                  >
+                    <option value={5}>5</option>
+                    <option value={15}>15</option>
+                    <option value={30}>30</option>
+                    <option value={60}>60</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-medium text-gray-600 mb-1 block">Slack Webhook URL</label>
+                <input
+                  type="text"
+                  value={form.slack_webhook}
+                  onChange={(e) => setForm({ ...form, slack_webhook: e.target.value })}
+                  placeholder="https://hooks.slack.com/services/…"
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-medium text-gray-600 mb-1 block">Email</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="you@example.com"
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setForm({ ...form, enabled: !form.enabled })}
+                  className="text-gray-400 hover:text-violet-600 transition-colors"
+                >
+                  {form.enabled ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
+                </button>
+                <span className="text-[11px] text-gray-600">{form.enabled ? "Enabled" : "Disabled"}</span>
+              </div>
+
+              {error && <p className="text-[10px] text-red-500">{error}</p>}
+
+              <div className="flex gap-2">
+                <button onClick={saveAlert} disabled={saving}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white text-[11px] font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors">
+                  {saving ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />} Save Alert
+                </button>
+                <button onClick={() => { setShowForm(false); setError(""); }}
+                  className="px-3 py-1.5 text-[11px] text-gray-500 hover:bg-gray-200 rounded-lg transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowForm(true)}
+              className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] text-violet-600 hover:bg-violet-50 rounded-lg border border-dashed border-violet-200 transition-colors"
+            >
+              <Plus size={11} /> Add Alert
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Server Card ───────────────────────────────────────────────────────────────
 
 function ServerCard({
@@ -448,10 +1128,12 @@ function ServerCard({
   const [togglingTool, setTogglingTool] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
-  const [expandedTab, setExpandedTab] = useState<"tools" | "history">("tools");
+  const [expandedTab, setExpandedTab] = useState<"tools" | "history" | "analytics" | "alerts">("tools");
   const [history, setHistory] = useState<ToolExecution[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [clearingHistory, setClearingHistory] = useState(false);
+  const [showSdk, setShowSdk] = useState(false);
+  const [showOpenApiImporter, setShowOpenApiImporter] = useState(false);
 
   const loadTools = useCallback(async () => {
     if (server.type !== "hosted") return;
@@ -592,6 +1274,13 @@ function ServerCard({
             </div>
 
             <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+              {/* SDK button for hosted servers */}
+              {isHosted && server.slug && (
+                <button onClick={() => setShowSdk(true)} title="SDK Code Export"
+                  className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                  <Code2 size={14} />
+                </button>
+              )}
               {/* Enable/disable toggle */}
               <button onClick={toggleServer} title={server.enabled ? "Disable" : "Enable"}
                 className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
@@ -710,10 +1399,16 @@ function ServerCard({
                 </button>
               )}
               {isHosted && (
-                <button onClick={() => setShowAddTool(true)}
-                  className="flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-700 px-2 py-1 hover:bg-violet-50 rounded-lg transition-colors">
-                  <Plus size={11} /> Add Tool
-                </button>
+                <>
+                  <button onClick={() => { setExpanded(true); setShowOpenApiImporter(true); }}
+                    className="flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-700 px-2 py-1 hover:bg-indigo-50 rounded-lg transition-colors">
+                    <Download size={11} /> Import OpenAPI
+                  </button>
+                  <button onClick={() => setShowAddTool(true)}
+                    className="flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-700 px-2 py-1 hover:bg-violet-50 rounded-lg transition-colors">
+                    <Plus size={11} /> Add Tool
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -723,7 +1418,7 @@ function ServerCard({
         {expanded && (
           <div className="border-t border-gray-100">
             {/* Tab bar */}
-            <div className="flex items-center gap-1 px-4 pt-3 pb-0">
+            <div className="flex items-center gap-1 px-4 pt-3 pb-0 flex-wrap">
               <button onClick={() => setExpandedTab("tools")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "tools" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
                 <Wrench size={11} /> Tools {isHosted && tools.length > 0 && `(${tools.length})`}
@@ -731,6 +1426,14 @@ function ServerCard({
               <button onClick={() => setExpandedTab("history")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "history" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
                 <History size={11} /> History {history.length > 0 && `(${history.length})`}
+              </button>
+              <button onClick={() => setExpandedTab("analytics")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "analytics" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
+                <BarChart2 size={11} /> Analytics
+              </button>
+              <button onClick={() => setExpandedTab("alerts")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "alerts" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
+                <Bell size={11} /> Alerts
               </button>
               {expandedTab === "history" && history.length > 0 && (
                 <button onClick={clearHistory} disabled={clearingHistory}
@@ -843,6 +1546,16 @@ function ServerCard({
                   </div>
                 )
               )}
+
+              {/* ── Analytics tab ── */}
+              {expandedTab === "analytics" && (
+                <AnalyticsTabContent serverId={server.id} />
+              )}
+
+              {/* ── Alerts tab ── */}
+              {expandedTab === "alerts" && (
+                <AlertsTabContent serverId={server.id} />
+              )}
             </div>
           </div>
         )}
@@ -860,6 +1573,22 @@ function ServerCard({
           }}
         />
       )}
+
+      {showSdk && (
+        <SdkModal server={server} onClose={() => setShowSdk(false)} />
+      )}
+
+      {showOpenApiImporter && (
+        <OpenApiImporterModal
+          serverId={server.id}
+          onClose={() => setShowOpenApiImporter(false)}
+          onImported={() => {
+            loadTools();
+            setExpanded(true);
+            setExpandedTab("tools");
+          }}
+        />
+      )}
     </>
   );
 }
@@ -873,10 +1602,13 @@ export default function MCPToolboxesPage() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [createType, setCreateType] = useState<"hosted" | "external">("hosted");
+  const [createInitialUrl, setCreateInitialUrl] = useState("");
   const [filter, setFilter] = useState<"all" | "hosted" | "external">("all");
+  const [showMarketplace, setShowMarketplace] = useState(false);
 
-  const openCreate = (type: "hosted" | "external" = "hosted") => {
+  const openCreate = (type: "hosted" | "external" = "hosted", initialUrl = "") => {
     setCreateType(type);
+    setCreateInitialUrl(initialUrl);
     setShowCreate(true);
   };
 
@@ -919,6 +1651,12 @@ export default function MCPToolboxesPage() {
           subtitle="Build your own MCP servers with scenarios as tools, or connect external MCP servers"
           action={
             <div className="flex gap-2">
+              <button
+                onClick={() => setShowMarketplace(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 hover:text-violet-700 transition-colors"
+              >
+                <Package size={14} /> Marketplace
+              </button>
               <button
                 onClick={() => openCreate("external")}
                 className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 hover:text-violet-700 transition-colors"
@@ -973,6 +1711,10 @@ export default function MCPToolboxesPage() {
                 Build your own MCP server with scenarios as tools, or connect an external MCP server
               </p>
               <div className="flex gap-2 justify-center">
+                <button onClick={() => setShowMarketplace(true)}
+                  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 transition-colors">
+                  Browse Marketplace
+                </button>
                 <button onClick={() => openCreate("external")}
                   className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 transition-colors">
                   Connect External
@@ -1028,10 +1770,21 @@ export default function MCPToolboxesPage() {
       {showCreate && (
         <CreateServerModal
           initialType={createType}
+          initialUrl={createInitialUrl}
           onClose={() => setShowCreate(false)}
           onCreated={(s) => {
             setServers((prev) => [s, ...prev]);
             setShowCreate(false);
+          }}
+        />
+      )}
+
+      {showMarketplace && (
+        <MarketplaceModal
+          onClose={() => setShowMarketplace(false)}
+          onInstall={(entry) => {
+            setShowMarketplace(false);
+            openCreate("external", entry.installUrl);
           }}
         />
       )}
