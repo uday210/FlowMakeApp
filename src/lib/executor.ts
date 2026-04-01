@@ -1190,6 +1190,92 @@ async function executeNodeOnce(
         break;
       }
 
+      // ── Doc Composer ─────────────────────────────────────────────────────────
+
+      case "action_generate_document": {
+        const templateId = interpolate(config.template_id as string);
+        if (!templateId) throw new Error("Document template is required");
+
+        const rawOutputName = interpolate((config.output_name as string) || "");
+        const dataRaw = interpolate((config.data as string) || "{}");
+
+        let mergeData: Record<string, unknown> = {};
+        try {
+          mergeData = typeof dataRaw === "string" ? JSON.parse(dataRaw) : (dataRaw as Record<string, unknown>);
+        } catch {
+          throw new Error("Merge Data must be valid JSON");
+        }
+
+        const docSupabase = createServerClient();
+
+        // Fetch template record
+        const { data: docTpl, error: docTplErr } = await docSupabase
+          .from("doc_templates")
+          .select("id, name, file_path, org_id")
+          .eq("id", templateId)
+          .eq("org_id", ctx.orgId)
+          .single();
+        if (docTplErr || !docTpl) throw new Error("Document template not found");
+        if (!docTpl.file_path) throw new Error("Template file not uploaded");
+
+        // Download DOCX
+        const { data: fileData, error: dlErr } = await docSupabase.storage
+          .from("doc-templates")
+          .download(docTpl.file_path as string);
+        if (dlErr || !fileData) throw new Error("Could not load template file");
+
+        const templateBuffer = Buffer.from(await fileData.arrayBuffer());
+
+        // Merge
+        const { mergeDocx } = await import("./docMerge");
+        const mergeResult = await mergeDocx(templateBuffer, mergeData);
+
+        // Save output
+        const ts = Date.now();
+        const outputName = rawOutputName || `${docTpl.name}_${ts}.docx`;
+        const outputPath = `${ctx.orgId}/${templateId}/${ts}_${outputName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+
+        const { error: saveErr } = await docSupabase.storage
+          .from("generated-docs")
+          .upload(outputPath, mergeResult.buffer, {
+            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            upsert: false,
+          });
+        if (saveErr) throw new Error(`Failed to save document: ${saveErr.message}`);
+
+        const { data: signedData } = await docSupabase.storage
+          .from("generated-docs")
+          .createSignedUrl(outputPath, 3600);
+
+        const { data: genDoc } = await docSupabase
+          .from("generated_docs")
+          .insert({
+            org_id: ctx.orgId,
+            template_id: docTpl.id,
+            template_name: docTpl.name,
+            name: outputName,
+            merge_data: mergeData,
+            output_path: outputPath,
+            output_format: "docx",
+            file_size: mergeResult.buffer.length,
+            status: "generated",
+            workflow_execution_id: null,
+          })
+          .select("id")
+          .single();
+
+        try { await docSupabase.rpc("increment_doc_template_usage", { template_id: templateId }); } catch { /* non-fatal */ }
+
+        output = {
+          document_url: signedData?.signedUrl ?? null,
+          document_id: genDoc?.id ?? null,
+          template_id: templateId,
+          output_name: outputName,
+          file_size: mergeResult.buffer.length,
+        };
+        break;
+      }
+
       // ── Flow Control ──────────────────────────────────────────────────────────
 
       case "action_iterator": {

@@ -30,6 +30,7 @@ export type NodeType =
   | "action_smtp"
   | "action_send_email_template"
   | "action_send_esign_template"
+  | "action_generate_document"
   | "action_rss"
   | "action_datetime"
   | "action_math"
@@ -204,7 +205,7 @@ export interface NodeDefinition {
 export interface ConfigField {
   key: string;
   label: string;
-  type: "text" | "textarea" | "select" | "number" | "password" | "email_template_select" | "esign_template_select";
+  type: "text" | "textarea" | "select" | "number" | "password" | "email_template_select" | "esign_template_select" | "doc_template_select";
   placeholder?: string;
   required?: boolean;
   options?: { label: string; value: string }[];

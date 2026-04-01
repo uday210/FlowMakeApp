@@ -1866,6 +1866,24 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
       { key: "limit", label: "Limit (query)", type: "number", placeholder: "100" },
     ],
   },
+  // ── Doc Composer ─────────────────────────────────────────────────────────
+  {
+    type: "action_generate_document",
+    label: "Generate Document",
+    description: "Merge data into a Word (.docx) template and produce a downloadable document",
+    category: "action",
+    subcategory: "Documents",
+    color: "#7c3aed",
+    icon: "FileText",
+    defaultConfig: { template_id: "", output_name: "", data: "{}" },
+    configFields: [
+      { key: "template_id", label: "Document Template", type: "doc_template_select", required: true },
+      { key: "output_name", label: "Output File Name", type: "text", placeholder: "e.g. Invoice_{{trigger.id}}.docx" },
+      { key: "data", label: "Merge Data (JSON)", type: "textarea",
+        placeholder: '{\n  "customer_name": "{{trigger.customer_name}}",\n  "amount": {{trigger.amount}},\n  "items": {{trigger.line_items}}\n}',
+        required: true },
+    ],
+  },
 ];
 
 export const NODE_DEF_MAP = Object.fromEntries(

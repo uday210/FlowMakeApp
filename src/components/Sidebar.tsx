@@ -50,6 +50,7 @@ const SUBCATEGORY_ORDER = [
   "Message Brokers",
   "Utilities",
   "Infrastructure",
+  "Documents",
 ];
 
 const SUBCATEGORY_MAP: Record<string, string> = {
@@ -153,6 +154,8 @@ const SUBCATEGORY_MAP: Record<string, string> = {
   action_sftp:             "Infrastructure",
   // Custom Tables
   action_user_table:       "Storage",
+  // Documents
+  action_generate_document: "Documents",
 };
 
 const SUBCATEGORY_COLORS: Record<string, string> = {
@@ -171,6 +174,7 @@ const SUBCATEGORY_COLORS: Record<string, string> = {
   "Message Brokers":  "#000000",
   "Utilities":        "#8e44ad",
   "Infrastructure":   "#1a1a2e",
+  "Documents":        "#7c3aed",
 };
 
 function NodeCard({ def }: { def: NodeDefinition }) {

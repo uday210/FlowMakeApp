@@ -47,6 +47,26 @@ function EsignTemplateSelect({ value, onChange, className }: { value: string; on
   );
 }
 
+// ─── Doc Template Select ─────────────────────────────────────────────────────
+
+function DocTemplateSelect({ value, onChange, className }: { value: string; onChange: (v: string) => void; className: string }) {
+  const [templates, setTemplates] = useState<{ id: string; name: string; category: string }[]>([]);
+  useEffect(() => {
+    fetch("/api/doc-templates")
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setTemplates(d); })
+      .catch(() => {});
+  }, []);
+  return (
+    <select className={className} value={value} onChange={e => onChange(e.target.value)}>
+      <option value="">— Select document template —</option>
+      {templates.map(t => (
+        <option key={t.id} value={t.id}>{t.name}{t.category ? ` (${t.category})` : ""}</option>
+      ))}
+    </select>
+  );
+}
+
 // ─── Node output fields map ────────────────────────────────────────────────────
 // Maps node types to the output fields they produce, shown as autocomplete suggestions.
 
@@ -124,6 +144,7 @@ const NODE_OUTPUT_FIELDS: Record<string, { field: string; label: string }[]> = {
   action_s3:            [{ field: "url", label: "Object URL" }, { field: "key", label: "S3 key" }, { field: "etag", label: "ETag" }],
   action_esign_request: [{ field: "id", label: "Request ID" }, { field: "status", label: "Signing status" }, { field: "signed_url", label: "Signed doc URL" }],
   action_send_esign_template: [{ field: "session_id", label: "Session ID" }, { field: "document_id", label: "Document ID" }, { field: "mode", label: "Signing mode" }, { field: "signers", label: "Signers array" }, { field: "emails_sent", label: "Emails sent" }],
+  action_generate_document: [{ field: "document_url", label: "Download URL" }, { field: "document_id", label: "Generated doc ID" }, { field: "template_id", label: "Template ID" }, { field: "output_name", label: "File name" }, { field: "file_size", label: "File size (bytes)" }],
   action_rss:           [{ field: "title", label: "Feed title" }, { field: "items", label: "Feed items" }, { field: "link", label: "Feed URL" }],
   action_xml:           [{ field: "result", label: "Parsed/built XML" }],
   action_crypto:        [{ field: "result", label: "Crypto output" }],
@@ -435,6 +456,10 @@ function FieldInput({
 
   if (field.type === "esign_template_select") {
     return <EsignTemplateSelect value={value} onChange={onChange} className={base} />;
+  }
+
+  if (field.type === "doc_template_select") {
+    return <DocTemplateSelect value={value} onChange={onChange} className={base} />;
   }
 
   // Group suggestions
