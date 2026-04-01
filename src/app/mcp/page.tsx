@@ -6,7 +6,7 @@ import {
   Plug, Plus, Trash2, Copy, CheckCheck, Search, Loader2, X,
   ExternalLink, Key, RefreshCw, Server, Wrench, ChevronDown,
   ChevronUp, ToggleLeft, ToggleRight, Link2, AlertCircle,
-  CheckCircle2, Circle, Settings, Zap,
+  CheckCircle2, Settings, Zap, ShieldCheck, ShieldOff, Eye, EyeOff, RotateCcw,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -373,6 +373,8 @@ function ServerCard({
   const [copied, setCopied] = useState<string | null>(null);
   const [showAddTool, setShowAddTool] = useState(false);
   const [togglingTool, setTogglingTool] = useState<string | null>(null);
+  const [showKey, setShowKey] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
 
   const loadTools = useCallback(async () => {
     if (server.type !== "hosted") return;
@@ -415,6 +417,34 @@ function ServerCard({
     const data = await res.json();
     setTools((prev) => prev.map((t) => t.id === tool.id ? data : t));
     setTogglingTool(null);
+  };
+
+  const generateKey = async () => {
+    setSavingKey(true);
+    const key = "mcp_" + Array.from(crypto.getRandomValues(new Uint8Array(24)))
+      .map((b) => b.toString(16).padStart(2, "0")).join("");
+    const res = await fetch(`/api/mcp-toolboxes/${server.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auth_key: key }),
+    });
+    const data = await res.json();
+    setSavingKey(false);
+    setShowKey(true);
+    onUpdate(data as McpServer);
+  };
+
+  const removeKey = async () => {
+    if (!confirm("Remove the API key? The server will become publicly accessible.")) return;
+    setSavingKey(true);
+    const res = await fetch(`/api/mcp-toolboxes/${server.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auth_key: null }),
+    });
+    const data = await res.json();
+    setSavingKey(false);
+    onUpdate(data as McpServer);
   };
 
   const deleteTool = async (toolId: string) => {
@@ -514,8 +544,49 @@ function ServerCard({
             </div>
           )}
 
-          {/* Auth key badge */}
-          {server.auth_key && (
+          {/* Auth key section (hosted servers only) */}
+          {isHosted && (
+            <div className="mt-2">
+              {server.auth_key ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <ShieldCheck size={11} className="text-green-600" />
+                      <span className="text-[11px] font-medium text-green-700">Auth key enabled</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setShowKey((v) => !v)} className="p-1 text-green-600 hover:text-green-700" title={showKey ? "Hide key" : "Show key"}>
+                        {showKey ? <EyeOff size={11} /> : <Eye size={11} />}
+                      </button>
+                      <button onClick={() => copy(server.auth_key!, "authkey-" + server.id)} className="p-1 text-green-600 hover:text-green-700" title="Copy key">
+                        {copied === "authkey-" + server.id ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
+                      </button>
+                      <button onClick={generateKey} disabled={savingKey} className="p-1 text-green-600 hover:text-green-700" title="Regenerate key">
+                        {savingKey ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+                      </button>
+                      <button onClick={removeKey} disabled={savingKey} className="p-1 text-red-400 hover:text-red-500" title="Remove key">
+                        <ShieldOff size={11} />
+                      </button>
+                    </div>
+                  </div>
+                  {showKey && (
+                    <code className="text-[10px] font-mono text-green-800 bg-green-100 px-2 py-1 rounded block truncate">
+                      {server.auth_key}
+                    </code>
+                  )}
+                  <p className="text-[10px] text-green-600 mt-1">Add as <code className="bg-green-100 px-1 rounded">Authorization: Bearer &lt;key&gt;</code> header</p>
+                </div>
+              ) : (
+                <button onClick={generateKey} disabled={savingKey}
+                  className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-violet-600 hover:bg-violet-50 px-3 py-1.5 rounded-lg border border-dashed border-gray-200 hover:border-violet-200 transition-colors w-full justify-center">
+                  {savingKey ? <Loader2 size={11} className="animate-spin" /> : <ShieldCheck size={11} />}
+                  Add API key authentication
+                </button>
+              )}
+            </div>
+          )}
+          {/* External server auth badge */}
+          {!isHosted && server.auth_key && (
             <div className="mt-1.5 flex items-center gap-2 bg-amber-50 rounded-lg px-3 py-1.5">
               <Key size={10} className="text-amber-500 flex-shrink-0" />
               <span className="text-[11px] text-amber-700">Auth key configured</span>

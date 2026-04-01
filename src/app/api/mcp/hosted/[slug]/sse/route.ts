@@ -20,7 +20,7 @@ export async function GET(
   const admin = createClient(supabaseUrl, supabaseServiceKey);
   const { data: server } = await admin
     .from("mcp_toolboxes")
-    .select("id, org_id, enabled")
+    .select("id, org_id, enabled, auth_key")
     .eq("slug", slug)
     .eq("type", "hosted")
     .single();
@@ -30,6 +30,18 @@ export async function GET(
   }
   if (!server.enabled) {
     return new Response("MCP server is disabled", { status: 403 });
+  }
+
+  // Auth key check — if the server has a key set, require it as Bearer token
+  if (server.auth_key) {
+    const authHeader = req.headers.get("authorization") ?? "";
+    const provided = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+    if (!provided || provided !== server.auth_key) {
+      return new Response("Unauthorized — valid API key required", {
+        status: 401,
+        headers: { "WWW-Authenticate": 'Bearer realm="MCP Server"' },
+      });
+    }
   }
 
   pruneOldSessions();

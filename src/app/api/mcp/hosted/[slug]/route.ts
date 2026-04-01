@@ -1,7 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { handleMcpRequest } from "@/lib/mcpProtocol";
 
 export const dynamic = "force-dynamic";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+async function checkAuth(req: NextRequest, slug: string): Promise<Response | null> {
+  const admin = createClient(supabaseUrl, supabaseServiceKey);
+  const { data: server } = await admin
+    .from("mcp_toolboxes")
+    .select("auth_key, enabled")
+    .eq("slug", slug)
+    .eq("type", "hosted")
+    .single();
+
+  if (!server) return new Response("MCP server not found", { status: 404 });
+  if (!server.enabled) return new Response("MCP server is disabled", { status: 403 });
+
+  if (server.auth_key) {
+    const authHeader = req.headers.get("authorization") ?? "";
+    const provided = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+    if (!provided || provided !== server.auth_key) {
+      return NextResponse.json(
+        { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Unauthorized — valid API key required" } },
+        { status: 401, headers: { ...corsHeaders(), "WWW-Authenticate": 'Bearer realm="MCP Server"' } }
+      );
+    }
+  }
+  return null;
+}
 
 // POST /api/mcp/hosted/[slug]
 // Streamable HTTP transport (MCP spec 2025-03-26).
@@ -12,6 +41,9 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
+
+  const authError = await checkAuth(req, slug);
+  if (authError) return authError;
 
   let body: unknown;
   try {
