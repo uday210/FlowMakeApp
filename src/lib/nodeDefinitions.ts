@@ -249,15 +249,28 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "action_logger",
     label: "Logger",
-    description: "Log incoming data to the execution history for debugging",
+    description: "Log data to the execution history for debugging — supports custom messages, specific fields, or full data dumps",
     category: "action",
     subcategory: "Flow Control",
     color: "#0ea5e9",
     icon: "Terminal",
-    defaultConfig: { label: "", include_all: "true" },
+    defaultConfig: { label: "", level: "info", mode: "all_data", message: "", fields: "" },
     configFields: [
-      { key: "label", label: "Log label (optional)", type: "text", placeholder: "e.g. After webhook input" },
-      { key: "include_all", label: "Log full input data", type: "select", options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }] },
+      { key: "label", label: "Log label", type: "text", placeholder: "e.g. After webhook input" },
+      { key: "level", label: "Log level", type: "select", options: [
+        { label: "Info", value: "info" },
+        { label: "Debug", value: "debug" },
+        { label: "Warn", value: "warn" },
+        { label: "Error", value: "error" },
+      ]},
+      { key: "mode", label: "What to log", type: "select", options: [
+        { label: "All data (full dump)", value: "all_data" },
+        { label: "Custom message", value: "message" },
+        { label: "Specific fields", value: "fields" },
+        { label: "Checkpoint only (label + timestamp)", value: "checkpoint" },
+      ]},
+      { key: "message", label: "Message (supports {{node_id.field}})", type: "textarea", placeholder: "Order {{trigger.id}} received from {{trigger.email}}" },
+      { key: "fields", label: "Fields to log (comma-separated dot paths)", type: "text", placeholder: "trigger.email, trigger.amount, node_1.result" },
     ],
   },
   {

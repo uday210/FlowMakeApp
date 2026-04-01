@@ -306,11 +306,27 @@ async function executeNodeOnce(
       case "action_logger": {
         const allData = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
         const logLabel = (config.label as string) || "Logger";
-        const includeAll = config.include_all !== "false";
+        const level = (config.level as string) || "info";
+        const mode = (config.mode as string) || "all_data";
+        let loggedData: unknown;
+        if (mode === "all_data") {
+          loggedData = allData;
+        } else if (mode === "message") {
+          loggedData = interpolate(config.message as string || "");
+        } else if (mode === "fields") {
+          const paths = String(config.fields || "").split(",").map((s) => s.trim()).filter(Boolean);
+          const extracted: Record<string, unknown> = {};
+          for (const path of paths) {
+            const val = path.split(".").reduce<unknown>((o, k) => (o && typeof o === "object" ? (o as Record<string, unknown>)[k] : undefined), allData);
+            extracted[path] = val;
+          }
+          loggedData = extracted;
+        }
         output = {
           label: logLabel,
+          level,
           timestamp: new Date().toISOString(),
-          ...(includeAll ? { data: allData } : {}),
+          ...(mode !== "checkpoint" ? { data: loggedData } : {}),
         };
         break;
       }
