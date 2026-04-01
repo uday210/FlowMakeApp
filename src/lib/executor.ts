@@ -106,16 +106,94 @@ async function executeNodeOnce(
       }
 
       case "action_slack": {
-        const webhookUrl = interpolate(config.webhook_url as string);
-        const message = interpolate(config.message as string);
-        if (!webhookUrl) throw new Error("Slack webhook URL is required");
-        const res = await fetch(webhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: message }),
-        });
-        if (!res.ok) throw new Error(`Slack responded with ${res.status}`);
-        output = { sent: true };
+        const slackAction = (config.action as string) || "send_webhook";
+        const slackToken = config.token as string;
+        const slackChannel = interpolate(config.channel as string || "");
+        const slackMessage = interpolate(config.message as string || "");
+
+        if (slackAction === "send_webhook") {
+          const webhookUrl = interpolate(config.webhook_url as string);
+          if (!webhookUrl) throw new Error("Slack webhook URL is required");
+          const res = await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: slackMessage }),
+          });
+          if (!res.ok) throw new Error(`Slack responded with ${res.status}`);
+          output = { sent: true };
+        } else if (slackAction === "post_message") {
+          if (!slackToken) throw new Error("Bot token is required");
+          if (!slackChannel) throw new Error("Channel is required");
+          const res = await fetch("https://slack.com/api/chat.postMessage", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${slackToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ channel: slackChannel, text: slackMessage }),
+          });
+          const d = await res.json();
+          if (!d.ok) throw new Error(`Slack: ${d.error}`);
+          output = { sent: true, ts: d.ts, channel: d.channel };
+        } else if (slackAction === "update_message") {
+          if (!slackToken) throw new Error("Bot token is required");
+          const ts = config.timestamp as string;
+          if (!slackChannel || !ts) throw new Error("Channel and timestamp are required");
+          const res = await fetch("https://slack.com/api/chat.update", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${slackToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ channel: slackChannel, ts, text: slackMessage }),
+          });
+          const d = await res.json();
+          if (!d.ok) throw new Error(`Slack: ${d.error}`);
+          output = { updated: true, ts: d.ts };
+        } else if (slackAction === "delete_message") {
+          if (!slackToken) throw new Error("Bot token is required");
+          const ts = config.timestamp as string;
+          if (!slackChannel || !ts) throw new Error("Channel and timestamp are required");
+          const res = await fetch("https://slack.com/api/chat.delete", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${slackToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ channel: slackChannel, ts }),
+          });
+          const d = await res.json();
+          if (!d.ok) throw new Error(`Slack: ${d.error}`);
+          output = { deleted: true };
+        } else if (slackAction === "add_reaction") {
+          if (!slackToken) throw new Error("Bot token is required");
+          const ts = config.timestamp as string;
+          const reaction = config.reaction as string;
+          if (!slackChannel || !ts || !reaction) throw new Error("Channel, timestamp, and reaction are required");
+          const res = await fetch("https://slack.com/api/reactions.add", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${slackToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ channel: slackChannel, timestamp: ts, name: reaction }),
+          });
+          const d = await res.json();
+          if (!d.ok) throw new Error(`Slack: ${d.error}`);
+          output = { reacted: true, reaction };
+        } else if (slackAction === "list_channels") {
+          if (!slackToken) throw new Error("Bot token is required");
+          const res = await fetch("https://slack.com/api/conversations.list?limit=100&types=public_channel,private_channel", {
+            headers: { Authorization: `Bearer ${slackToken}` },
+          });
+          const d = await res.json();
+          if (!d.ok) throw new Error(`Slack: ${d.error}`);
+          output = { channels: d.channels?.map((c: Record<string, unknown>) => ({ id: c.id, name: c.name, is_private: c.is_private })), count: d.channels?.length };
+        } else if (slackAction === "upload_file") {
+          if (!slackToken) throw new Error("Bot token is required");
+          const fileContent = config.file_content as string || "";
+          const fileName = (config.file_name as string) || "file.txt";
+          const form = new FormData();
+          form.append("channels", slackChannel);
+          form.append("content", fileContent);
+          form.append("filename", fileName);
+          const res = await fetch("https://slack.com/api/files.upload", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${slackToken}` },
+            body: form,
+          });
+          const d = await res.json();
+          if (!d.ok) throw new Error(`Slack: ${d.error}`);
+          output = { uploaded: true, file_id: d.file?.id, file_name: d.file?.name };
+        }
         break;
       }
 
@@ -157,31 +235,71 @@ async function executeNodeOnce(
       case "action_openai": {
         const oaApiKey = (String(config.api_key || "").trim()) || process.env.OPENAI_API_KEY || "";
         if (!oaApiKey) throw new Error("OpenAI API key is required (set it on the node or via OPENAI_API_KEY env var)");
-        const model = (config.model as string) || "gpt-4o-mini";
-        const prompt = interpolate(config.prompt as string);
-        const system = interpolate((config.system as string) || "");
-        if (!prompt) throw new Error("Prompt is required");
-        const messages = [];
-        if (system) messages.push({ role: "system", content: system });
-        messages.push({ role: "user", content: prompt });
-        const oaBody: Record<string, unknown> = {
-          model,
-          messages,
-          max_tokens: config.max_tokens ? Number(config.max_tokens) : 1024,
-          temperature: config.temperature !== undefined ? Number(config.temperature) : 0.7,
-        };
-        if (String(config.json_mode) === "true") oaBody.response_format = { type: "json_object" };
-        const res = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${oaApiKey}` },
-          body: JSON.stringify(oaBody),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || `OpenAI error ${res.status}`);
-        const reply = data.choices?.[0]?.message?.content ?? "";
-        let parsed: unknown = reply;
-        if (String(config.json_mode) === "true") { try { parsed = JSON.parse(reply); } catch { /* keep raw */ } }
-        output = { reply, parsed, model, usage: data.usage };
+        const oaAction = (config.action as string) || "chat_completion";
+        const oaHeaders = { "Content-Type": "application/json", Authorization: `Bearer ${oaApiKey}` };
+
+        if (oaAction === "chat_completion") {
+          const model = (config.model as string) || "gpt-4o-mini";
+          const prompt = interpolate(config.prompt as string);
+          const system = interpolate((config.system as string) || "");
+          if (!prompt) throw new Error("Prompt is required");
+          const messages: { role: string; content: string }[] = [];
+          if (system) messages.push({ role: "system", content: system });
+          messages.push({ role: "user", content: prompt });
+          const oaBody: Record<string, unknown> = {
+            model,
+            messages,
+            max_tokens: config.max_tokens ? Number(config.max_tokens) : 1024,
+            temperature: config.temperature !== undefined ? Number(config.temperature) : 0.7,
+          };
+          if (String(config.json_mode) === "true") oaBody.response_format = { type: "json_object" };
+          const res = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: oaHeaders, body: JSON.stringify(oaBody) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `OpenAI error ${res.status}`);
+          const reply = data.choices?.[0]?.message?.content ?? "";
+          let parsed: unknown = reply;
+          if (String(config.json_mode) === "true") { try { parsed = JSON.parse(reply); } catch { /* keep raw */ } }
+          output = { reply, parsed, model, usage: data.usage };
+        } else if (oaAction === "embeddings") {
+          const inputText = interpolate(config.prompt as string || config.input_text as string || "");
+          if (!inputText) throw new Error("Input text (prompt field) is required");
+          const res = await fetch("https://api.openai.com/v1/embeddings", {
+            method: "POST", headers: oaHeaders,
+            body: JSON.stringify({ model: "text-embedding-3-small", input: inputText }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `OpenAI error ${res.status}`);
+          output = { embedding: data.data?.[0]?.embedding, dimensions: data.data?.[0]?.embedding?.length, usage: data.usage };
+        } else if (oaAction === "moderation") {
+          const inputText = interpolate(config.prompt as string || "");
+          if (!inputText) throw new Error("Input text (prompt field) is required");
+          const res = await fetch("https://api.openai.com/v1/moderations", {
+            method: "POST", headers: oaHeaders,
+            body: JSON.stringify({ input: inputText }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `OpenAI error ${res.status}`);
+          const result = data.results?.[0];
+          output = { flagged: result?.flagged, categories: result?.categories, category_scores: result?.category_scores };
+        } else if (oaAction === "transcription") {
+          const audioUrl = config.audio_url as string;
+          if (!audioUrl) throw new Error("Audio URL is required");
+          // Fetch the audio file then send to Whisper
+          const audioRes = await fetch(audioUrl);
+          if (!audioRes.ok) throw new Error(`Could not fetch audio file: ${audioRes.status}`);
+          const audioBlob = await audioRes.blob();
+          const form = new FormData();
+          form.append("file", audioBlob, "audio.mp3");
+          form.append("model", "whisper-1");
+          const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${oaApiKey}` },
+            body: form,
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `OpenAI error ${res.status}`);
+          output = { text: data.text, language: data.language };
+        }
         break;
       }
 
@@ -308,6 +426,7 @@ async function executeNodeOnce(
         const repo = config.repo as string;
         if (!token || !owner || !repo) throw new Error("Token, owner, and repo are required");
         const ghHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "User-Agent": "FlowMake" };
+
         if (action === "create_issue") {
           const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
             method: "POST", headers: ghHeaders,
@@ -316,39 +435,150 @@ async function executeNodeOnce(
           const data = await res.json();
           if (!res.ok) throw new Error(data.message || `GitHub ${res.status}`);
           output = { number: data.number, url: data.html_url, title: data.title };
+        } else if (action === "close_issue") {
+          const issueNum = config.issue_number as string;
+          if (!issueNum) throw new Error("Issue number is required");
+          const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNum}`, {
+            method: "PATCH", headers: ghHeaders, body: JSON.stringify({ state: "closed" }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitHub ${res.status}`);
+          output = { number: data.number, state: data.state, url: data.html_url };
         } else if (action === "get_repo") {
           const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers: ghHeaders });
           const data = await res.json();
           if (!res.ok) throw new Error(data.message || `GitHub ${res.status}`);
           output = { name: data.full_name, stars: data.stargazers_count, forks: data.forks_count, description: data.description };
         } else if (action === "list_issues") {
-          const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=10`, { headers: ghHeaders });
+          const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=20`, { headers: ghHeaders });
           const data = await res.json();
           if (!res.ok) throw new Error(data.message || `GitHub ${res.status}`);
-          output = { count: data.length, issues: data.map((i: Record<string, unknown>) => ({ number: i.number, title: i.title, url: i.html_url })) };
+          output = { count: data.length, issues: data.map((i: Record<string, unknown>) => ({ number: i.number, title: i.title, state: i.state, url: i.html_url })) };
+        } else if (action === "create_pr") {
+          const head = config.head as string;
+          const base = (config.base as string) || "main";
+          if (!head) throw new Error("Head branch is required");
+          const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
+            method: "POST", headers: ghHeaders,
+            body: JSON.stringify({ title: config.title, body: config.body || "", head, base }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitHub ${res.status}`);
+          output = { number: data.number, url: data.html_url, title: data.title, state: data.state };
+        } else if (action === "list_prs") {
+          const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?state=open&per_page=20`, { headers: ghHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitHub ${res.status}`);
+          output = { count: data.length, prs: data.map((p: Record<string, unknown>) => ({ number: p.number, title: p.title, state: p.state, url: p.html_url })) };
+        } else if (action === "get_file") {
+          const filePath = config.file_path as string;
+          if (!filePath) throw new Error("File path is required");
+          const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, { headers: ghHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitHub ${res.status}`);
+          const content = data.encoding === "base64" ? Buffer.from(data.content, "base64").toString("utf-8") : data.content;
+          output = { path: data.path, sha: data.sha, content, size: data.size };
+        } else if (action === "create_file") {
+          const filePath = config.file_path as string;
+          const fileContent = config.file_content as string || "";
+          if (!filePath) throw new Error("File path is required");
+          const encoded = Buffer.from(fileContent).toString("base64");
+          const checkRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, { headers: ghHeaders });
+          const checkData = checkRes.ok ? await checkRes.json() : null;
+          const body: Record<string, unknown> = { message: config.title || `Update ${filePath}`, content: encoded };
+          if (checkData?.sha) body.sha = checkData.sha;
+          const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+            method: "PUT", headers: ghHeaders, body: JSON.stringify(body),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitHub ${res.status}`);
+          output = { path: data.content?.path, sha: data.content?.sha, created: !checkData?.sha };
+        } else if (action === "create_release") {
+          const tagName = config.tag_name as string;
+          if (!tagName) throw new Error("Tag name is required");
+          const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases`, {
+            method: "POST", headers: ghHeaders,
+            body: JSON.stringify({ tag_name: tagName, name: config.title || tagName, body: config.body || "", draft: false, prerelease: false }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `GitHub ${res.status}`);
+          output = { id: data.id, tag: data.tag_name, url: data.html_url, upload_url: data.upload_url };
         }
         break;
       }
 
       case "action_notion": {
         const token = config.token as string;
-        const databaseId = config.database_id as string;
-        const title = config.title as string;
-        if (!token || !databaseId || !title) throw new Error("Token, database ID, and title are required");
-        const res = await fetch("https://api.notion.com/v1/pages", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
-          body: JSON.stringify({
-            parent: { database_id: databaseId },
-            properties: {
-              title: { title: [{ text: { content: title } }] },
-            },
-            children: config.content ? [{ object: "block", type: "paragraph", paragraph: { rich_text: [{ text: { content: config.content } }] } }] : [],
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || `Notion ${res.status}`);
-        output = { page_id: data.id, url: data.url, title };
+        if (!token) throw new Error("Integration token is required");
+        const notionAction = (config.action as string) || "create_page";
+        const notionHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" };
+
+        if (notionAction === "create_page") {
+          const databaseId = config.database_id as string;
+          const title = config.title as string;
+          if (!databaseId || !title) throw new Error("Database ID and title are required");
+          const res = await fetch("https://api.notion.com/v1/pages", {
+            method: "POST", headers: notionHeaders,
+            body: JSON.stringify({
+              parent: { database_id: databaseId },
+              properties: { title: { title: [{ text: { content: title } }] } },
+              children: config.content ? [{ object: "block", type: "paragraph", paragraph: { rich_text: [{ text: { content: config.content } }] } }] : [],
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Notion ${res.status}`);
+          output = { page_id: data.id, url: data.url, title };
+        } else if (notionAction === "get_page") {
+          const pageId = config.page_id as string;
+          if (!pageId) throw new Error("Page ID is required");
+          const res = await fetch(`https://api.notion.com/v1/pages/${pageId}`, { headers: notionHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Notion ${res.status}`);
+          output = { page_id: data.id, url: data.url, archived: data.archived, properties: data.properties };
+        } else if (notionAction === "update_page") {
+          const pageId = config.page_id as string;
+          const newTitle = config.title as string;
+          if (!pageId) throw new Error("Page ID is required");
+          const res = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+            method: "PATCH", headers: notionHeaders,
+            body: JSON.stringify({ properties: { title: { title: [{ text: { content: newTitle || "" } }] } } }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Notion ${res.status}`);
+          output = { page_id: data.id, url: data.url, updated: true };
+        } else if (notionAction === "query_database") {
+          const databaseId = config.database_id as string;
+          if (!databaseId) throw new Error("Database ID is required");
+          let filterObj: Record<string, unknown> | undefined;
+          try { if (config.filter) filterObj = JSON.parse(config.filter as string); } catch { /* ignore */ }
+          const res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+            method: "POST", headers: notionHeaders,
+            body: JSON.stringify({ ...(filterObj ? { filter: filterObj } : {}), page_size: 20 }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Notion ${res.status}`);
+          output = { results: data.results, count: data.results?.length, has_more: data.has_more };
+        } else if (notionAction === "search") {
+          const query = (config.query as string) || "";
+          const res = await fetch("https://api.notion.com/v1/search", {
+            method: "POST", headers: notionHeaders,
+            body: JSON.stringify({ query, page_size: 10 }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Notion ${res.status}`);
+          output = { results: data.results, count: data.results?.length };
+        } else if (notionAction === "append_blocks") {
+          const pageId = config.page_id as string;
+          const content = config.content as string || "";
+          if (!pageId) throw new Error("Page ID is required");
+          const res = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+            method: "PATCH", headers: notionHeaders,
+            body: JSON.stringify({ children: [{ object: "block", type: "paragraph", paragraph: { rich_text: [{ text: { content } }] } }] }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || `Notion ${res.status}`);
+          output = { appended: true, block_count: data.results?.length };
+        }
         break;
       }
 
@@ -356,18 +586,58 @@ async function executeNodeOnce(
         const token = config.token as string;
         const baseId = config.base_id as string;
         const table = config.table as string;
-        const fieldsRaw = config.fields as string;
         if (!token || !baseId || !table) throw new Error("Token, base ID, and table are required");
-        let fields: Record<string, unknown> = {};
-        try { fields = JSON.parse(fieldsRaw); } catch { throw new Error("Fields must be valid JSON"); }
-        const res = await fetch(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(table)}`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ fields }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
-        output = { record_id: data.id, fields: data.fields };
+        const atAction = (config.action as string) || "create_record";
+        const atHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+        const atBase = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(table)}`;
+
+        if (atAction === "create_record") {
+          let fields: Record<string, unknown> = {};
+          try { fields = JSON.parse(config.fields as string); } catch { throw new Error("Fields must be valid JSON"); }
+          const res = await fetch(atBase, { method: "POST", headers: atHeaders, body: JSON.stringify({ fields }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+          output = { record_id: data.id, fields: data.fields };
+        } else if (atAction === "list_records") {
+          const maxRecords = Number(config.max_records) || 20;
+          const filter = config.filter_formula as string;
+          const url = `${atBase}?maxRecords=${maxRecords}${filter ? `&filterByFormula=${encodeURIComponent(filter)}` : ""}`;
+          const res = await fetch(url, { headers: atHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+          output = { records: data.records, count: data.records?.length };
+        } else if (atAction === "get_record") {
+          const recordId = config.record_id as string;
+          if (!recordId) throw new Error("Record ID is required");
+          const res = await fetch(`${atBase}/${recordId}`, { headers: atHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+          output = { record_id: data.id, fields: data.fields };
+        } else if (atAction === "update_record") {
+          const recordId = config.record_id as string;
+          if (!recordId) throw new Error("Record ID is required");
+          let fields: Record<string, unknown> = {};
+          try { fields = JSON.parse(config.fields as string); } catch { throw new Error("Fields must be valid JSON"); }
+          const res = await fetch(`${atBase}/${recordId}`, { method: "PATCH", headers: atHeaders, body: JSON.stringify({ fields }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+          output = { record_id: data.id, fields: data.fields, updated: true };
+        } else if (atAction === "delete_record") {
+          const recordId = config.record_id as string;
+          if (!recordId) throw new Error("Record ID is required");
+          const res = await fetch(`${atBase}/${recordId}`, { method: "DELETE", headers: atHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+          output = { deleted: data.deleted, record_id: data.id };
+        } else if (atAction === "search_records") {
+          const filter = config.filter_formula as string;
+          const maxRecords = Number(config.max_records) || 20;
+          const url = `${atBase}?maxRecords=${maxRecords}${filter ? `&filterByFormula=${encodeURIComponent(filter)}` : ""}`;
+          const res = await fetch(url, { headers: atHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+          output = { records: data.records, count: data.records?.length };
+        }
         break;
       }
 
@@ -688,22 +958,48 @@ async function executeNodeOnce(
       case "action_sheets": {
         const accessToken = config.access_token as string;
         const spreadsheetId = config.spreadsheet_id as string;
+        const sheetsAction = (config.action as string) || "append_row";
         const range = (config.range as string) || "Sheet1!A1";
-        const valuesRaw = config.values as string;
         if (!accessToken || !spreadsheetId) throw new Error("Access token and spreadsheet ID are required");
-        let values: unknown[][];
-        try { values = JSON.parse(valuesRaw); } catch { throw new Error("Values must be a valid JSON array"); }
-        const res = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ values }),
-          }
-        );
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || `Sheets ${res.status}`);
-        output = { updated_range: data.updates?.updatedRange, rows_added: data.updates?.updatedRows };
+        const sheetsHeaders = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+        const sheetsBase = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
+
+        if (sheetsAction === "append_row") {
+          const valuesRaw = config.values as string;
+          let values: unknown[][];
+          try { values = JSON.parse(valuesRaw); } catch { throw new Error("Values must be a valid JSON array"); }
+          const res = await fetch(`${sheetsBase}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`, {
+            method: "POST", headers: sheetsHeaders, body: JSON.stringify({ values }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Sheets ${res.status}`);
+          output = { updated_range: data.updates?.updatedRange, rows_added: data.updates?.updatedRows };
+        } else if (sheetsAction === "get_values") {
+          const res = await fetch(`${sheetsBase}/values/${encodeURIComponent(range)}`, { headers: sheetsHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Sheets ${res.status}`);
+          output = { range: data.range, values: data.values, row_count: data.values?.length ?? 0 };
+        } else if (sheetsAction === "update_values") {
+          const valuesRaw = config.values as string;
+          let values: unknown[][];
+          try { values = JSON.parse(valuesRaw); } catch { throw new Error("Values must be a valid JSON array"); }
+          const res = await fetch(`${sheetsBase}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`, {
+            method: "PUT", headers: sheetsHeaders, body: JSON.stringify({ values }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Sheets ${res.status}`);
+          output = { updated_range: data.updatedRange, updated_rows: data.updatedRows, updated_cells: data.updatedCells };
+        } else if (sheetsAction === "clear_range") {
+          const res = await fetch(`${sheetsBase}/values/${encodeURIComponent(range)}:clear`, { method: "POST", headers: sheetsHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Sheets ${res.status}`);
+          output = { cleared_range: data.clearedRange };
+        } else if (sheetsAction === "get_spreadsheet") {
+          const res = await fetch(`${sheetsBase}?fields=spreadsheetId,properties,sheets.properties`, { headers: sheetsHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Sheets ${res.status}`);
+          output = { id: data.spreadsheetId, title: data.properties?.title, sheets: data.sheets?.map((s: Record<string, unknown>) => (s.properties as Record<string, unknown>)) };
+        }
         break;
       }
 
@@ -902,6 +1198,8 @@ async function executeNodeOnce(
         const jiraHeaders = { Authorization: `Basic ${auth}`, "Content-Type": "application/json", Accept: "application/json" };
         const baseUrl = `https://${domain}/rest/api/3`;
 
+        const jiraDoc = (text: string) => ({ type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: text }] }] });
+
         if (action === "create_issue") {
           const projectKey = config.project_key as string;
           if (!projectKey) throw new Error("Project key is required");
@@ -911,7 +1209,7 @@ async function executeNodeOnce(
               fields: {
                 project: { key: projectKey },
                 summary: config.summary || "New issue",
-                description: { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: String(config.description || "") }] }] },
+                description: jiraDoc(String(config.description || "")),
                 issuetype: { name: config.issue_type || "Task" },
               },
             }),
@@ -925,17 +1223,56 @@ async function executeNodeOnce(
           const res = await fetch(`${baseUrl}/issue/${issueKey}`, { headers: jiraHeaders });
           const data = await res.json();
           if (!res.ok) throw new Error(data.errorMessages?.[0] || `Jira ${res.status}`);
-          output = { id: data.id, key: data.key, summary: data.fields?.summary, status: data.fields?.status?.name };
+          output = { id: data.id, key: data.key, summary: data.fields?.summary, status: data.fields?.status?.name, assignee: data.fields?.assignee?.displayName };
         } else if (action === "add_comment") {
           const issueKey = config.issue_key as string;
           if (!issueKey) throw new Error("Issue key is required");
           const res = await fetch(`${baseUrl}/issue/${issueKey}/comment`, {
             method: "POST", headers: jiraHeaders,
-            body: JSON.stringify({ body: { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: String(config.description || "") }] }] } }),
+            body: JSON.stringify({ body: jiraDoc(String(config.description || "")) }),
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.errorMessages?.[0] || `Jira ${res.status}`);
           output = { comment_id: data.id, issue_key: issueKey };
+        } else if (action === "list_issues_jql") {
+          const jql = config.jql as string || `project = ${config.project_key || "PROJ"} ORDER BY created DESC`;
+          const res = await fetch(`${baseUrl}/search?jql=${encodeURIComponent(jql)}&maxResults=20&fields=summary,status,assignee,priority`, { headers: jiraHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errorMessages?.[0] || `Jira ${res.status}`);
+          output = { total: data.total, issues: data.issues?.map((i: Record<string, unknown>) => {
+            const f = i.fields as Record<string, unknown>;
+            return { id: i.id, key: i.key, summary: (f?.summary as string), status: (f?.status as Record<string, unknown>)?.name, assignee: (f?.assignee as Record<string, unknown>)?.displayName };
+          }) };
+        } else if (action === "transition_issue") {
+          const issueKey = config.issue_key as string;
+          const transitionId = config.transition_id as string;
+          if (!issueKey || !transitionId) throw new Error("Issue key and transition ID are required");
+          const res = await fetch(`${baseUrl}/issue/${issueKey}/transitions`, {
+            method: "POST", headers: jiraHeaders, body: JSON.stringify({ transition: { id: transitionId } }),
+          });
+          if (!res.ok) { const d = await res.json(); throw new Error(d.errorMessages?.[0] || `Jira ${res.status}`); }
+          output = { transitioned: true, issue_key: issueKey, transition_id: transitionId };
+        } else if (action === "assign_issue") {
+          const issueKey = config.issue_key as string;
+          const assigneeId = config.assignee_id as string;
+          if (!issueKey) throw new Error("Issue key is required");
+          const res = await fetch(`${baseUrl}/issue/${issueKey}/assignee`, {
+            method: "PUT", headers: jiraHeaders, body: JSON.stringify({ accountId: assigneeId || null }),
+          });
+          if (!res.ok) { const d = await res.json(); throw new Error(d.errorMessages?.[0] || `Jira ${res.status}`); }
+          output = { assigned: true, issue_key: issueKey };
+        } else if (action === "list_transitions") {
+          const issueKey = config.issue_key as string;
+          if (!issueKey) throw new Error("Issue key is required");
+          const res = await fetch(`${baseUrl}/issue/${issueKey}/transitions`, { headers: jiraHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.errorMessages?.[0] || `Jira ${res.status}`);
+          output = { transitions: data.transitions?.map((t: Record<string, unknown>) => ({ id: t.id, name: t.name })) };
+        } else if (action === "list_projects") {
+          const res = await fetch(`${baseUrl}/project?maxResults=50`, { headers: jiraHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(`Jira ${res.status}`);
+          output = { projects: data.map?.((p: Record<string, unknown>) => ({ id: p.id, key: p.key, name: p.name })) ?? data, count: Array.isArray(data) ? data.length : 0 };
         }
         break;
       }
@@ -946,35 +1283,73 @@ async function executeNodeOnce(
         if (!apiKey) throw new Error("Linear API key is required");
         const linearHeaders = { Authorization: apiKey, "Content-Type": "application/json" };
 
-        if (action === "create_issue") {
-          const mutation = `mutation CreateIssue($teamId: String!, $title: String!, $description: String, $priority: Int) {
-            issueCreate(input: { teamId: $teamId, title: $title, description: $description, priority: $priority }) {
-              success issue { id identifier title url }
-            }
-          }`;
+        const linearGql = async (query: string, variables: Record<string, unknown>) => {
           const res = await fetch("https://api.linear.app/graphql", {
-            method: "POST", headers: linearHeaders,
-            body: JSON.stringify({ query: mutation, variables: { teamId: config.team_id, title: config.title, description: config.description || "", priority: Number(config.priority) || 0 } }),
+            method: "POST", headers: linearHeaders, body: JSON.stringify({ query, variables }),
           });
           const data = await res.json();
           if (data.errors) throw new Error(data.errors[0]?.message || "Linear error");
-          const issue = data.data?.issueCreate?.issue;
+          return data.data;
+        };
+
+        if (action === "create_issue") {
+          const d = await linearGql(
+            `mutation($teamId:String!,$title:String!,$description:String,$priority:Int,$stateId:String) {
+              issueCreate(input:{teamId:$teamId,title:$title,description:$description,priority:$priority,stateId:$stateId}) {
+                success issue { id identifier title url }
+              }
+            }`,
+            { teamId: config.team_id, title: config.title, description: config.description || "", priority: Number(config.priority) || 0, stateId: config.state_id || undefined }
+          );
+          const issue = d?.issueCreate?.issue;
           output = { id: issue?.id, key: issue?.identifier, title: issue?.title, url: issue?.url };
         } else if (action === "update_issue") {
           const issueId = config.issue_id as string;
           if (!issueId) throw new Error("Issue ID is required for update");
-          const mutation = `mutation UpdateIssue($id: String!, $title: String, $description: String) {
-            issueUpdate(id: $id, input: { title: $title, description: $description }) {
-              success issue { id identifier title }
-            }
-          }`;
-          const res = await fetch("https://api.linear.app/graphql", {
-            method: "POST", headers: linearHeaders,
-            body: JSON.stringify({ query: mutation, variables: { id: issueId, title: config.title, description: config.description } }),
-          });
-          const data = await res.json();
-          if (data.errors) throw new Error(data.errors[0]?.message || "Linear error");
+          await linearGql(
+            `mutation($id:String!,$title:String,$description:String,$stateId:String) {
+              issueUpdate(id:$id,input:{title:$title,description:$description,stateId:$stateId}) { success }
+            }`,
+            { id: issueId, title: config.title, description: config.description, stateId: config.state_id || undefined }
+          );
           output = { updated: true, id: issueId };
+        } else if (action === "get_issue") {
+          const issueId = config.issue_id as string;
+          if (!issueId) throw new Error("Issue ID is required");
+          const d = await linearGql(
+            `query($id:String!) { issue(id:$id) { id identifier title description state { name } assignee { name email } priority } }`,
+            { id: issueId }
+          );
+          output = d?.issue;
+        } else if (action === "list_issues") {
+          const teamId = config.team_id as string;
+          const d = await linearGql(
+            `query($teamId:String) { issues(filter:{team:{id:{eq:$teamId}}},first:20) { nodes { id identifier title state { name } priority } } }`,
+            { teamId: teamId || undefined }
+          );
+          output = { issues: d?.issues?.nodes, count: d?.issues?.nodes?.length };
+        } else if (action === "get_teams") {
+          const d = await linearGql(
+            `query { teams { nodes { id name key } } }`,
+            {}
+          );
+          output = { teams: d?.teams?.nodes, count: d?.teams?.nodes?.length };
+        } else if (action === "assign_issue") {
+          const issueId = config.issue_id as string;
+          const assigneeId = config.assignee_id as string;
+          if (!issueId) throw new Error("Issue ID is required");
+          await linearGql(
+            `mutation($id:String!,$assigneeId:String) { issueUpdate(id:$id,input:{assigneeId:$assigneeId}) { success } }`,
+            { id: issueId, assigneeId: assigneeId || null }
+          );
+          output = { assigned: true, issue_id: issueId, assignee_id: assigneeId };
+        } else if (action === "get_states") {
+          const teamId = config.team_id as string;
+          const d = await linearGql(
+            `query($teamId:String!) { team(id:$teamId) { states { nodes { id name type position } } } }`,
+            { teamId }
+          );
+          output = { states: d?.team?.states?.nodes };
         }
         break;
       }
@@ -1009,11 +1384,71 @@ async function executeNodeOnce(
           const data = await res.json();
           if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
           output = { id: data.id, email: data.email, name: data.name };
+        } else if (action === "update_customer") {
+          const customerId = config.customer_id as string;
+          if (!customerId) throw new Error("Customer ID is required");
+          const body = new URLSearchParams();
+          if (config.customer_email) body.append("email", config.customer_email as string);
+          if (config.customer_name) body.append("name", config.customer_name as string);
+          const res = await fetch(`https://api.stripe.com/v1/customers/${customerId}`, { method: "POST", headers: stripeHeaders, body: body.toString() });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+          output = { id: data.id, email: data.email, name: data.name, updated: true };
         } else if (action === "list_charges") {
           const res = await fetch("https://api.stripe.com/v1/charges?limit=10", { headers: stripeHeaders });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
           output = { count: data.data?.length, charges: data.data?.map((c: Record<string, unknown>) => ({ id: c.id, amount: c.amount, currency: c.currency, status: c.status })) };
+        } else if (action === "get_charge") {
+          const chargeId = config.payment_intent_id as string;
+          if (!chargeId) throw new Error("Charge ID is required");
+          const res = await fetch(`https://api.stripe.com/v1/charges/${chargeId}`, { headers: stripeHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+          output = { id: data.id, amount: data.amount, currency: data.currency, status: data.status, paid: data.paid, receipt_url: data.receipt_url };
+        } else if (action === "create_refund") {
+          const chargeId = config.payment_intent_id as string;
+          if (!chargeId) throw new Error("Charge or Payment Intent ID is required");
+          const body = new URLSearchParams({ charge: chargeId });
+          if (config.amount) body.append("amount", String(Number(config.amount)));
+          const res = await fetch("https://api.stripe.com/v1/refunds", { method: "POST", headers: stripeHeaders, body: body.toString() });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+          output = { id: data.id, amount: data.amount, currency: data.currency, status: data.status };
+        } else if (action === "create_subscription") {
+          const customerId = config.customer_id as string;
+          const priceId = config.price_id as string;
+          if (!customerId || !priceId) throw new Error("Customer ID and Price ID are required");
+          const body = new URLSearchParams({ customer: customerId });
+          body.append("items[0][price]", priceId);
+          const res = await fetch("https://api.stripe.com/v1/subscriptions", { method: "POST", headers: stripeHeaders, body: body.toString() });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+          output = { id: data.id, status: data.status, current_period_end: data.current_period_end, customer: data.customer };
+        } else if (action === "cancel_subscription") {
+          const subId = config.subscription_id as string;
+          if (!subId) throw new Error("Subscription ID is required");
+          const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subId}`, { method: "DELETE", headers: stripeHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+          output = { id: data.id, status: data.status, canceled: true };
+        } else if (action === "create_checkout_session") {
+          const priceId = config.price_id as string;
+          const successUrl = config.success_url as string || "https://example.com/success";
+          const cancelUrl = config.cancel_url as string || "https://example.com/cancel";
+          if (!priceId) throw new Error("Price ID is required");
+          const body = new URLSearchParams({
+            "line_items[0][price]": priceId,
+            "line_items[0][quantity]": "1",
+            mode: "payment",
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+          });
+          if (config.customer_id) body.append("customer", config.customer_id as string);
+          const res = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: stripeHeaders, body: body.toString() });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+          output = { id: data.id, url: data.url, status: data.status };
         }
         break;
       }
@@ -1021,21 +1456,72 @@ async function executeNodeOnce(
       case "action_mailchimp": {
         const apiKey = config.api_key as string;
         const serverPrefix = (config.server_prefix as string) || "us1";
-        const listId = config.list_id as string;
-        const email = config.email as string;
-        if (!apiKey || !listId || !email) throw new Error("API key, list ID, and email are required");
+        if (!apiKey) throw new Error("API key is required");
+        const mcAction = (config.action as string) || "subscribe";
         const auth = Buffer.from(`anystring:${apiKey}`).toString("base64");
         const mcHeaders = { Authorization: `Basic ${auth}`, "Content-Type": "application/json" };
-        let mergeFields: Record<string, unknown> = {};
-        try { mergeFields = JSON.parse((config.merge_fields as string) || "{}"); } catch { /* empty */ }
-        const subscriberHash = require("crypto").createHash("md5").update(email.toLowerCase()).digest("hex");
-        const res = await fetch(`https://${serverPrefix}.api.mailchimp.com/3.0/lists/${listId}/members/${subscriberHash}`, {
-          method: "PUT", headers: mcHeaders,
-          body: JSON.stringify({ email_address: email, status_if_new: config.status || "subscribed", status: config.status || "subscribed", merge_fields: mergeFields }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || `Mailchimp ${res.status}`);
-        output = { id: data.id, email: data.email_address, status: data.status };
+        const mcBase = `https://${serverPrefix}.api.mailchimp.com/3.0`;
+        const { createHash } = await import("crypto");
+        const subscriberHash = (email: string) => createHash("md5").update(email.toLowerCase()).digest("hex");
+
+        if (mcAction === "subscribe") {
+          const listId = config.list_id as string;
+          const email = config.email as string;
+          if (!listId || !email) throw new Error("List ID and email are required");
+          let mergeFields: Record<string, unknown> = {};
+          try { mergeFields = JSON.parse((config.merge_fields as string) || "{}"); } catch { /* empty */ }
+          const res = await fetch(`${mcBase}/lists/${listId}/members/${subscriberHash(email)}`, {
+            method: "PUT", headers: mcHeaders,
+            body: JSON.stringify({ email_address: email, status_if_new: config.status || "subscribed", status: config.status || "subscribed", merge_fields: mergeFields }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Mailchimp ${res.status}`);
+          output = { id: data.id, email: data.email_address, status: data.status };
+        } else if (mcAction === "unsubscribe") {
+          const listId = config.list_id as string;
+          const email = config.email as string;
+          if (!listId || !email) throw new Error("List ID and email are required");
+          const res = await fetch(`${mcBase}/lists/${listId}/members/${subscriberHash(email)}`, {
+            method: "PATCH", headers: mcHeaders, body: JSON.stringify({ status: "unsubscribed" }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Mailchimp ${res.status}`);
+          output = { email: data.email_address, status: data.status };
+        } else if (mcAction === "get_subscriber") {
+          const listId = config.list_id as string;
+          const email = config.email as string;
+          if (!listId || !email) throw new Error("List ID and email are required");
+          const res = await fetch(`${mcBase}/lists/${listId}/members/${subscriberHash(email)}`, { headers: mcHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Mailchimp ${res.status}`);
+          output = { id: data.id, email: data.email_address, status: data.status, merge_fields: data.merge_fields, tags: data.tags };
+        } else if (mcAction === "add_tag") {
+          const listId = config.list_id as string;
+          const email = config.email as string;
+          const tagName = config.tag_name as string;
+          if (!listId || !email || !tagName) throw new Error("List ID, email, and tag name are required");
+          const res = await fetch(`${mcBase}/lists/${listId}/members/${subscriberHash(email)}/tags`, {
+            method: "POST", headers: mcHeaders,
+            body: JSON.stringify({ tags: [{ name: tagName, status: "active" }] }),
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || `Mailchimp ${res.status}`);
+          }
+          output = { tagged: true, email, tag: tagName };
+        } else if (mcAction === "list_lists") {
+          const res = await fetch(`${mcBase}/lists?count=50`, { headers: mcHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Mailchimp ${res.status}`);
+          output = { lists: data.lists?.map((l: Record<string, unknown>) => ({ id: l.id, name: l.name, member_count: (l.stats as Record<string, unknown>)?.member_count })), count: data.total_items };
+        } else if (mcAction === "get_campaign_stats") {
+          const campaignId = config.campaign_id as string;
+          if (!campaignId) throw new Error("Campaign ID is required");
+          const res = await fetch(`${mcBase}/reports/${campaignId}`, { headers: mcHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || `Mailchimp ${res.status}`);
+          output = { id: data.id, subject_line: data.subject_line, emails_sent: data.emails_sent, opens: data.opens, clicks: data.clicks, unsubscribes: data.unsubscribes };
+        }
         break;
       }
 
@@ -1647,14 +2133,52 @@ async function executeNodeOnce(
         } else if (action === "get") {
           const fileId = config.file_id as string;
           if (!fileId) throw new Error("File ID is required");
-          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size`, { headers: driveHeaders });
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,webViewLink`, { headers: driveHeaders });
           if (!res.ok) throw new Error(`Drive get ${res.status}`);
           output = await res.json();
+        } else if (action === "download") {
+          const fileId = config.file_id as string;
+          if (!fileId) throw new Error("File ID is required");
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: driveHeaders });
+          if (!res.ok) throw new Error(`Drive download ${res.status}`);
+          const content = await res.text();
+          output = { file_id: fileId, content };
         } else if (action === "delete") {
           const fileId = config.file_id as string;
           if (!fileId) throw new Error("File ID is required");
           await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: "DELETE", headers: driveHeaders });
           output = { deleted: true, file_id: fileId };
+        } else if (action === "create_folder") {
+          const folderName = config.file_name as string || "New Folder";
+          const meta = JSON.stringify({ name: folderName, mimeType: "application/vnd.google-apps.folder", ...(config.folder_id ? { parents: [config.folder_id] } : {}) });
+          const res = await fetch("https://www.googleapis.com/drive/v3/files", {
+            method: "POST", headers: { ...driveHeaders, "Content-Type": "application/json" }, body: meta,
+          });
+          if (!res.ok) throw new Error(`Drive create folder ${res.status}`);
+          const d = await res.json();
+          output = { id: d.id, name: d.name, mimeType: d.mimeType };
+        } else if (action === "copy") {
+          const fileId = config.file_id as string;
+          if (!fileId) throw new Error("File ID is required");
+          const copyName = config.file_name as string || undefined;
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/copy`, {
+            method: "POST", headers: { ...driveHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify({ ...(copyName ? { name: copyName } : {}), ...(config.folder_id ? { parents: [config.folder_id] } : {}) }),
+          });
+          if (!res.ok) throw new Error(`Drive copy ${res.status}`);
+          const d = await res.json();
+          output = { id: d.id, name: d.name, mimeType: d.mimeType };
+        } else if (action === "share") {
+          const fileId = config.file_id as string;
+          if (!fileId) throw new Error("File ID is required");
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+            method: "POST", headers: { ...driveHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify({ role: "reader", type: "anyone" }),
+          });
+          if (!res.ok) throw new Error(`Drive share ${res.status}`);
+          const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=webViewLink,webContentLink`, { headers: driveHeaders });
+          const meta = await metaRes.json();
+          output = { shared: true, file_id: fileId, web_view_link: meta.webViewLink };
         }
         break;
       }
@@ -1730,11 +2254,51 @@ async function executeNodeOnce(
           if (!res.ok) throw new Error(`Calendar create ${res.status}`);
           const d = await res.json();
           output = { id: d.id, summary: d.summary, htmlLink: d.htmlLink, start: d.start, end: d.end };
+        } else if (action === "get") {
+          const eventId = config.event_id as string;
+          if (!eventId) throw new Error("Event ID is required");
+          const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, { headers: calHeaders });
+          if (!res.ok) throw new Error(`Calendar get ${res.status}`);
+          const d = await res.json();
+          output = { id: d.id, summary: d.summary, description: d.description, start: d.start, end: d.end, htmlLink: d.htmlLink };
+        } else if (action === "update") {
+          const eventId = config.event_id as string;
+          if (!eventId) throw new Error("Event ID is required");
+          const allData2 = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
+          const interp2 = (s: string) => s.replace(/\{\{([^}]+)\}\}/g, (_, p: string) => {
+            const v = p.trim().split(".").reduce<unknown>((o, k) => o && typeof o === "object" ? (o as Record<string, unknown>)[k] : undefined, allData2);
+            return v !== undefined ? String(v) : "";
+          });
+          const patchBody: Record<string, unknown> = {};
+          if (config.summary) patchBody.summary = interp2(config.summary as string);
+          if (config.description) patchBody.description = interp2(config.description as string);
+          if (config.start) patchBody.start = { dateTime: interp2(config.start as string), timeZone: "UTC" };
+          if (config.end) patchBody.end = { dateTime: interp2(config.end as string), timeZone: "UTC" };
+          const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, {
+            method: "PATCH", headers: calHeaders, body: JSON.stringify(patchBody),
+          });
+          if (!res.ok) throw new Error(`Calendar update ${res.status}`);
+          const d = await res.json();
+          output = { id: d.id, summary: d.summary, updated: true };
         } else if (action === "delete") {
           const eventId = config.event_id as string;
           if (!eventId) throw new Error("Event ID is required");
           await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, { method: "DELETE", headers: calHeaders });
           output = { deleted: true, event_id: eventId };
+        } else if (action === "list_calendars") {
+          const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", { headers: calHeaders });
+          if (!res.ok) throw new Error(`Calendar list ${res.status}`);
+          const d = await res.json();
+          output = { calendars: d.items?.map((c: Record<string, unknown>) => ({ id: c.id, summary: c.summary, primary: c.primary })), count: d.items?.length };
+        } else if (action === "quick_add") {
+          const text = config.quick_add_text as string;
+          if (!text) throw new Error("Quick add text is required");
+          const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/quickAdd?text=${encodeURIComponent(text)}`, {
+            method: "POST", headers: calHeaders,
+          });
+          if (!res.ok) throw new Error(`Calendar quick add ${res.status}`);
+          const d = await res.json();
+          output = { id: d.id, summary: d.summary, start: d.start, end: d.end };
         }
         break;
       }
