@@ -176,12 +176,13 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     icon: "Cloud",
     connectionType: "salesforce",
     connectionFields: SF_CONN_FIELDS,
-    defaultConfig: { auth_flow: "password", environment: "production", login_url: "", client_id: "", client_secret: "", username: "", password: "", security_token: "", event: "new_record", object: "Lead", filter: "" },
+    defaultConfig: { auth_flow: "password", environment: "production", login_url: "", client_id: "", client_secret: "", username: "", password: "", security_token: "", event: "new_record", object: "Lead", filter: "", poll_interval: "5" },
     configFields: [
       ...SF_CONFIG_FIELDS,
       { key: "event", label: "Trigger On", type: "select", options: [{ label: "New Record Created", value: "new_record" }, { label: "Record Updated", value: "record_updated" }, { label: "New Lead", value: "new_lead" }, { label: "Opportunity Stage Changed", value: "opportunity_stage" }] },
       { key: "object", label: "Salesforce Object", type: "remote_select", fetch_action: "salesforce_objects", placeholder: "e.g. Lead, Contact, My_Custom__c" },
       { key: "filter", label: "SOQL WHERE filter (optional)", type: "text", placeholder: "Status = 'Open'" },
+      { key: "poll_interval", label: "Poll Interval (minutes)", type: "number", placeholder: "5" },
     ],
   },
 

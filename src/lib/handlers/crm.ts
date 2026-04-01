@@ -49,7 +49,9 @@ export const handlers: Record<string, NodeHandler> = {
     const sfObject = (config.object as string) || "Lead";
     const event = (config.event as string) || "new_record";
     const filter = config.filter as string;
-    const since = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // last 5 minutes
+    // Use poll_interval to determine the look-back window (×2 for overlap to avoid missing records)
+    const pollMins = Math.max(1, Number(config.poll_interval) || 5);
+    const since = new Date(Date.now() - 2 * pollMins * 60 * 1000).toISOString();
 
     let soql = "";
     if (event === "new_record" || event === "new_lead") {
@@ -58,16 +60,27 @@ export const handlers: Record<string, NodeHandler> = {
       soql = `SELECT Id, Name, LastModifiedDate${event === "opportunity_stage" ? ", StageName" : ""} FROM ${sfObject} WHERE LastModifiedDate > ${since}`;
     }
     if (filter) soql += ` AND ${filter}`;
-    soql += " LIMIT 50";
+    soql += " ORDER BY CreatedDate DESC LIMIT 50";
 
     const res = await fetch(`${apiBase}/query?q=${encodeURIComponent(soql)}`, { headers: sfHeaders });
     const data = await res.json();
     if (!res.ok) throw new Error(data[0]?.message || `Salesforce query failed: ${res.status}`);
+
+    // No new records → skip downstream execution
+    if (!data.totalSize || data.totalSize === 0) {
+      return { _skip: true, event, object: sfObject, total: 0, records: [] };
+    }
+
+    // Return the first/latest record as the trigger output so downstream nodes
+    // receive a single record's fields (fan-out per record not yet supported)
+    const firstRecord = data.records[0];
     return {
       event,
       object: sfObject,
       total: data.totalSize,
       records: data.records,
+      // Spread top-level so fields like {{trigger.Id}}, {{trigger.Name}} work directly
+      ...firstRecord,
     };
 
     void node;

@@ -96,6 +96,14 @@ async function executeNodeOnce(
       output = await handler(hc);
     }
 
+    // Polling triggers return { _skip: true } when nothing new was found — stop execution cleanly
+    if (output && typeof output === "object" && (output as Record<string, unknown>)._skip === true) {
+      log.status = "success";
+      log.output = output;
+      log.duration_ms = Date.now() - start;
+      ctx.nodeOutputs[node.id] = output;
+      return output;
+    }
 
     log.status = "success";
     log.output = output;
@@ -252,6 +260,10 @@ export async function executeWorkflow(
       // If the node returned a branch decision, record it
       if (result && typeof result === "object" && "_branch" in (result as object)) {
         branchOutputs[node.id] = (result as Record<string, unknown>)._branch as string;
+      }
+      // Polling trigger found nothing — skip all downstream nodes cleanly
+      if (result && typeof result === "object" && (result as Record<string, unknown>)._skip === true) {
+        skippedNodes.add(node.id);
       }
     } catch {
       // Node failed — mark it as skipped so all downstream nodes are skipped too
