@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import type { Execution } from "@/lib/types";
-import { RefreshCw, Calendar, Loader2, CheckCircle, XCircle, Clock, Power } from "lucide-react";
+import { RefreshCw, Calendar, Loader2, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 
 // ─── Mini sparkline chart ─────────────────────────────────────────────────────
 
@@ -119,6 +119,8 @@ function UsageChart({ executions }: { executions: Execution[] }) {
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
 
 interface Props {
+  collapsed?: boolean;
+  onToggle?: () => void;
   workflowId: string;
   isActive: boolean;
 }
@@ -137,7 +139,7 @@ function dur(e: Execution) {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
 }
 
-export default function ScenarioStatsPanel({ workflowId, isActive }: Props) {
+export default function ScenarioStatsPanel({ workflowId, isActive, collapsed = false, onToggle }: Props) {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -159,6 +161,30 @@ export default function ScenarioStatsPanel({ workflowId, isActive }: Props) {
   );
   const creditsUsed = last7.filter(e => e.status === "success").length;
 
+  // ── Collapsed state: slim strip ────────────────────────────────────────────
+  if (collapsed) {
+    return (
+      <aside className="w-8 border-l border-gray-200 bg-white flex flex-col items-center overflow-hidden flex-shrink-0">
+        <button
+          onClick={onToggle}
+          title="Expand scenario usage"
+          className="mt-3 p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-violet-600 transition-colors"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <div className="flex-1 flex items-center justify-center">
+          <span
+            className="text-[9px] font-bold text-gray-300 uppercase tracking-widest select-none"
+            style={{ writingMode: "vertical-rl" }}
+          >
+            Usage
+          </span>
+        </div>
+      </aside>
+    );
+  }
+
+  // ── Expanded state ─────────────────────────────────────────────────────────
   return (
     <aside className="w-80 border-l border-gray-200 bg-white flex flex-col overflow-hidden flex-shrink-0">
       <div className="flex-1 overflow-y-auto">
@@ -167,9 +193,18 @@ export default function ScenarioStatsPanel({ workflowId, isActive }: Props) {
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Scenario Usage</p>
-            <div className="flex items-center gap-1 text-[10px] text-gray-400 border border-gray-200 rounded-md px-2 py-0.5">
-              <Calendar size={10} />
-              Last 30 days
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 text-[10px] text-gray-400 border border-gray-200 rounded-md px-2 py-0.5">
+                <Calendar size={10} />
+                Last 30 days
+              </div>
+              <button
+                onClick={onToggle}
+                title="Collapse panel"
+                className="p-1 rounded-lg hover:bg-gray-100 text-gray-300 hover:text-gray-500 transition-colors"
+              >
+                <ChevronRight size={13} />
+              </button>
             </div>
           </div>
 

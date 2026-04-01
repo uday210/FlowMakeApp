@@ -363,6 +363,8 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
   const [versionSaveStatus, setVersionSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [loading, setLoading] = useState(true);
   const [statsKey, setStatsKey] = useState(0); // force-refresh stats panel
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
 
   useEffect(() => {
     const handler = () => setShowConnections(true);
@@ -623,7 +625,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
       {/* ── Content area ── */}
       {activeTab === "diagram" && (
         <div className="flex flex-1 overflow-hidden relative">
-          <Sidebar />
+          <Sidebar collapsed={leftCollapsed} onToggle={() => setLeftCollapsed(v => !v)} />
 
           {/* Canvas */}
           <div className="flex-1 relative overflow-hidden">
@@ -714,7 +716,13 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
 
           {/* Right stats panel — always visible in diagram tab (when no node selected) */}
           {!selectedNode && !showConnections && !showVersions && (
-            <ScenarioStatsPanel key={statsKey} workflowId={id} isActive={workflow.is_active} />
+            <ScenarioStatsPanel
+              key={statsKey}
+              workflowId={id}
+              isActive={workflow.is_active}
+              collapsed={rightCollapsed}
+              onToggle={() => setRightCollapsed(v => !v)}
+            />
           )}
         </div>
       )}
