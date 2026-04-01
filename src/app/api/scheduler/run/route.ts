@@ -22,10 +22,20 @@ export async function POST() {
   const triggered: { id: string; name: string }[] = [];
   const skipped: { id: string; name: string; reason: string }[] = [];
 
+  const POLLING_TRIGGERS = new Set([
+    "trigger_gmail", "trigger_outlook_email", "trigger_google_sheets",
+    "trigger_airtable_record", "trigger_notion_page", "trigger_google_drive",
+    "trigger_dropbox_file", "trigger_onedrive_file", "trigger_trello_card",
+    "trigger_monday_item", "trigger_mailchimp_subscriber", "trigger_activecampaign",
+    "trigger_rss_poll", "trigger_salesforce",
+  ]);
+
   for (const wf of workflows) {
     const nodes = wf.nodes as WorkflowNode[];
     const triggerNode = nodes.find((n) =>
-      n.data?.type === "trigger_schedule" || n.data?.type === "trigger_interval"
+      n.data?.type === "trigger_schedule" ||
+      n.data?.type === "trigger_interval" ||
+      POLLING_TRIGGERS.has(n.data?.type)
     );
 
     if (!triggerNode) {
@@ -38,6 +48,10 @@ export async function POST() {
 
     if (triggerNode.data.type === "trigger_interval") {
       cron = intervalToCron(cfg.every as string, cfg.unit as string);
+    } else if (POLLING_TRIGGERS.has(triggerNode.data.type)) {
+      // poll_interval is in minutes
+      const mins = Number(cfg.poll_interval) || 15;
+      cron = mins >= 60 ? `0 */${Math.floor(mins / 60)} * * *` : `*/${mins} * * * *`;
     } else {
       cron = (cfg.cron as string) || "0 * * * *";
     }
@@ -49,7 +63,9 @@ export async function POST() {
 
     // Execute workflow directly (no HTTP self-call — avoids network issues on Railway)
     try {
-      const triggerData = { _trigger: "schedule", _cron: cron, _fired_at: now.toISOString() };
+      const triggerData = POLLING_TRIGGERS.has(triggerNode.data.type)
+        ? { _trigger: "poll", _trigger_type: triggerNode.data.type, _fired_at: now.toISOString() }
+        : { _trigger: "schedule", _cron: cron, _fired_at: now.toISOString() };
       const nodes = wf.nodes as WorkflowNode[];
 
       // Collect connection IDs referenced by this workflow

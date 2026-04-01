@@ -201,7 +201,20 @@ export type NodeType =
   | "trigger_bitbucket_event"
   | "trigger_sentry_alert"
   | "trigger_pagerduty"
-  | "trigger_datadog";
+  | "trigger_datadog"
+  // Phase 2 polling triggers
+  | "trigger_gmail"
+  | "trigger_outlook_email"
+  | "trigger_google_sheets"
+  | "trigger_airtable_record"
+  | "trigger_notion_page"
+  | "trigger_google_drive"
+  | "trigger_dropbox_file"
+  | "trigger_onedrive_file"
+  | "trigger_trello_card"
+  | "trigger_monday_item"
+  | "trigger_mailchimp_subscriber"
+  | "trigger_activecampaign";
 
 export interface UserTable {
   id: string;

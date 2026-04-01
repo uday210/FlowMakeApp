@@ -13,6 +13,7 @@ import { handlers as devopsHandlers } from "./devops";
 import { handlers as documentsHandlers } from "./documents";
 import { handlers as miscHandlers } from "./misc";
 import { handlers as flowControlHandlers } from "./flow-control";
+import { handlers as pollingHandlers } from "./polling";
 
 export const HANDLERS: Record<string, NodeHandler> = {
   ...aiHandlers,
@@ -29,6 +30,7 @@ export const HANDLERS: Record<string, NodeHandler> = {
   ...documentsHandlers,
   ...miscHandlers,
   ...flowControlHandlers,
+  ...pollingHandlers,
 };
 
 export type { NodeHandler };
