@@ -1223,7 +1223,9 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
     if (!def?.connectionType) return;
     fetch(`/api/connections`)
       .then((r) => r.json())
-      .then((all: Connection[]) => setConnections(all.filter((c) => c.type === def.connectionType)))
+      .then((all: Connection[]) => setConnections(
+        all.filter((c) => c.type === def.connectionType).sort((a, b) => a.name.localeCompare(b.name))
+      ))
       .catch(() => {});
   }, [def?.connectionType, node?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

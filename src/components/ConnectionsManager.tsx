@@ -120,7 +120,7 @@ export default function ConnectionsManager({ onClose }: Props) {
               <label className="text-[10px] font-medium text-gray-500 block mb-1">Type</label>
               <select className={base} value={form.type} onChange={(e) => handleTypeChange(e.target.value)}
                 disabled={!!editingId}>
-                {CONNECTION_DEFINITIONS.map((d) => (
+                {[...CONNECTION_DEFINITIONS].sort((a, b) => a.label.localeCompare(b.label)).map((d) => (
                   <option key={d.type} value={d.type}>{d.label}</option>
                 ))}
               </select>
@@ -162,12 +162,16 @@ export default function ConnectionsManager({ onClose }: Props) {
           ) : connections.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-6">No connections yet. Create one to reuse credentials across nodes.</p>
           ) : (
-            Object.entries(grouped).map(([type, conns]) => {
+            Object.entries(grouped).sort(([a], [b]) => {
+              const la = CONNECTION_DEF_MAP[a]?.label ?? a;
+              const lb = CONNECTION_DEF_MAP[b]?.label ?? b;
+              return la.localeCompare(lb);
+            }).map(([type, conns]) => {
               const def = CONNECTION_DEF_MAP[type];
               return (
                 <div key={type}>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-1 mb-1">{def?.label ?? type}</p>
-                  {conns.map((conn) => (
+                  {[...conns].sort((a, b) => a.name.localeCompare(b.name)).map((conn) => (
                     <div key={conn.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-100 bg-white hover:border-blue-200 transition-colors group">
                       <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
                       <span className="text-xs font-medium text-gray-700 flex-1 truncate">{conn.name}</span>

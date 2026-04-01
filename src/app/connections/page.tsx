@@ -38,6 +38,14 @@ interface Connection {
   created_at: string;
 }
 
+interface ServiceField {
+  key: string;
+  label: string;
+  type: string;
+  placeholder?: string;
+  options?: { label: string; value: string }[];
+}
+
 const SERVICE_TYPES = [
   // ── AI & ML ────────────────────────────────────────────────────────────────
   { value: "openai", label: "OpenAI", icon: Bot, color: "bg-green-100 text-green-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
@@ -69,7 +77,26 @@ const SERVICE_TYPES = [
   { value: "zoom", label: "Zoom", icon: MessageSquare, color: "bg-blue-100 text-blue-500", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
   { value: "vonage", label: "Vonage / Nexmo", icon: Phone, color: "bg-purple-100 text-purple-600", fields: [{ key: "api_key", label: "API Key", type: "text" }, { key: "api_secret", label: "API Secret", type: "password" }] },
   // ── CRM & Sales ────────────────────────────────────────────────────────────
-  { value: "salesforce", label: "Salesforce", icon: Cloud, color: "bg-blue-100 text-blue-600", fields: [{ key: "client_id", label: "Client ID", type: "text" }, { key: "client_secret", label: "Client Secret", type: "password" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password + Security Token", type: "password" }] },
+  {
+    value: "salesforce", label: "Salesforce", icon: Cloud, color: "bg-blue-100 text-blue-600",
+    fields: [
+      { key: "auth_flow", label: "Auth Flow", type: "select", options: [
+        { label: "Username + Password", value: "password" },
+        { label: "Client Credentials (no user)", value: "client_credentials" },
+      ]},
+      { key: "environment", label: "Environment", type: "select", options: [
+        { label: "Production (login.salesforce.com)", value: "production" },
+        { label: "Sandbox (test.salesforce.com)", value: "sandbox" },
+        { label: "Custom Domain", value: "custom" },
+      ]},
+      { key: "login_url", label: "Custom Login URL (if custom domain)", type: "text", placeholder: "https://your-domain.my.salesforce.com" },
+      { key: "client_id", label: "Consumer Key / Client ID", type: "text" },
+      { key: "client_secret", label: "Consumer Secret / Client Secret", type: "password" },
+      { key: "username", label: "Username (password flow only)", type: "text" },
+      { key: "password", label: "Password (password flow only)", type: "password" },
+      { key: "security_token", label: "Security Token (password flow only)", type: "password" },
+    ],
+  },
   { value: "hubspot", label: "HubSpot", icon: Activity, color: "bg-orange-100 text-orange-600", fields: [{ key: "api_key", label: "Private App Token", type: "password" }] },
   { value: "pipedrive", label: "Pipedrive", icon: Activity, color: "bg-orange-100 text-orange-500", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
   { value: "zoho_crm", label: "Zoho CRM", icon: Activity, color: "bg-red-100 text-red-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
@@ -341,15 +368,29 @@ export default function ConnectionsPage() {
                 />
               </div>
 
-              {selectedService.fields.map((field) => (
+              {(selectedService.fields as ServiceField[]).map((field) => (
                 <div key={field.key}>
                   <label className="text-xs font-medium text-gray-600 mb-1 block">{field.label}</label>
-                  <input
-                    type={field.type}
-                    value={form.config[field.key] ?? ""}
-                    onChange={(e) => setForm({ ...form, config: { ...form.config, [field.key]: e.target.value } })}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
-                  />
+                  {field.type === "select" ? (
+                    <select
+                      value={form.config[field.key] ?? ""}
+                      onChange={(e) => setForm({ ...form, config: { ...form.config, [field.key]: e.target.value } })}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
+                    >
+                      <option value="">-- select --</option>
+                      {field.options?.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.type}
+                      placeholder={field.placeholder}
+                      value={form.config[field.key] ?? ""}
+                      onChange={(e) => setForm({ ...form, config: { ...form.config, [field.key]: e.target.value } })}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
+                    />
+                  )}
                 </div>
               ))}
             </div>
