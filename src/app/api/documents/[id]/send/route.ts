@@ -47,6 +47,7 @@ export async function POST(request: Request, { params }: Params) {
 
   const minOrder = ordered.length > 0 ? ordered[0].signing_order : 1;
 
+  const sessionId = crypto.randomUUID();
   const requests = [];
   for (const signer of ordered) {
     // parallel: all pending; sequential/groups: first level pending, rest waiting
@@ -64,6 +65,7 @@ export async function POST(request: Request, { params }: Params) {
         signer_name: signer.name,
         status,
         signing_order: signer.signing_order,
+        session_id: sessionId,
         org_id: ctx.orgId,
       })
       .select()

@@ -30,19 +30,31 @@ export async function GET(req: Request, { params }: Params) {
 
   // Fetch signed requests — scope to session when provided so multiple API
   // sessions on the same template don't bleed into each other's PDFs
-  let query = supabase
-    .from("esign_requests")
-    .select("*")
-    .eq("status", "signed")
-    .order("signing_order");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let allRequests: any[] | null = null;
 
   if (sessionId) {
-    query = query.eq("session_id", sessionId);
-  } else {
-    query = query.eq("document_id", id);
+    const { data } = await supabase
+      .from("esign_requests")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("status", "signed")
+      .order("signing_order");
+    // If session_id matched nothing, fall back to document-level query
+    if (data && data.length > 0) {
+      allRequests = data;
+    }
   }
 
-  const { data: allRequests } = await query;
+  if (!allRequests) {
+    const { data } = await supabase
+      .from("esign_requests")
+      .select("*")
+      .eq("document_id", id)
+      .eq("status", "signed")
+      .order("signing_order");
+    allRequests = data;
+  }
   const requests = (allRequests ?? []).filter(
     (r) => (r.signing_order ?? 1) <= maxOrder
   );
