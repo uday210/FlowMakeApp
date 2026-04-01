@@ -8,6 +8,8 @@ import {
   addEdge,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  EdgeLabelRenderer,
   type Node,
   type Edge,
   type Connection,
@@ -32,7 +34,8 @@ function MakeEdge({
   sourcePosition, targetPosition, selected,
   markerEnd,
 }: EdgeProps) {
-  const [edgePath] = getBezierPath({
+  const { setEdges } = useReactFlow();
+  const [edgePath, labelX, labelY] = getBezierPath({
     sourceX, sourceY, sourcePosition,
     targetX, targetY, targetPosition,
   });
@@ -50,7 +53,14 @@ function MakeEdge({
           strokeLinecap="round"
         />
       )}
-      {/* Base gray path */}
+      {/* Wider invisible hit area so edge is easy to click */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={12}
+      />
+      {/* Base path */}
       <path
         d={edgePath}
         fill="none"
@@ -66,9 +76,7 @@ function MakeEdge({
         strokeWidth={2.5}
         strokeLinecap="round"
         strokeDasharray="6 16"
-        style={{
-          animation: "makeEdgeDash 1.2s linear infinite",
-        }}
+        style={{ animation: "makeEdgeDash 1.2s linear infinite" }}
       />
       {markerEnd && (
         <defs>
@@ -77,6 +85,46 @@ function MakeEdge({
           </marker>
         </defs>
       )}
+      {/* Delete button at midpoint — visible when selected or hovered */}
+      <EdgeLabelRenderer>
+        <div
+          className="edge-delete-btn nodrag nopan"
+          style={{
+            position: "absolute",
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            pointerEvents: "all",
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEdges((eds) => eds.filter((e) => e.id !== id));
+            }}
+            title="Delete connection"
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: selected ? "#7c3aed" : "#e2e8f0",
+              border: selected ? "1.5px solid #6d28d9" : "1.5px solid #cbd5e1",
+              color: selected ? "#fff" : "#64748b",
+              fontSize: 10,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 1,
+              opacity: selected ? 1 : 0,
+              transition: "opacity 0.15s, background 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
+            onMouseLeave={(e) => { if (!selected) (e.currentTarget as HTMLButtonElement).style.opacity = "0"; }}
+          >
+            ×
+          </button>
+        </div>
+      </EdgeLabelRenderer>
     </>
   );
 }
