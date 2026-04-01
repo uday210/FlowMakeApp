@@ -676,7 +676,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     description: "Send a prompt to Claude (Anthropic) and get a response",
     category: "action",
     subcategory: "AI & ML",
-    connectionType: "claude",
+    connectionType: "anthropic",
     connectionFields: ["api_key"],
     color: "#cc785c",
     icon: "Bot",
@@ -1075,6 +1075,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "AI & ML",
     color: "#10a37f",
     icon: "ImageIcon",
+    connectionType: "openai",
+    connectionFields: ["api_key"],
     defaultConfig: { api_key: "", prompt: "", size: "1024x1024", quality: "standard", n: "1" },
     configFields: [
       { key: "api_key", label: "OpenAI API Key", type: "password", placeholder: "sk-...", required: true },
@@ -1316,6 +1318,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "AI & ML",
     color: "#7c3aed",
     icon: "BotMessageSquare",
+    connectionType: "anthropic",
+    connectionFields: ["api_key"],
     defaultConfig: {
       api_key: "",
       model: "claude-opus-4-5",
@@ -1370,6 +1374,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Databases",
     color: "#336791",
     icon: "DatabaseZap",
+    connectionType: "postgres",
+    connectionFields: ["host", "port", "database", "user", "password"],
     defaultConfig: { host: "", port: "5432", database: "", user: "", password: "", ssl: "true", action: "query", sql: "", params: "[]" },
     configFields: [
       { key: "host", label: "Host", type: "text", placeholder: "db.example.com  or  localhost", required: true },
@@ -1391,6 +1397,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Databases",
     color: "#00758f",
     icon: "DatabaseZap",
+    connectionType: "mysql",
+    connectionFields: ["host", "port", "database", "user", "password"],
     defaultConfig: { host: "", port: "3306", database: "", user: "", password: "", ssl: "false", action: "query", sql: "", params: "[]" },
     configFields: [
       { key: "host", label: "Host", type: "text", placeholder: "db.example.com  or  localhost", required: true },
@@ -1412,6 +1420,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Databases",
     color: "#47a248",
     icon: "Leaf",
+    connectionType: "mongodb",
+    connectionFields: ["uri"],
     defaultConfig: { uri: "", database: "", collection: "", action: "find", filter: "{}", document: "{}", update: "{}", limit: "20" },
     configFields: [
       { key: "uri", label: "Connection URI", type: "password", placeholder: "mongodb+srv://user:pass@cluster.mongodb.net", required: true },
@@ -1444,6 +1454,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Databases",
     color: "#dc382d",
     icon: "Zap",
+    connectionType: "redis",
+    connectionFields: ["url"],
     defaultConfig: { url: "redis://localhost:6379", password: "", action: "get", key: "", value: "", ttl: "", field: "" },
     configFields: [
       { key: "url", label: "Redis URL", type: "text", placeholder: "redis://localhost:6379  or  rediss://user:pass@host:6380", required: true },
@@ -1480,6 +1492,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Databases",
     color: "#3ecf8e",
     icon: "Database",
+    connectionType: "supabase",
+    connectionFields: ["url", "anon_key"],
     defaultConfig: { url: "", anon_key: "", table: "", action: "select", columns: "*", filter: "", data: "{}", limit: "20" },
     configFields: [
       { key: "url", label: "Project URL", type: "text", placeholder: "https://xxxx.supabase.co", required: true },
@@ -1511,6 +1525,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Message Brokers",
     color: "#000000",
     icon: "Radio",
+    connectionType: "kafka",
+    connectionFields: ["brokers"],
     defaultConfig: { brokers: "", client_id: "workflow-node", action: "produce", topic: "", message: "", partition: "", key: "", num_messages: "10", group_id: "workflow-consumer", sasl_mechanism: "none", sasl_username: "", sasl_password: "", ssl: "false" },
     configFields: [
       { key: "brokers", label: "Brokers (comma-separated)", type: "text", placeholder: "broker1:9092,broker2:9092", required: true },
@@ -1536,6 +1552,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Message Brokers",
     color: "#660066",
     icon: "Wifi",
+    connectionType: "mqtt",
+    connectionFields: ["broker_url"],
     defaultConfig: { broker_url: "", client_id: "", username: "", password: "", action: "publish", topic: "", payload: "", qos: "0", retain: "false", timeout: "5000" },
     configFields: [
       { key: "broker_url", label: "Broker URL", type: "text", placeholder: "mqtt://broker.hivemq.com  or  mqtts://...", required: true },
@@ -1558,6 +1576,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Message Brokers",
     color: "#ff6600",
     icon: "Server",
+    connectionType: "rabbitmq",
+    connectionFields: ["url"],
     defaultConfig: { url: "amqp://localhost", action: "publish", exchange: "", routing_key: "", queue: "", message: "", exchange_type: "direct", durable: "true", persistent: "true" },
     configFields: [
       { key: "url", label: "AMQP URL", type: "password", placeholder: "amqp://user:pass@host:5672/vhost", required: true },
@@ -1584,6 +1604,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Message Brokers",
     color: "#f04e98",
     icon: "SearchCode",
+    connectionType: "elasticsearch",
+    connectionFields: ["node", "api_key"],
     defaultConfig: { node: "http://localhost:9200", api_key: "", username: "", password: "", action: "search", index: "", query: '{"match_all": {}}', document: "{}", doc_id: "", size: "10" },
     configFields: [
       { key: "node", label: "Elasticsearch URL", type: "text", placeholder: "http://localhost:9200  or  https://...", required: true },
@@ -1613,6 +1635,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Message Brokers",
     color: "#27aae1",
     icon: "Zap",
+    connectionType: "nats",
+    connectionFields: ["servers"],
     defaultConfig: { servers: "nats://localhost:4222", username: "", password: "", token: "", action: "publish", subject: "", payload: "", timeout: "5000" },
     configFields: [
       { key: "servers", label: "Servers (comma-separated)", type: "text", placeholder: "nats://localhost:4222", required: true },
@@ -1762,6 +1786,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "AI & ML",
     color: "#4285f4",
     icon: "Sparkles",
+    connectionType: "gemini",
+    connectionFields: ["api_key"],
     defaultConfig: { api_key: "", model: "gemini-2.0-flash", action: "generate", prompt: "", system_prompt: "", image_base64: "", max_tokens: "1024", temperature: "0.7" },
     configFields: [
       { key: "api_key", label: "API Key", type: "password", placeholder: "AIza...", required: true },
@@ -1782,6 +1808,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "AI & ML",
     color: "#f55036",
     icon: "Zap",
+    connectionType: "groq",
+    connectionFields: ["api_key"],
     defaultConfig: { api_key: "", model: "llama3-8b-8192", prompt: "", system_prompt: "", max_tokens: "1024", temperature: "0.7", json_mode: "false" },
     configFields: [
       { key: "api_key", label: "API Key", type: "password", placeholder: "gsk_...", required: true },
@@ -1806,6 +1834,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "AI & ML",
     color: "#ff7000",
     icon: "Wind",
+    connectionType: "mistral",
+    connectionFields: ["api_key"],
     defaultConfig: { api_key: "", model: "mistral-small-latest", prompt: "", system_prompt: "", max_tokens: "1024", temperature: "0.7", json_mode: "false" },
     configFields: [
       { key: "api_key", label: "API Key", type: "password", placeholder: "...", required: true },
@@ -1831,6 +1861,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "AI & ML",
     color: "#10a37f",
     icon: "Mic",
+    connectionType: "whisper",
+    connectionFields: ["api_key"],
     defaultConfig: { api_key: "", action: "transcribe", audio_url: "", audio_base64: "", language: "", response_format: "json", temperature: "0" },
     configFields: [
       { key: "api_key", label: "OpenAI API Key", type: "password", placeholder: "sk-...", required: true },
@@ -1849,6 +1881,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "AI & ML",
     color: "#2563eb",
     icon: "Binary",
+    connectionType: "pinecone",
+    connectionFields: ["api_key"],
     defaultConfig: { api_key: "", index_name: "", action: "query", vector: "[]", top_k: "5", namespace: "", filter: "{}", id: "", metadata: "{}" },
     configFields: [
       { key: "api_key", label: "API Key", type: "password", placeholder: "...", required: true },
@@ -1876,6 +1910,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "AI & ML",
     color: "#b04a28",
     icon: "Binary",
+    connectionType: "weaviate",
+    connectionFields: ["api_key"],
     defaultConfig: { host: "http://localhost:8080", api_key: "", action: "search", collection: "", query_text: "", vector: "[]", limit: "5", properties: "", id: "", object: "{}" },
     configFields: [
       { key: "host", label: "Weaviate host", type: "text", placeholder: "https://my-cluster.weaviate.network", required: true },
@@ -1906,6 +1942,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Infrastructure",
     color: "#1a1a2e",
     icon: "Terminal",
+    connectionType: "ssh",
+    connectionFields: ["host", "username", "password"],
     defaultConfig: { host: "", port: "22", username: "root", password: "", private_key: "", command: "", timeout: "30000" },
     configFields: [
       { key: "host", label: "Host", type: "text", placeholder: "192.168.1.1  or  server.example.com", required: true },
@@ -1925,6 +1963,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Infrastructure",
     color: "#0052cc",
     icon: "FolderUp",
+    connectionType: "ftp",
+    connectionFields: ["host", "username", "password"],
     defaultConfig: { host: "", port: "21", username: "anonymous", password: "", secure: "false", action: "list", remote_path: "/", local_content: "", local_filename: "" },
     configFields: [
       { key: "host", label: "Host", type: "text", placeholder: "ftp.example.com", required: true },
@@ -1954,6 +1994,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     subcategory: "Infrastructure",
     color: "#0052cc",
     icon: "FolderUp",
+    connectionType: "sftp",
+    connectionFields: ["host", "username", "password"],
     defaultConfig: { host: "", port: "22", username: "root", password: "", private_key: "", action: "list", remote_path: "/", file_content: "", filename: "" },
     configFields: [
       { key: "host", label: "Host", type: "text", placeholder: "files.example.com", required: true },
@@ -2003,6 +2045,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_asana", label: "Asana", description: "Create tasks, update projects, and manage work in Asana.",
     category: "action", subcategory: "Project Management", color: "#f06a6a", icon: "CheckSquare",
     defaultConfig: { api_key: "", action: "create_task", project_id: "", name: "", notes: "" },
+    connectionType: "asana",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "Personal Access Token", type: "password", required: true },
@@ -2019,6 +2062,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_trello", label: "Trello", description: "Create cards, manage lists and boards in Trello.",
     category: "action", subcategory: "Project Management", color: "#0052cc", icon: "Layers",
     defaultConfig: { api_key: "", token: "", action: "create_card", list_id: "", name: "" },
+    connectionType: "trello",
     connectionFields: ["api_key", "token"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2035,6 +2079,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_monday", label: "Monday.com", description: "Create and update items on Monday.com boards.",
     category: "action", subcategory: "Project Management", color: "#ff3d57", icon: "Layers",
     defaultConfig: { api_key: "", action: "create_item", board_id: "", item_name: "" },
+    connectionType: "monday",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2050,6 +2095,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_clickup", label: "ClickUp", description: "Create and manage tasks in ClickUp.",
     category: "action", subcategory: "Project Management", color: "#7b68ee", icon: "CheckSquare",
     defaultConfig: { api_key: "", action: "create_task", list_id: "", name: "" },
+    connectionType: "clickup",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2066,6 +2112,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_basecamp", label: "Basecamp", description: "Post messages and create todos in Basecamp.",
     category: "action", subcategory: "Project Management", color: "#1d2d35", icon: "MessageSquare",
     defaultConfig: { access_token: "", account_id: "", action: "create_message", project_id: "" },
+    connectionType: "basecamp",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2082,6 +2129,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_todoist", label: "Todoist", description: "Create and manage tasks in Todoist.",
     category: "action", subcategory: "Project Management", color: "#db4035", icon: "CheckSquare",
     defaultConfig: { api_key: "", action: "create_task", content: "" },
+    connectionType: "todoist",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Token", type: "password", required: true },
@@ -2099,6 +2147,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_pipedrive", label: "Pipedrive", description: "Create and manage deals, contacts, and organizations in Pipedrive.",
     category: "action", subcategory: "CRM & Sales", color: "#2e4f6b", icon: "ArrowUpRight",
     defaultConfig: { api_key: "", action: "create_deal", title: "" },
+    connectionType: "pipedrive",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Token", type: "password", required: true },
@@ -2115,6 +2164,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_zoho_crm", label: "Zoho CRM", description: "Create and update leads, contacts, and deals in Zoho CRM.",
     category: "action", subcategory: "CRM & Sales", color: "#e42527", icon: "ArrowUpRight",
     defaultConfig: { access_token: "", action: "create_lead" },
+    connectionType: "zoho_crm",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2128,6 +2178,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_close", label: "Close CRM", description: "Create leads and contacts in Close CRM.",
     category: "action", subcategory: "CRM & Sales", color: "#5ba462", icon: "ArrowUpRight",
     defaultConfig: { api_key: "", action: "create_lead" },
+    connectionType: "close",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2143,6 +2194,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_zendesk", label: "Zendesk", description: "Create and update support tickets in Zendesk.",
     category: "action", subcategory: "Support", color: "#03363d", icon: "MessageSquareReply",
     defaultConfig: { subdomain: "", api_token: "", email: "", action: "create_ticket" },
+    connectionType: "zendesk",
     connectionFields: ["subdomain", "email", "api_token"],
     configFields: [
       { key: "subdomain", label: "Subdomain", type: "text", required: true, placeholder: "yourcompany" },
@@ -2160,6 +2212,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_intercom", label: "Intercom", description: "Create conversations and manage contacts in Intercom.",
     category: "action", subcategory: "Support", color: "#286efa", icon: "MessageCircle",
     defaultConfig: { access_token: "", action: "create_contact" },
+    connectionType: "intercom",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2174,6 +2227,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_freshdesk", label: "Freshdesk", description: "Create and manage support tickets in Freshdesk.",
     category: "action", subcategory: "Support", color: "#25c16f", icon: "MessageSquareReply",
     defaultConfig: { api_key: "", domain: "", action: "create_ticket" },
+    connectionType: "freshdesk",
     connectionFields: ["api_key", "domain"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2192,6 +2246,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_activecampaign", label: "ActiveCampaign", description: "Manage contacts, tags and deals in ActiveCampaign.",
     category: "action", subcategory: "Marketing", color: "#356ae6", icon: "Mail",
     defaultConfig: { api_key: "", base_url: "", action: "create_contact" },
+    connectionType: "activecampaign",
     connectionFields: ["api_key", "base_url"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2209,6 +2264,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_klaviyo", label: "Klaviyo", description: "Track events and manage profiles in Klaviyo.",
     category: "action", subcategory: "Marketing", color: "#1a1a1a", icon: "Mail",
     defaultConfig: { api_key: "", action: "track_event", event: "" },
+    connectionType: "klaviyo",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "Private API Key", type: "password", required: true },
@@ -2223,6 +2279,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_convertkit", label: "ConvertKit", description: "Manage subscribers and sequences in ConvertKit.",
     category: "action", subcategory: "Marketing", color: "#fb6970", icon: "Mail",
     defaultConfig: { api_key: "", action: "subscribe", form_id: "" },
+    connectionType: "convertkit",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2238,6 +2295,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_brevo", label: "Brevo", description: "Send transactional emails and manage contacts in Brevo (Sendinblue).",
     category: "action", subcategory: "Marketing", color: "#0092ff", icon: "Send",
     defaultConfig: { api_key: "", action: "send_email", to_email: "", subject: "" },
+    connectionType: "brevo",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2253,6 +2311,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_typeform", label: "Typeform", description: "Retrieve responses from Typeform forms.",
     category: "action", subcategory: "Marketing", color: "#262627", icon: "ClipboardList",
     defaultConfig: { api_key: "", action: "get_responses", form_id: "" },
+    connectionType: "typeform",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "Personal Access Token", type: "password", required: true },
@@ -2266,6 +2325,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_shopify", label: "Shopify", description: "Read orders, products and manage customers in Shopify.",
     category: "action", subcategory: "E-commerce", color: "#96bf48", icon: "CreditCard",
     defaultConfig: { store_domain: "", access_token: "", action: "get_order" },
+    connectionType: "shopify",
     connectionFields: ["store_domain", "access_token"],
     configFields: [
       { key: "store_domain", label: "Store Domain", type: "text", required: true, placeholder: "yourstore.myshopify.com" },
@@ -2281,6 +2341,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_woocommerce", label: "WooCommerce", description: "Manage orders, products and customers in WooCommerce.",
     category: "action", subcategory: "E-commerce", color: "#96588a", icon: "CreditCard",
     defaultConfig: { site_url: "", consumer_key: "", consumer_secret: "", action: "get_order" },
+    connectionType: "woocommerce",
     connectionFields: ["site_url", "consumer_key", "consumer_secret"],
     configFields: [
       { key: "site_url", label: "Site URL", type: "text", required: true, placeholder: "https://yourstore.com" },
@@ -2295,6 +2356,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_paddle", label: "Paddle", description: "Manage subscriptions and customers via Paddle.",
     category: "action", subcategory: "E-commerce", color: "#07c98b", icon: "CreditCard",
     defaultConfig: { api_key: "", action: "get_subscription" },
+    connectionType: "paddle",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2308,6 +2370,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_mixpanel", label: "Mixpanel", description: "Track events and update user profiles in Mixpanel.",
     category: "action", subcategory: "Analytics", color: "#7856ff", icon: "BarChart2",
     defaultConfig: { project_token: "", action: "track_event", event: "" },
+    connectionType: "mixpanel",
     connectionFields: ["project_token"],
     configFields: [
       { key: "project_token", label: "Project Token", type: "password", required: true },
@@ -2321,6 +2384,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_amplitude", label: "Amplitude", description: "Track events and identify users in Amplitude.",
     category: "action", subcategory: "Analytics", color: "#1a75ff", icon: "BarChart2",
     defaultConfig: { api_key: "", action: "track_event", event_type: "" },
+    connectionType: "amplitude",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2336,6 +2400,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_segment", label: "Segment", description: "Send track, identify and page calls via Segment.",
     category: "action", subcategory: "Analytics", color: "#52bd95", icon: "BarChart2",
     defaultConfig: { write_key: "", action: "track", event: "" },
+    connectionType: "segment",
     connectionFields: ["write_key"],
     configFields: [
       { key: "write_key", label: "Write Key", type: "password", required: true },
@@ -2350,6 +2415,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_posthog", label: "PostHog", description: "Capture events and update person properties in PostHog.",
     category: "action", subcategory: "Analytics", color: "#f76707", icon: "BarChart2",
     defaultConfig: { api_key: "", action: "capture", event: "" },
+    connectionType: "posthog",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "Project API Key", type: "password", required: true },
@@ -2364,6 +2430,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_google_analytics", label: "Google Analytics", description: "Send measurement events to Google Analytics 4.",
     category: "action", subcategory: "Analytics", color: "#f9ab00", icon: "BarChart2",
     defaultConfig: { measurement_id: "", api_secret: "", action: "send_event", event_name: "" },
+    connectionType: "google_analytics",
     connectionFields: ["measurement_id", "api_secret"],
     configFields: [
       { key: "measurement_id", label: "Measurement ID", type: "text", required: true, placeholder: "G-XXXXXXXXXX" },
@@ -2379,6 +2446,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_quickbooks", label: "QuickBooks", description: "Create invoices and manage customers in QuickBooks Online.",
     category: "action", subcategory: "Finance", color: "#2ca01c", icon: "Calculator",
     defaultConfig: { access_token: "", realm_id: "", action: "create_invoice" },
+    connectionType: "quickbooks",
     connectionFields: ["access_token", "realm_id"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2393,6 +2461,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_xero", label: "Xero", description: "Create invoices and manage contacts in Xero.",
     category: "action", subcategory: "Finance", color: "#13b5ea", icon: "Calculator",
     defaultConfig: { access_token: "", tenant_id: "", action: "create_invoice" },
+    connectionType: "xero",
     connectionFields: ["access_token", "tenant_id"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2409,6 +2478,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_paypal", label: "PayPal", description: "Create and capture PayPal orders.",
     category: "action", subcategory: "Payments", color: "#003087", icon: "CreditCard",
     defaultConfig: { client_id: "", client_secret: "", action: "create_order", amount: "", currency: "USD" },
+    connectionType: "paypal",
     connectionFields: ["client_id", "client_secret"],
     configFields: [
       { key: "client_id", label: "Client ID", type: "text", required: true },
@@ -2424,6 +2494,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_square", label: "Square", description: "Process payments and manage customers with Square.",
     category: "action", subcategory: "Payments", color: "#3e4348", icon: "CreditCard",
     defaultConfig: { access_token: "", action: "create_customer", location_id: "" },
+    connectionType: "square",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2439,6 +2510,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_braintree", label: "Braintree", description: "Create customers and transactions via Braintree.",
     category: "action", subcategory: "Payments", color: "#31a4db", icon: "CreditCard",
     defaultConfig: { merchant_id: "", public_key: "", private_key: "", action: "create_customer" },
+    connectionType: "braintree",
     connectionFields: ["merchant_id", "public_key", "private_key"],
     configFields: [
       { key: "merchant_id", label: "Merchant ID", type: "text", required: true },
@@ -2459,6 +2531,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_twitter", label: "Twitter / X", description: "Post tweets and retrieve timeline data via Twitter API v2.",
     category: "action", subcategory: "Social", color: "#1da1f2", icon: "MessageSquare",
     defaultConfig: { bearer_token: "", action: "create_tweet", text: "" },
+    connectionType: "twitter",
     connectionFields: ["bearer_token"],
     configFields: [
       { key: "bearer_token", label: "Bearer Token", type: "password", required: true },
@@ -2472,6 +2545,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_linkedin", label: "LinkedIn", description: "Share posts and manage content via LinkedIn API.",
     category: "action", subcategory: "Social", color: "#0a66c2", icon: "ArrowUpRight",
     defaultConfig: { access_token: "", action: "create_post", text: "" },
+    connectionType: "linkedin",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2483,6 +2557,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_youtube", label: "YouTube", description: "Retrieve video and channel data from YouTube.",
     category: "action", subcategory: "Social", color: "#ff0000", icon: "Radio",
     defaultConfig: { api_key: "", action: "get_video", video_id: "" },
+    connectionType: "youtube",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2498,6 +2573,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_teams", label: "Microsoft Teams", description: "Send messages to Microsoft Teams channels via webhook.",
     category: "action", subcategory: "Messaging", color: "#6264a7", icon: "MessageSquare",
     defaultConfig: { webhook_url: "", message: "" },
+    connectionType: "teams",
+    connectionFields: ["webhook_url"],
     configFields: [
       { key: "webhook_url", label: "Webhook URL", type: "text", required: true, placeholder: "https://outlook.office.com/webhook/..." },
       { key: "message", label: "Message", type: "textarea", placeholder: "{{trigger.message}}" },
@@ -2509,6 +2586,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_zoom", label: "Zoom", description: "Create and manage Zoom meetings.",
     category: "action", subcategory: "Messaging", color: "#2d8cff", icon: "Video",
     defaultConfig: { access_token: "", action: "create_meeting", topic: "" },
+    connectionType: "zoom",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "JWT / OAuth Access Token", type: "password", required: true },
@@ -2524,6 +2602,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_vonage", label: "Vonage SMS", description: "Send SMS messages via Vonage (formerly Nexmo).",
     category: "action", subcategory: "Messaging", color: "#7c4dff", icon: "Phone",
     defaultConfig: { api_key: "", api_secret: "", from: "", to: "", text: "" },
+    connectionType: "vonage",
     connectionFields: ["api_key", "api_secret"],
     configFields: [
       { key: "api_key", label: "API Key", type: "text", required: true },
@@ -2537,6 +2616,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_aws_ses", label: "AWS SES", description: "Send emails via Amazon Simple Email Service.",
     category: "action", subcategory: "Email", color: "#ff9900", icon: "Mail",
     defaultConfig: { access_key_id: "", secret_access_key: "", region: "us-east-1", from: "", to: "", subject: "" },
+    connectionType: "aws_ses",
     connectionFields: ["access_key_id", "secret_access_key", "region"],
     configFields: [
       { key: "access_key_id", label: "AWS Access Key ID", type: "text", required: true },
@@ -2554,6 +2634,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_dropbox", label: "Dropbox", description: "Upload, download and manage files in Dropbox.",
     category: "action", subcategory: "Storage", color: "#0061ff", icon: "Cloud",
     defaultConfig: { access_token: "", action: "upload_file", path: "" },
+    connectionType: "dropbox",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2567,6 +2648,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_onedrive", label: "OneDrive", description: "Upload and manage files in Microsoft OneDrive.",
     category: "action", subcategory: "Storage", color: "#0078d4", icon: "Cloud",
     defaultConfig: { access_token: "", action: "upload_file", path: "" },
+    connectionType: "onedrive",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2580,6 +2662,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_cloudinary", label: "Cloudinary", description: "Upload and transform images and videos with Cloudinary.",
     category: "action", subcategory: "Storage", color: "#3448c5", icon: "Image",
     defaultConfig: { cloud_name: "", api_key: "", api_secret: "", action: "upload", file: "" },
+    connectionType: "cloudinary",
     connectionFields: ["cloud_name", "api_key", "api_secret"],
     configFields: [
       { key: "cloud_name", label: "Cloud Name", type: "text", required: true },
@@ -2596,6 +2679,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_box", label: "Box", description: "Upload and manage files in Box cloud storage.",
     category: "action", subcategory: "Storage", color: "#0061d5", icon: "FolderUp",
     defaultConfig: { access_token: "", action: "upload_file", folder_id: "0" },
+    connectionType: "box",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2611,6 +2695,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_gitlab", label: "GitLab", description: "Create issues, merge requests and manage GitLab projects.",
     category: "action", subcategory: "Dev Tools", color: "#fc6d26", icon: "GitBranch",
     defaultConfig: { api_token: "", base_url: "https://gitlab.com", action: "create_issue", project_id: "" },
+    connectionType: "gitlab",
     connectionFields: ["api_token", "base_url"],
     configFields: [
       { key: "api_token", label: "Personal Access Token", type: "password", required: true },
@@ -2629,6 +2714,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_sentry", label: "Sentry", description: "Create issues and retrieve event data from Sentry.",
     category: "action", subcategory: "Dev Tools", color: "#362d59", icon: "Bell",
     defaultConfig: { auth_token: "", org_slug: "", action: "list_issues", project_slug: "" },
+    connectionType: "sentry",
     connectionFields: ["auth_token"],
     configFields: [
       { key: "auth_token", label: "Auth Token", type: "password", required: true },
@@ -2643,6 +2729,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_datadog", label: "Datadog", description: "Submit metrics and create events in Datadog.",
     category: "action", subcategory: "Dev Tools", color: "#632ca6", icon: "BarChart2",
     defaultConfig: { api_key: "", action: "submit_metric", metric_name: "" },
+    connectionType: "datadog",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2659,6 +2746,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_pagerduty", label: "PagerDuty", description: "Create and resolve incidents in PagerDuty.",
     category: "action", subcategory: "Dev Tools", color: "#06ac38", icon: "Bell",
     defaultConfig: { api_key: "", action: "create_incident", routing_key: "" },
+    connectionType: "pagerduty",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2675,6 +2763,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_vercel", label: "Vercel", description: "Trigger deployments and manage Vercel projects.",
     category: "action", subcategory: "Dev Tools", color: "#000000", icon: "Zap",
     defaultConfig: { access_token: "", action: "list_deployments", team_id: "" },
+    connectionType: "vercel",
     connectionFields: ["access_token"],
     configFields: [
       { key: "access_token", label: "Access Token", type: "password", required: true },
@@ -2688,6 +2777,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_circleci", label: "CircleCI", description: "Trigger pipelines and monitor builds in CircleCI.",
     category: "action", subcategory: "Dev Tools", color: "#343434", icon: "RefreshCw",
     defaultConfig: { api_token: "", action: "trigger_pipeline", project_slug: "" },
+    connectionType: "circleci",
     connectionFields: ["api_token"],
     configFields: [
       { key: "api_token", label: "API Token", type: "password", required: true },
@@ -2703,6 +2793,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_bitbucket", label: "Bitbucket", description: "Create issues and manage Bitbucket repositories.",
     category: "action", subcategory: "Dev Tools", color: "#0052cc", icon: "GitBranch",
     defaultConfig: { username: "", app_password: "", action: "create_issue", workspace: "", repo_slug: "" },
+    connectionType: "bitbucket",
     connectionFields: ["username", "app_password"],
     configFields: [
       { key: "username", label: "Username", type: "text", required: true },
@@ -2721,6 +2812,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_cohere", label: "Cohere", description: "Generate text, embeddings and classify content with Cohere.",
     category: "action", subcategory: "AI & ML", color: "#d18ee2", icon: "Sparkles",
     defaultConfig: { api_key: "", action: "generate", prompt: "" },
+    connectionType: "cohere",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2736,6 +2828,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_replicate", label: "Replicate", description: "Run AI models on Replicate's cloud infrastructure.",
     category: "action", subcategory: "AI & ML", color: "#000000", icon: "Cpu",
     defaultConfig: { api_token: "", action: "run_model", model_version: "" },
+    connectionType: "replicate",
     connectionFields: ["api_token"],
     configFields: [
       { key: "api_token", label: "API Token", type: "password", required: true },
@@ -2749,6 +2842,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_huggingface", label: "Hugging Face", description: "Run inference on Hugging Face models.",
     category: "action", subcategory: "AI & ML", color: "#ff9d00", icon: "Sparkles",
     defaultConfig: { api_key: "", model_id: "", inputs: "" },
+    connectionType: "huggingface",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Token", type: "password", required: true },
@@ -2762,6 +2856,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_wordpress", label: "WordPress", description: "Create and manage posts and pages via WordPress REST API.",
     category: "action", subcategory: "Productivity", color: "#21759b", icon: "FileText",
     defaultConfig: { site_url: "", username: "", app_password: "", action: "create_post" },
+    connectionType: "wordpress",
     connectionFields: ["site_url", "username", "app_password"],
     configFields: [
       { key: "site_url", label: "Site URL", type: "text", required: true, placeholder: "https://yoursite.com" },
@@ -2778,6 +2873,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_contentful", label: "Contentful", description: "Create and update content entries in Contentful CMS.",
     category: "action", subcategory: "Productivity", color: "#2478cc", icon: "Layers",
     defaultConfig: { access_token: "", space_id: "", action: "create_entry", content_type_id: "" },
+    connectionType: "contentful",
     connectionFields: ["access_token", "space_id"],
     configFields: [
       { key: "access_token", label: "Management Token", type: "password", required: true },
@@ -2793,6 +2889,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_calendly", label: "Calendly", description: "Retrieve events and scheduling data from Calendly.",
     category: "action", subcategory: "Productivity", color: "#006bff", icon: "CalendarDays",
     defaultConfig: { api_token: "", action: "list_events" },
+    connectionType: "calendly",
     connectionFields: ["api_token"],
     configFields: [
       { key: "api_token", label: "Personal Access Token", type: "password", required: true },
@@ -2806,6 +2903,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_clearbit", label: "Clearbit", description: "Enrich person and company data with Clearbit.",
     category: "action", subcategory: "Productivity", color: "#2858e6", icon: "SearchCode",
     defaultConfig: { api_key: "", action: "enrich_person", email: "" },
+    connectionType: "clearbit",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },
@@ -2818,6 +2916,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     type: "action_hunter", label: "Hunter.io", description: "Find and verify professional email addresses with Hunter.",
     category: "action", subcategory: "Productivity", color: "#f5a623", icon: "SearchCode",
     defaultConfig: { api_key: "", action: "find_email", domain: "" },
+    connectionType: "hunter",
     connectionFields: ["api_key"],
     configFields: [
       { key: "api_key", label: "API Key", type: "password", required: true },

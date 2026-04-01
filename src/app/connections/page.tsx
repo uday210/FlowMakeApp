@@ -39,52 +39,125 @@ interface Connection {
 }
 
 const SERVICE_TYPES = [
-  // AI
+  // ── AI & ML ────────────────────────────────────────────────────────────────
   { value: "openai", label: "OpenAI", icon: Bot, color: "bg-green-100 text-green-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
-  { value: "anthropic", label: "Anthropic", icon: Bot, color: "bg-amber-100 text-amber-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
-  // Messaging / Email
-  { value: "gmail", label: "Gmail / SMTP", icon: Mail, color: "bg-red-100 text-red-500", fields: [{ key: "email", label: "Email", type: "text" }, { key: "app_password", label: "App Password", type: "password" }] },
-  { value: "smtp", label: "SMTP", icon: Mail, color: "bg-blue-100 text-blue-600", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }] },
-  { value: "sendgrid", label: "SendGrid", icon: Mail, color: "bg-blue-100 text-blue-700", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "from_email", label: "From Email", type: "text" }] },
-  { value: "resend", label: "Resend", icon: Mail, color: "bg-indigo-100 text-indigo-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "from_email", label: "From Email", type: "text" }] },
-  { value: "mailgun", label: "Mailgun", icon: Mail, color: "bg-red-100 text-red-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "domain", label: "Domain", type: "text" }, { key: "from_email", label: "From Email", type: "text" }] },
-  { value: "postmark", label: "Postmark", icon: Mail, color: "bg-yellow-100 text-yellow-700", fields: [{ key: "server_token", label: "Server Token", type: "password" }, { key: "from_email", label: "From Email", type: "text" }] },
+  { value: "anthropic", label: "Anthropic / Claude", icon: Bot, color: "bg-amber-100 text-amber-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "gemini", label: "Google Gemini", icon: Bot, color: "bg-blue-100 text-blue-500", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "groq", label: "Groq", icon: Bot, color: "bg-orange-100 text-orange-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "mistral", label: "Mistral AI", icon: Bot, color: "bg-sky-100 text-sky-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "whisper", label: "Whisper (OpenAI)", icon: Bot, color: "bg-teal-100 text-teal-600", fields: [{ key: "api_key", label: "OpenAI API Key", type: "password" }] },
+  { value: "cohere", label: "Cohere", icon: Bot, color: "bg-indigo-100 text-indigo-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "replicate", label: "Replicate", icon: Bot, color: "bg-purple-100 text-purple-600", fields: [{ key: "api_token", label: "API Token", type: "password" }] },
+  { value: "huggingface", label: "Hugging Face", icon: Bot, color: "bg-yellow-100 text-yellow-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "pinecone", label: "Pinecone", icon: Database, color: "bg-green-100 text-green-700", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "weaviate", label: "Weaviate", icon: Database, color: "bg-green-100 text-green-600", fields: [{ key: "host", label: "Host URL", type: "text" }, { key: "api_key", label: "API Key", type: "password" }] },
+  // ── Email ──────────────────────────────────────────────────────────────────
+  { value: "smtp", label: "SMTP", icon: Mail, color: "bg-blue-100 text-blue-600", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "user", label: "Username", type: "text" }, { key: "pass", label: "Password", type: "password" }] },
+  { value: "sendgrid", label: "SendGrid", icon: Mail, color: "bg-blue-100 text-blue-700", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "from", label: "From Email", type: "text" }] },
+  { value: "resend", label: "Resend", icon: Mail, color: "bg-indigo-100 text-indigo-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "from", label: "From Email", type: "text" }] },
+  { value: "mailgun", label: "Mailgun", icon: Mail, color: "bg-red-100 text-red-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "domain", label: "Domain", type: "text" }, { key: "from", label: "From Email", type: "text" }] },
+  { value: "postmark", label: "Postmark", icon: Mail, color: "bg-yellow-100 text-yellow-700", fields: [{ key: "server_token", label: "Server Token", type: "password" }, { key: "from", label: "From Email", type: "text" }] },
   { value: "mailchimp", label: "Mailchimp", icon: Mail, color: "bg-yellow-100 text-yellow-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "server_prefix", label: "Server Prefix (e.g. us1)", type: "text" }] },
-  // Messaging Platforms
-  { value: "slack", label: "Slack", icon: MessageSquare, color: "bg-yellow-100 text-yellow-600", fields: [{ key: "bot_token", label: "Bot Token", type: "password" }, { key: "channel", label: "Default Channel", type: "text" }] },
+  { value: "aws_ses", label: "AWS SES", icon: Mail, color: "bg-orange-100 text-orange-500", fields: [{ key: "access_key_id", label: "Access Key ID", type: "text" }, { key: "secret_access_key", label: "Secret Access Key", type: "password" }, { key: "region", label: "Region", type: "text" }] },
+  // ── Messaging ──────────────────────────────────────────────────────────────
+  { value: "slack", label: "Slack", icon: MessageSquare, color: "bg-yellow-100 text-yellow-600", fields: [{ key: "token", label: "Bot Token", type: "password" }, { key: "channel", label: "Default Channel", type: "text" }] },
   { value: "discord", label: "Discord", icon: MessageSquare, color: "bg-indigo-100 text-indigo-600", fields: [{ key: "webhook_url", label: "Webhook URL", type: "text" }] },
   { value: "telegram", label: "Telegram", icon: MessageSquare, color: "bg-sky-100 text-sky-600", fields: [{ key: "bot_token", label: "Bot Token", type: "password" }, { key: "chat_id", label: "Default Chat ID", type: "text" }] },
   { value: "whatsapp", label: "WhatsApp", icon: Phone, color: "bg-green-100 text-green-600", fields: [{ key: "phone_number_id", label: "Phone Number ID", type: "text" }, { key: "access_token", label: "Access Token", type: "password" }] },
   { value: "twilio", label: "Twilio", icon: Phone, color: "bg-red-100 text-red-600", fields: [{ key: "account_sid", label: "Account SID", type: "text" }, { key: "auth_token", label: "Auth Token", type: "password" }, { key: "from_number", label: "From Phone Number", type: "text" }] },
-  // CRM / Sales
+  { value: "teams", label: "Microsoft Teams", icon: MessageSquare, color: "bg-blue-100 text-blue-700", fields: [{ key: "webhook_url", label: "Webhook URL", type: "text" }] },
+  { value: "zoom", label: "Zoom", icon: MessageSquare, color: "bg-blue-100 text-blue-500", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
+  { value: "vonage", label: "Vonage / Nexmo", icon: Phone, color: "bg-purple-100 text-purple-600", fields: [{ key: "api_key", label: "API Key", type: "text" }, { key: "api_secret", label: "API Secret", type: "password" }] },
+  // ── CRM & Sales ────────────────────────────────────────────────────────────
   { value: "salesforce", label: "Salesforce", icon: Cloud, color: "bg-blue-100 text-blue-600", fields: [{ key: "client_id", label: "Client ID", type: "text" }, { key: "client_secret", label: "Client Secret", type: "password" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password + Security Token", type: "password" }] },
-  { value: "hubspot", label: "HubSpot", icon: Activity, color: "bg-orange-100 text-orange-600", fields: [{ key: "access_token", label: "Private App Token", type: "password" }] },
-  // Project Management
-  { value: "jira", label: "Jira", icon: Layers, color: "bg-blue-100 text-blue-700", fields: [{ key: "host", label: "Host (e.g. yourorg.atlassian.net)", type: "text" }, { key: "email", label: "Email", type: "text" }, { key: "api_token", label: "API Token", type: "password" }] },
+  { value: "hubspot", label: "HubSpot", icon: Activity, color: "bg-orange-100 text-orange-600", fields: [{ key: "api_key", label: "Private App Token", type: "password" }] },
+  { value: "pipedrive", label: "Pipedrive", icon: Activity, color: "bg-orange-100 text-orange-500", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "zoho_crm", label: "Zoho CRM", icon: Activity, color: "bg-red-100 text-red-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
+  { value: "close", label: "Close CRM", icon: Activity, color: "bg-blue-100 text-blue-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  // ── Project Management ─────────────────────────────────────────────────────
+  { value: "jira", label: "Jira", icon: Layers, color: "bg-blue-100 text-blue-700", fields: [{ key: "domain", label: "Domain (yourorg.atlassian.net)", type: "text" }, { key: "email", label: "Email", type: "text" }, { key: "api_token", label: "API Token", type: "password" }] },
   { value: "linear", label: "Linear", icon: Zap, color: "bg-violet-100 text-violet-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
   { value: "github", label: "GitHub", icon: GitBranch, color: "bg-gray-100 text-gray-800", fields: [{ key: "token", label: "Personal Access Token", type: "password" }, { key: "owner", label: "Owner / Org", type: "text" }] },
-  // Productivity / Data
+  { value: "asana", label: "Asana", icon: Layers, color: "bg-pink-100 text-pink-600", fields: [{ key: "api_key", label: "Personal Access Token", type: "password" }] },
+  { value: "trello", label: "Trello", icon: Layers, color: "bg-blue-100 text-blue-600", fields: [{ key: "api_key", label: "API Key", type: "text" }, { key: "token", label: "Token", type: "password" }] },
+  { value: "monday", label: "Monday.com", icon: Layers, color: "bg-red-100 text-red-500", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "clickup", label: "ClickUp", icon: Layers, color: "bg-purple-100 text-purple-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "basecamp", label: "Basecamp", icon: Layers, color: "bg-green-100 text-green-700", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "account_id", label: "Account ID", type: "text" }] },
+  { value: "todoist", label: "Todoist", icon: Layers, color: "bg-red-100 text-red-600", fields: [{ key: "api_key", label: "API Token", type: "password" }] },
+  // ── Productivity / Data ────────────────────────────────────────────────────
   { value: "notion", label: "Notion", icon: FileText, color: "bg-gray-100 text-gray-700", fields: [{ key: "token", label: "Integration Token", type: "password" }] },
-  { value: "airtable", label: "Airtable", icon: Database, color: "bg-cyan-100 text-cyan-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "base_id", label: "Base ID", type: "text" }] },
-  { value: "sheets", label: "Google Sheets", icon: Table2, color: "bg-green-100 text-green-700", fields: [{ key: "service_account_json", label: "Service Account JSON", type: "password" }, { key: "spreadsheet_id", label: "Spreadsheet ID", type: "text" }] },
+  { value: "airtable", label: "Airtable", icon: Database, color: "bg-cyan-100 text-cyan-600", fields: [{ key: "token", label: "API Token", type: "password" }, { key: "base_id", label: "Base ID", type: "text" }] },
+  { value: "sheets", label: "Google Sheets", icon: Table2, color: "bg-green-100 text-green-700", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "spreadsheet_id", label: "Spreadsheet ID", type: "text" }] },
   { value: "google_drive", label: "Google Drive", icon: Cloud, color: "bg-blue-100 text-blue-500", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "refresh_token", label: "Refresh Token", type: "password" }] },
-  { value: "google_calendar", label: "Google Calendar", icon: Calendar, color: "bg-blue-100 text-blue-600", fields: [{ key: "service_account_json", label: "Service Account JSON", type: "password" }, { key: "calendar_id", label: "Calendar ID", type: "text" }] },
-  // Payments
+  { value: "google_calendar", label: "Google Calendar", icon: Calendar, color: "bg-blue-100 text-blue-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "calendar_id", label: "Calendar ID", type: "text" }] },
+  { value: "wordpress", label: "WordPress", icon: Globe, color: "bg-blue-100 text-blue-700", fields: [{ key: "site_url", label: "Site URL", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "app_password", label: "App Password", type: "password" }] },
+  { value: "contentful", label: "Contentful", icon: FileText, color: "bg-blue-100 text-blue-500", fields: [{ key: "access_token", label: "Management Token", type: "password" }, { key: "space_id", label: "Space ID", type: "text" }] },
+  { value: "calendly", label: "Calendly", icon: Calendar, color: "bg-blue-100 text-blue-600", fields: [{ key: "api_token", label: "Personal Access Token", type: "password" }] },
+  { value: "clearbit", label: "Clearbit", icon: Activity, color: "bg-blue-100 text-blue-700", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "hunter", label: "Hunter.io", icon: Mail, color: "bg-orange-100 text-orange-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  // ── Payments ───────────────────────────────────────────────────────────────
   { value: "stripe", label: "Stripe", icon: ShoppingCart, color: "bg-violet-100 text-violet-600", fields: [{ key: "secret_key", label: "Secret Key", type: "password" }, { key: "webhook_secret", label: "Webhook Secret", type: "password" }] },
-  // Storage
+  { value: "paypal", label: "PayPal", icon: ShoppingCart, color: "bg-blue-100 text-blue-700", fields: [{ key: "client_id", label: "Client ID", type: "text" }, { key: "client_secret", label: "Client Secret", type: "password" }] },
+  { value: "square", label: "Square", icon: ShoppingCart, color: "bg-gray-100 text-gray-700", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
+  { value: "braintree", label: "Braintree", icon: ShoppingCart, color: "bg-blue-100 text-blue-600", fields: [{ key: "merchant_id", label: "Merchant ID", type: "text" }, { key: "public_key", label: "Public Key", type: "text" }, { key: "private_key", label: "Private Key", type: "password" }] },
+  { value: "paddle", label: "Paddle", icon: ShoppingCart, color: "bg-green-100 text-green-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  // ── E-commerce ─────────────────────────────────────────────────────────────
+  { value: "shopify", label: "Shopify", icon: ShoppingCart, color: "bg-green-100 text-green-700", fields: [{ key: "store_domain", label: "Store Domain (yourstore.myshopify.com)", type: "text" }, { key: "access_token", label: "Admin API Token", type: "password" }] },
+  { value: "woocommerce", label: "WooCommerce", icon: ShoppingCart, color: "bg-purple-100 text-purple-600", fields: [{ key: "site_url", label: "Site URL", type: "text" }, { key: "consumer_key", label: "Consumer Key", type: "text" }, { key: "consumer_secret", label: "Consumer Secret", type: "password" }] },
+  // ── Analytics ──────────────────────────────────────────────────────────────
+  { value: "mixpanel", label: "Mixpanel", icon: Activity, color: "bg-purple-100 text-purple-600", fields: [{ key: "project_token", label: "Project Token", type: "password" }] },
+  { value: "amplitude", label: "Amplitude", icon: Activity, color: "bg-blue-100 text-blue-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "segment", label: "Segment", icon: Activity, color: "bg-green-100 text-green-600", fields: [{ key: "write_key", label: "Write Key", type: "password" }] },
+  { value: "posthog", label: "PostHog", icon: Activity, color: "bg-orange-100 text-orange-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "host", label: "Host URL (optional)", type: "text" }] },
+  { value: "google_analytics", label: "Google Analytics 4", icon: Activity, color: "bg-orange-100 text-orange-500", fields: [{ key: "measurement_id", label: "Measurement ID", type: "text" }, { key: "api_secret", label: "API Secret", type: "password" }] },
+  // ── Finance ────────────────────────────────────────────────────────────────
+  { value: "quickbooks", label: "QuickBooks", icon: Activity, color: "bg-green-100 text-green-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "realm_id", label: "Company ID", type: "text" }] },
+  { value: "xero", label: "Xero", icon: Activity, color: "bg-blue-100 text-blue-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "tenant_id", label: "Tenant ID", type: "text" }] },
+  // ── Social ─────────────────────────────────────────────────────────────────
+  { value: "twitter", label: "Twitter / X", icon: MessageSquare, color: "bg-sky-100 text-sky-600", fields: [{ key: "bearer_token", label: "Bearer Token", type: "password" }] },
+  { value: "linkedin", label: "LinkedIn", icon: MessageSquare, color: "bg-blue-100 text-blue-700", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
+  { value: "youtube", label: "YouTube", icon: Globe, color: "bg-red-100 text-red-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  // ── Support ────────────────────────────────────────────────────────────────
+  { value: "zendesk", label: "Zendesk", icon: Activity, color: "bg-green-100 text-green-600", fields: [{ key: "subdomain", label: "Subdomain", type: "text" }, { key: "email", label: "Email", type: "text" }, { key: "api_token", label: "API Token", type: "password" }] },
+  { value: "intercom", label: "Intercom", icon: MessageSquare, color: "bg-blue-100 text-blue-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
+  { value: "freshdesk", label: "Freshdesk", icon: Activity, color: "bg-teal-100 text-teal-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "domain", label: "Domain (yourcompany.freshdesk.com)", type: "text" }] },
+  // ── Marketing ──────────────────────────────────────────────────────────────
+  { value: "activecampaign", label: "ActiveCampaign", icon: Mail, color: "bg-blue-100 text-blue-600", fields: [{ key: "api_key", label: "API Key", type: "password" }, { key: "base_url", label: "Account URL", type: "text" }] },
+  { value: "klaviyo", label: "Klaviyo", icon: Mail, color: "bg-gray-100 text-gray-700", fields: [{ key: "api_key", label: "Private API Key", type: "password" }] },
+  { value: "convertkit", label: "ConvertKit", icon: Mail, color: "bg-orange-100 text-orange-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "brevo", label: "Brevo (Sendinblue)", icon: Mail, color: "bg-blue-100 text-blue-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "typeform", label: "Typeform", icon: FileText, color: "bg-yellow-100 text-yellow-600", fields: [{ key: "api_key", label: "Personal Access Token", type: "password" }] },
+  // ── Storage ────────────────────────────────────────────────────────────────
   { value: "aws_s3", label: "AWS S3", icon: Cloud, color: "bg-orange-100 text-orange-500", fields: [{ key: "access_key_id", label: "Access Key ID", type: "text" }, { key: "secret_access_key", label: "Secret Access Key", type: "password" }, { key: "region", label: "Region", type: "text" }, { key: "bucket", label: "Bucket", type: "text" }] },
-  // Databases
-  { value: "postgres", label: "PostgreSQL", icon: Database, color: "bg-blue-100 text-blue-700", fields: [{ key: "connection_string", label: "Connection String", type: "password" }] },
+  { value: "dropbox", label: "Dropbox", icon: Cloud, color: "bg-blue-100 text-blue-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
+  { value: "onedrive", label: "OneDrive", icon: Cloud, color: "bg-blue-100 text-blue-700", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
+  { value: "cloudinary", label: "Cloudinary", icon: Cloud, color: "bg-blue-100 text-blue-500", fields: [{ key: "cloud_name", label: "Cloud Name", type: "text" }, { key: "api_key", label: "API Key", type: "text" }, { key: "api_secret", label: "API Secret", type: "password" }] },
+  { value: "box", label: "Box", icon: Cloud, color: "bg-blue-100 text-blue-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
+  // ── Databases ──────────────────────────────────────────────────────────────
+  { value: "postgres", label: "PostgreSQL", icon: Database, color: "bg-blue-100 text-blue-700", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "database", label: "Database", type: "text" }, { key: "user", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }] },
   { value: "mysql", label: "MySQL", icon: Database, color: "bg-orange-100 text-orange-600", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "database", label: "Database", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }] },
   { value: "mongodb", label: "MongoDB", icon: Database, color: "bg-green-100 text-green-700", fields: [{ key: "connection_string", label: "Connection String", type: "password" }, { key: "database", label: "Database Name", type: "text" }] },
-  { value: "redis", label: "Redis", icon: Server, color: "bg-red-100 text-red-600", fields: [{ key: "url", label: "Redis URL", type: "password" }] },
+  { value: "redis", label: "Redis", icon: Server, color: "bg-red-100 text-red-600", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "password", label: "Password", type: "password" }] },
   { value: "supabase", label: "Supabase", icon: Database, color: "bg-emerald-100 text-emerald-600", fields: [{ key: "url", label: "Project URL", type: "text" }, { key: "service_role_key", label: "Service Role Key", type: "password" }] },
   { value: "elasticsearch", label: "Elasticsearch", icon: Search, color: "bg-yellow-100 text-yellow-700", fields: [{ key: "node", label: "Node URL", type: "text" }, { key: "api_key", label: "API Key", type: "password" }] },
-  // Message Brokers
+  // ── Message Brokers ────────────────────────────────────────────────────────
   { value: "kafka", label: "Kafka", icon: Activity, color: "bg-gray-100 text-gray-700", fields: [{ key: "brokers", label: "Brokers (comma-separated)", type: "text" }, { key: "sasl_username", label: "SASL Username", type: "text" }, { key: "sasl_password", label: "SASL Password", type: "password" }] },
   { value: "rabbitmq", label: "RabbitMQ", icon: Activity, color: "bg-orange-100 text-orange-700", fields: [{ key: "url", label: "AMQP URL", type: "password" }] },
   { value: "mqtt", label: "MQTT", icon: Activity, color: "bg-teal-100 text-teal-600", fields: [{ key: "broker_url", label: "Broker URL", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }] },
-  // Generic
+  { value: "nats", label: "NATS", icon: Activity, color: "bg-blue-100 text-blue-600", fields: [{ key: "servers", label: "Servers (comma-separated)", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }] },
+  // ── Dev Tools ──────────────────────────────────────────────────────────────
+  { value: "gitlab", label: "GitLab", icon: GitBranch, color: "bg-orange-100 text-orange-600", fields: [{ key: "api_token", label: "Personal Access Token", type: "password" }, { key: "base_url", label: "GitLab URL (optional)", type: "text" }] },
+  { value: "sentry", label: "Sentry", icon: Activity, color: "bg-purple-100 text-purple-600", fields: [{ key: "auth_token", label: "Auth Token", type: "password" }, { key: "org_slug", label: "Org Slug", type: "text" }] },
+  { value: "datadog", label: "Datadog", icon: Activity, color: "bg-violet-100 text-violet-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "pagerduty", label: "PagerDuty", icon: Activity, color: "bg-green-100 text-green-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
+  { value: "vercel", label: "Vercel", icon: Globe, color: "bg-gray-100 text-gray-800", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
+  { value: "circleci", label: "CircleCI", icon: Activity, color: "bg-gray-100 text-gray-700", fields: [{ key: "api_token", label: "API Token", type: "password" }] },
+  { value: "bitbucket", label: "Bitbucket", icon: GitBranch, color: "bg-blue-100 text-blue-600", fields: [{ key: "username", label: "Username", type: "text" }, { key: "app_password", label: "App Password", type: "password" }, { key: "workspace", label: "Workspace", type: "text" }, { key: "repo_slug", label: "Repository Slug", type: "text" }] },
+  // ── Infrastructure ─────────────────────────────────────────────────────────
+  { value: "ssh", label: "SSH", icon: Server, color: "bg-gray-100 text-gray-700", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }, { key: "private_key", label: "Private Key (optional)", type: "password" }] },
+  { value: "ftp", label: "FTP", icon: Server, color: "bg-blue-100 text-blue-600", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }] },
+  { value: "sftp", label: "SFTP", icon: Server, color: "bg-blue-100 text-blue-700", fields: [{ key: "host", label: "Host", type: "text" }, { key: "port", label: "Port", type: "text" }, { key: "username", label: "Username", type: "text" }, { key: "password", label: "Password", type: "password" }, { key: "private_key", label: "Private Key (optional)", type: "password" }] },
+  // ── Generic ────────────────────────────────────────────────────────────────
   { value: "webhook", label: "HTTP / Webhook", icon: Globe, color: "bg-blue-100 text-blue-600", fields: [{ key: "base_url", label: "Base URL", type: "text" }, { key: "auth_header", label: "Auth Header (optional)", type: "password" }] },
   { value: "jwt", label: "JWT / API Key", icon: Lock, color: "bg-slate-100 text-slate-600", fields: [{ key: "secret", label: "Secret / Private Key", type: "password" }, { key: "algorithm", label: "Algorithm (e.g. HS256)", type: "text" }] },
   { value: "custom", label: "Custom", icon: Zap, color: "bg-pink-100 text-pink-600", fields: [{ key: "key", label: "Key / Token", type: "password" }] },
