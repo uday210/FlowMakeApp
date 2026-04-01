@@ -89,6 +89,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [editingName, setEditingName]     = useState(false);
   const [draftName, setDraftName]         = useState("");
   const [signingMode, setSigningMode]     = useState<SigningMode>("sequential");
+  const [groupCount, setGroupCount]       = useState(1); // tracks highest group number created
 
   const load = useCallback(async () => {
     const [docRes, fieldsRes, statusRes] = await Promise.all([
@@ -234,7 +235,10 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     setSigners(prev => prev.map((s, i) => i === idx ? { ...s, group: Math.max(1, g) } : s));
   };
 
-  const existingGroups = [...new Set(signers.map(s => s.group))].sort((a, b) => a - b);
+  // All group numbers: those with signers + any manually created empty groups
+  const signerGroups = [...new Set(signers.map(s => s.group))];
+  const allGroups = [...new Set([...signerGroups, ...Array.from({ length: groupCount }, (_, i) => i + 1)])].sort((a, b) => a - b);
+  const existingGroups = allGroups;
 
   const handlePlaceField = useCallback((page: number, x: number, y: number) => {
     if (!activeTool) return;
@@ -443,7 +447,11 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                       const labels = { sequential: "Sequential", parallel: "Parallel", groups: "Groups" };
                       const Icon = icons[m];
                       return (
-                        <button key={m} onClick={() => setSigningMode(m)}
+                        <button key={m} onClick={() => {
+                          setSigningMode(m);
+                          setGroupCount(1);
+                          if (m === "sequential" && activeSignerIdx === -1) setActiveSignerIdx(0);
+                        }}
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 transition-colors ${signingMode === m ? "bg-indigo-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
                           title={m === "sequential" ? "Each signer signs one after another" : m === "parallel" ? "All signers receive the link at once" : "Signers in same group sign together, groups unlock in order"}
                         >
@@ -453,15 +461,23 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                     })}
                   </div>
                   <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
-                    {signingMode === "sequential" && "Each signer signs one after another."}
+                    {signingMode === "sequential" && "Each signer signs one after another in order."}
                     {signingMode === "parallel" && "Everyone gets the link at once. Use 'All Signers' fields."}
                     {signingMode === "groups" && "Each group signs together, then the next group unlocks."}
                   </p>
+                  {signingMode === "groups" && (
+                    <button
+                      onClick={() => setGroupCount(c => c + 1)}
+                      className="mt-2 w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-semibold text-indigo-600 border border-dashed border-indigo-300 rounded-lg hover:bg-indigo-50 transition-colors"
+                    >
+                      <span className="text-sm leading-none">+</span> New Group
+                    </button>
+                  )}
                 </div>
               )}
 
-              {/* All Signers slot — always shown, for fields shared across everyone */}
-              {!isTemplate && (
+              {/* All Signers slot — shown for parallel and groups only (not sequential) */}
+              {!isTemplate && signingMode !== "sequential" && (
                 <button
                   onClick={() => { setActiveSignerIdx(-1); setActiveTool(null); }}
                   className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all mb-2 ${activeSignerIdx === -1 ? "shadow-sm" : "hover:bg-gray-50"}`}
@@ -616,12 +632,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                       <span className="text-[10px] text-gray-500 flex-shrink-0">Add to group:</span>
                       <select value={newGroup} onChange={e => setNewGroup(Number(e.target.value))}
                         className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-1 outline-none bg-white">
-                        {[...existingGroups, (existingGroups.length > 0 ? Math.max(...existingGroups) + 1 : 1)]
-                          .filter((v, idx, arr) => arr.indexOf(v) === idx).sort((a,b)=>a-b)
-                          .map(gn => (
-                            <option key={gn} value={gn}>
-                              {existingGroups.includes(gn) ? `Group ${gn}` : `Group ${gn} (new)`}
-                            </option>
+                        {existingGroups.map(gn => (
+                            <option key={gn} value={gn}>Group {gn}</option>
                           ))}
                       </select>
                     </div>
