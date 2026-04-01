@@ -21,6 +21,7 @@ const PUBLIC_PREFIXES = [
   "/api/v1/",
   "/api/approvals/",
   "/api/scheduler/",
+  "/api/mcp/hosted/",
   "/embed/",
   "/form/",
   "/sign/",
