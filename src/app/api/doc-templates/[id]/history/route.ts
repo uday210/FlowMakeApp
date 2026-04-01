@@ -10,7 +10,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data, error } = await ctx.admin
     .from("generated_docs")
-    .select("id, name, file_size, status, merge_data, created_at")
+    .select("id, name, file_size, status, merge_data, output_path, created_at")
     .eq("template_id", id)
     .eq("org_id", ctx.orgId)
     .order("created_at", { ascending: false })

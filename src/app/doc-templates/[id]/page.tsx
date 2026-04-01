@@ -128,7 +128,8 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
   const rawHtmlCache = useRef<string | null>(null);
 
   // History
-  const [history, setHistory] = useState<{ id: string; name: string; created_at: string; file_size: number }[]>([]);
+  const [history, setHistory] = useState<{ id: string; name: string; created_at: string; file_size: number; output_path: string | null }[]>([]);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const [histLoading, setHistLoading] = useState(false);
 
   useEffect(() => { load(); }, [id]);
@@ -187,6 +188,19 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
       setHistory(Array.isArray(d) ? d : []);
     }
     setHistLoading(false);
+  }
+
+  async function downloadGenerated(docId: string, name: string) {
+    setDownloading(docId);
+    const res = await fetch(`/api/doc-templates/${id}/history/${docId}/download`);
+    const d = await res.json();
+    if (res.ok && d.url) {
+      const a = document.createElement("a");
+      a.href = d.url;
+      a.download = name;
+      a.click();
+    }
+    setDownloading(null);
   }
 
   async function handleSave() {
@@ -621,17 +635,39 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                 ) : (
                   <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
                     {history.map(h => (
-                      <div key={h.id} className="flex items-center gap-3 px-4 py-3">
-                        <FileText size={14} className="text-gray-300 flex-shrink-0" />
+                      <div key={h.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group">
+                        <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                          <FileText size={14} className="text-violet-500" />
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-700 truncate">{h.name}</p>
-                          <p className="text-xs text-gray-400 flex items-center gap-1">
-                            <Clock size={9} /> {new Date(h.created_at).toLocaleString("en-US", {
-                              month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-                            })}
-                            {h.file_size ? ` · ${(h.file_size / 1024).toFixed(1)} KB` : ""}
+                          <p className="text-sm font-medium text-gray-800 truncate">{h.name}</p>
+                          <p className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
+                            <span className="flex items-center gap-1">
+                              <Clock size={9} />
+                              {new Date(h.created_at).toLocaleString("en-US", {
+                                month: "short", day: "numeric", year: "numeric",
+                                hour: "numeric", minute: "2-digit",
+                              })}
+                            </span>
+                            {h.file_size ? (
+                              <span className="text-gray-300">·</span>
+                            ) : null}
+                            {h.file_size ? (
+                              <span>{(h.file_size / 1024).toFixed(1)} KB</span>
+                            ) : null}
                           </p>
                         </div>
+                        <button
+                          onClick={() => downloadGenerated(h.id, h.name)}
+                          disabled={downloading === h.id || !h.output_path}
+                          title={h.output_path ? "Download" : "File unavailable"}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-violet-600 border border-violet-200 rounded-lg hover:bg-violet-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed opacity-0 group-hover:opacity-100"
+                        >
+                          {downloading === h.id
+                            ? <Loader2 size={12} className="animate-spin" />
+                            : <Download size={12} />}
+                          Download
+                        </button>
                       </div>
                     ))}
                   </div>
