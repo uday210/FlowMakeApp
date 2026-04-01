@@ -90,6 +90,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [draftName, setDraftName]         = useState("");
   const [signingMode, setSigningMode]     = useState<SigningMode>("sequential");
   const [groupCount, setGroupCount]       = useState(1); // tracks highest group number created
+  const [templateSlotCount, setTemplateSlotCount] = useState(4); // number of signer slots in template mode
 
   const load = useCallback(async () => {
     const [docRes, fieldsRes, statusRes] = await Promise.all([
@@ -276,13 +277,13 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const templateSlots  = [1,2,3,4].map(n => ({ email: `Signer ${n}`, name: `Signer ${n}`, order: n, group: n }));
+  const templateSlots  = Array.from({ length: templateSlotCount }, (_, i) => ({ email: `Signer ${i + 1}`, name: `Signer ${i + 1}`, order: i + 1, group: i + 1 }));
   const displaySigners = isTemplate ? templateSlots : signers;
   // activeSignerIdx === -1 = "All Signers"
   const activeSigner   = activeSignerIdx === -1 ? null : displaySigners[activeSignerIdx];
   const activeColor    = activeSignerIdx === -1 ? "#64748b" : SIGNER_COLORS[activeSignerIdx % SIGNER_COLORS.length];
   const signerColors   = isTemplate
-    ? { "": "#64748b", ...Object.fromEntries([1,2,3,4].map(n => [`Signer ${n}`, SIGNER_COLORS[(n-1) % SIGNER_COLORS.length]])) }
+    ? { "": "#64748b", ...Object.fromEntries(Array.from({ length: templateSlotCount }, (_, i) => [`Signer ${i + 1}`, SIGNER_COLORS[i % SIGNER_COLORS.length]])) }
     : { "": "#64748b", ...Object.fromEntries(signers.map((s, i) => [s.email, SIGNER_COLORS[i % SIGNER_COLORS.length]])) };
 
   if (loading) return (
@@ -434,6 +435,22 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                   >
                     <UserPlus size={11} /> Add
                   </button>
+                )}
+                {isTemplate && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { if (templateSlotCount > 1) { if (activeSignerIdx >= templateSlotCount - 1) setActiveSignerIdx(templateSlotCount - 2); setTemplateSlotCount(c => c - 1); } }}
+                      disabled={templateSlotCount <= 1}
+                      className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-red-500 border border-gray-200 rounded disabled:opacity-30 text-xs font-bold"
+                      title="Remove last signer slot"
+                    >−</button>
+                    <span className="text-[10px] text-gray-400">{templateSlotCount}</span>
+                    <button
+                      onClick={() => setTemplateSlotCount(c => c + 1)}
+                      className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-indigo-600 border border-gray-200 rounded text-xs font-bold"
+                      title="Add signer slot"
+                    >+</button>
+                  </div>
                 )}
               </div>
 
