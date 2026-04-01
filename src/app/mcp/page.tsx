@@ -85,11 +85,13 @@ function buildInputSchema(params: InputParam[]): Record<string, unknown> {
 function CreateServerModal({
   onClose,
   onCreated,
+  initialType = "hosted",
 }: {
   onClose: () => void;
   onCreated: (s: McpServer) => void;
+  initialType?: "hosted" | "external";
 }) {
-  const [tab, setTab] = useState<"external" | "hosted">("hosted");
+  const [tab, setTab] = useState<"external" | "hosted">(initialType);
   const [form, setForm] = useState({
     name: "", url: "", auth_key: "", description: "", slug: "", transport: "sse",
   });
@@ -385,9 +387,10 @@ function ServerCard({
     setLoadingTools(false);
   }, [server.id, server.type]);
 
+  // Load tools on mount (not just on expand) so count shows correctly
   useEffect(() => {
-    if (expanded && server.type === "hosted") loadTools();
-  }, [expanded, loadTools, server.type]);
+    if (server.type === "hosted") loadTools();
+  }, [loadTools, server.type]);
 
   const discover = async () => {
     setDiscovering(true);
@@ -395,6 +398,7 @@ function ServerCard({
     const data = await res.json();
     setDiscovering(false);
     onUpdate({ ...server, status: data.status, tools_cache: data.tools, last_discovered_at: new Date().toISOString() });
+    if (data.tools?.length > 0) setExpanded(true);
   };
 
   const toggleServer = async () => {
@@ -726,7 +730,13 @@ export default function MCPToolboxesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [createType, setCreateType] = useState<"hosted" | "external">("hosted");
   const [filter, setFilter] = useState<"all" | "hosted" | "external">("all");
+
+  const openCreate = (type: "hosted" | "external" = "hosted") => {
+    setCreateType(type);
+    setShowCreate(true);
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -766,12 +776,20 @@ export default function MCPToolboxesPage() {
           title="MCP Toolbox"
           subtitle="Build your own MCP servers with scenarios as tools, or connect external MCP servers"
           action={
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
-            >
-              <Plus size={14} /> New Server
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => openCreate("external")}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 hover:text-violet-700 transition-colors"
+              >
+                <Plug size={14} /> Connect External
+              </button>
+              <button
+                onClick={() => openCreate("hosted")}
+                className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+              >
+                <Plus size={14} /> New Server
+              </button>
+            </div>
           }
         />
 
@@ -812,10 +830,16 @@ export default function MCPToolboxesPage() {
               <p className="text-xs text-gray-400 mb-4 max-w-xs mx-auto">
                 Build your own MCP server with scenarios as tools, or connect an external MCP server
               </p>
-              <button onClick={() => setShowCreate(true)}
-                className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors">
-                Create first server
-              </button>
+              <div className="flex gap-2 justify-center">
+                <button onClick={() => openCreate("external")}
+                  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 transition-colors">
+                  Connect External
+                </button>
+                <button onClick={() => openCreate("hosted")}
+                  className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors">
+                  Create My Own
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-8">
@@ -861,6 +885,7 @@ export default function MCPToolboxesPage() {
 
       {showCreate && (
         <CreateServerModal
+          initialType={createType}
           onClose={() => setShowCreate(false)}
           onCreated={(s) => {
             setServers((prev) => [s, ...prev]);
