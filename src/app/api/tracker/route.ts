@@ -22,6 +22,7 @@ export async function GET(request: Request) {
   var BASE="${baseUrl}";
   var SESSION_KEY="__wa_s";
   var VISITOR_KEY="__wa_v";
+  var pageStart=Date.now();
 
   function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 
@@ -38,8 +39,17 @@ export async function GET(request: Request) {
     return v;
   }
 
+  function getClientInfo(){
+    return {
+      screen_width:  window.screen?window.screen.width:null,
+      screen_height: window.screen?window.screen.height:null,
+      language:      navigator.language||navigator.userLanguage||null,
+      timezone:      Intl&&Intl.DateTimeFormat?Intl.DateTimeFormat().resolvedOptions().timeZone:null,
+    };
+  }
+
   function send(type,extra){
-    var payload={
+    var payload=Object.assign({
       siteKey:SITE_KEY,
       type:type,
       url:location.href,
@@ -47,7 +57,7 @@ export async function GET(request: Request) {
       sessionId:getSession(),
       visitorId:getVisitor(),
       properties:extra||{}
-    };
+    },getClientInfo());
     if(navigator.sendBeacon){
       var blob=new Blob([JSON.stringify(payload)],{type:"application/json"});
       navigator.sendBeacon(BASE+"/api/t",blob);
@@ -56,13 +66,39 @@ export async function GET(request: Request) {
     }
   }
 
+  // Track time on page and send duration on exit
+  function sendDuration(){
+    var ms=Date.now()-pageStart;
+    if(ms<500)return; // ignore bounces under 0.5s
+    var payload=Object.assign({
+      siteKey:SITE_KEY,
+      type:"duration",
+      url:location.href,
+      referrer:null,
+      sessionId:getSession(),
+      visitorId:getVisitor(),
+      duration_ms:ms,
+      properties:{}
+    },getClientInfo());
+    var blob=new Blob([JSON.stringify(payload)],{type:"application/json"});
+    if(navigator.sendBeacon){navigator.sendBeacon(BASE+"/api/t",blob);}
+  }
+
+  // Reset timer on SPA navigation
+  function resetTimer(){pageStart=Date.now();}
+
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState==="hidden")sendDuration();
+  });
+  window.addEventListener("pagehide",sendDuration);
+
   // Page view on load
   send("pageview");
 
   // SPA navigation via History API
   var _push=history.pushState;
-  history.pushState=function(){_push.apply(this,arguments);send("pageview");};
-  window.addEventListener("popstate",function(){send("pageview");});
+  history.pushState=function(){sendDuration();_push.apply(this,arguments);resetTimer();send("pageview");};
+  window.addEventListener("popstate",function(){sendDuration();resetTimer();send("pageview");});
 
   // Outbound link clicks
   document.addEventListener("click",function(e){
@@ -72,8 +108,9 @@ export async function GET(request: Request) {
     }
   });
 
-  // Expose manual track function
+  // Expose manual track function (supports isLoggedIn flag)
   window.waTrack=function(name,props){send("custom",Object.assign({name:name},props||{}));};
+  window.waIdentify=function(isLoggedIn){send("identify",{is_logged_in:!!isLoggedIn});};
 })();`;
 
   return new NextResponse(script, {

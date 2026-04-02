@@ -6,6 +6,7 @@ import {
   Globe, Plus, Trash2, X, Loader2, Copy, Check,
   BarChart2, Users, MousePointer, TrendingUp, ExternalLink,
   Monitor, Smartphone, Tablet, RefreshCw, ChevronDown,
+  Clock, Languages, MapPin, Cpu,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -28,12 +29,19 @@ interface Stats {
     sessions: number;
     unique_visitors: number;
     bounce_rate: number;
+    avg_duration_ms: number;
   };
   top_pages: { value: string; count: number }[];
   top_referrers: { value: string; count: number }[];
   countries: { value: string; count: number }[];
+  regions: { value: string; count: number }[];
+  cities: { value: string; count: number }[];
   devices: { value: string; count: number }[];
   browsers: { value: string; count: number }[];
+  os: { value: string; count: number }[];
+  languages: { value: string; count: number }[];
+  timezones: { value: string; count: number }[];
+  resolutions: { value: string; count: number }[];
   chart: { date: string; views: number }[];
 }
 
@@ -43,6 +51,12 @@ function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
+}
+
+function fmtDuration(ms: number): string {
+  if (!ms) return "0s";
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  return `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
 }
 
 function shortDate(iso: string): string {
@@ -285,11 +299,12 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
       ) : stats ? (
         <>
           {/* Stat cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
             <StatCard label="Page Views" value={fmt(stats.totals.pageviews)} icon={<BarChart2 size={16} />} />
             <StatCard label="Unique Visitors" value={fmt(stats.totals.unique_visitors)} icon={<Users size={16} />} />
             <StatCard label="Sessions" value={fmt(stats.totals.sessions)} icon={<MousePointer size={16} />} />
             <StatCard label="Bounce Rate" value={`${stats.totals.bounce_rate}%`} icon={<TrendingUp size={16} />} />
+            <StatCard label="Avg Time on Page" value={fmtDuration(stats.totals.avg_duration_ms)} icon={<Clock size={16} />} />
             <StatCard label="Total Events" value={fmt(stats.totals.events)} icon={<Globe size={16} />} />
           </div>
 
@@ -340,11 +355,17 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
             <TopList title="Top Referrers" items={stats.top_referrers} valueLabel="Visits" />
           </div>
 
-          {/* Countries + Devices + Browsers */}
+          {/* Geo: Countries + Regions + Cities */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <TopList title="Countries" items={stats.countries} />
+            <TopList title="🌍 Countries" items={stats.countries} />
+            <TopList title="📍 Regions" items={stats.regions} />
+            <TopList title="🏙️ Cities" items={stats.cities} />
+          </div>
+
+          {/* Devices + Browsers + OS */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs font-semibold text-gray-700 mb-3">Devices</p>
+              <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Monitor size={12} /> Devices</p>
               {stats.devices.length === 0 ? (
                 <p className="text-[11px] text-gray-400 text-center py-4">No data yet</p>
               ) : (
@@ -359,7 +380,57 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
                 </div>
               )}
             </div>
-            <TopList title="Browsers" items={stats.browsers} />
+            <TopList title="🌐 Browsers" items={stats.browsers} />
+            <TopList title="💻 Operating Systems" items={stats.os} />
+          </div>
+
+          {/* Languages + Timezones + Screen Resolutions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Languages size={12} /> Languages</p>
+              {stats.languages.length === 0 ? (
+                <p className="text-[11px] text-gray-400 text-center py-4">No data yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {stats.languages.map((l, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <span className="text-[11px] text-gray-700">{l.value}</span>
+                      <span className="text-[11px] font-semibold text-gray-600">{fmt(l.count)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Clock size={12} /> Timezones</p>
+              {stats.timezones.length === 0 ? (
+                <p className="text-[11px] text-gray-400 text-center py-4">No data yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {stats.timezones.map((t, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-gray-700 truncate flex-1">{t.value}</span>
+                      <span className="text-[11px] font-semibold text-gray-600 flex-shrink-0">{fmt(t.count)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Cpu size={12} /> Screen Resolutions</p>
+              {stats.resolutions.length === 0 ? (
+                <p className="text-[11px] text-gray-400 text-center py-4">No data yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {stats.resolutions.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <span className="text-[11px] text-gray-700 font-mono">{r.value}</span>
+                      <span className="text-[11px] font-semibold text-gray-600">{fmt(r.count)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </>
       ) : (
