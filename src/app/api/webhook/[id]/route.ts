@@ -18,9 +18,16 @@ async function verifyGithubSignature(body: string, signature: string, secret: st
 }
 
 function verifyStripeSignature(body: string, sigHeader: string, secret: string): boolean {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_placeholder", { apiVersion: "2026-03-25.dahlia" });
+  // Try v1 webhook endpoint first, then v2 event destination (parseEventNotification)
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_placeholder", { apiVersion: "2026-03-25.dahlia" });
     stripe.webhooks.constructEvent(body, sigHeader, secret);
+    return true;
+  } catch {
+    // fall through to v2
+  }
+  try {
+    stripe.parseEventNotification(body, sigHeader, secret);
     return true;
   } catch {
     return false;
