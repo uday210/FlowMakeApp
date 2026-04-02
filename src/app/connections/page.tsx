@@ -47,7 +47,8 @@ interface ServiceField {
   options?: { label: string; value: string }[];
 }
 
-type IconComponent = (props: { size?: number }) => React.ReactElement;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type IconComponent = React.ComponentType<any>;
 
 interface ServiceType {
   value: string;
