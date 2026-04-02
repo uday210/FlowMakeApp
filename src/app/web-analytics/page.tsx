@@ -5,8 +5,8 @@ import AppShell, { PageHeader } from "@/components/AppShell";
 import {
   Globe, Plus, Trash2, X, Loader2, Copy, Check,
   BarChart2, Users, MousePointer, TrendingUp, ExternalLink,
-  Monitor, Smartphone, Tablet, RefreshCw, ChevronDown,
-  Clock, Languages, MapPin, Cpu,
+  Monitor, Smartphone, Tablet, RefreshCw, ChevronDown, ChevronRight,
+  Clock, Languages, MapPin, Cpu, List,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -231,6 +231,187 @@ function ScriptSnippet({ site }: { site: Site }) {
   );
 }
 
+// ─── Sessions view ────────────────────────────────────────────────────────────
+
+interface SessionEvent {
+  type: string;
+  path: string | null;
+  created_at: string;
+  duration_ms?: number | null;
+}
+
+interface Session {
+  session_id: string;
+  visitor_id: string | null;
+  started_at: string;
+  ended_at: string;
+  country: string | null;
+  city: string | null;
+  device: string | null;
+  browser: string | null;
+  os: string | null;
+  language: string | null;
+  timezone: string | null;
+  total_duration_ms: number;
+  events: SessionEvent[];
+}
+
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  pageview: "bg-violet-100 text-violet-700",
+  click:    "bg-blue-100 text-blue-700",
+  custom:   "bg-green-100 text-green-700",
+  identify: "bg-amber-100 text-amber-700",
+};
+
+function SessionRow({ session }: { session: Session }) {
+  const [open, setOpen] = useState(false);
+  const pageviews = session.events.filter(e => e.type === "pageview");
+
+  return (
+    <div className="border border-gray-100 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+      >
+        {/* Device icon */}
+        <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+          {session.device === "mobile" ? <Smartphone size={13} className="text-violet-500" />
+            : session.device === "tablet" ? <Tablet size={13} className="text-violet-500" />
+            : <Monitor size={13} className="text-violet-500" />}
+        </div>
+
+        {/* Main info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-semibold text-gray-700">
+              {pageviews.length} page{pageviews.length !== 1 ? "s" : ""}
+            </span>
+            {session.total_duration_ms > 0 && (
+              <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
+                <Clock size={9} /> {fmtDuration(session.total_duration_ms)}
+              </span>
+            )}
+            {session.country && (
+              <span className="text-[10px] text-gray-400">{session.city ? `${session.city}, ` : ""}{session.country}</span>
+            )}
+            {session.browser && (
+              <span className="text-[10px] text-gray-400">{session.browser}{session.os ? ` · ${session.os}` : ""}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 mt-0.5 overflow-hidden">
+            {pageviews.slice(0, 4).map((e, i) => (
+              <span key={i} className="text-[10px] text-gray-400 truncate max-w-[120px]">
+                {i > 0 && <span className="mx-0.5 text-gray-300">→</span>}
+                {e.path || "/"}
+              </span>
+            ))}
+            {pageviews.length > 4 && <span className="text-[10px] text-gray-400">+{pageviews.length - 4} more</span>}
+          </div>
+        </div>
+
+        {/* Time + chevron */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-[10px] text-gray-400">{timeAgo(session.started_at)}</span>
+          {open ? <ChevronDown size={13} className="text-gray-400" /> : <ChevronRight size={13} className="text-gray-400" />}
+        </div>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 border-t border-gray-100 bg-gray-50/50">
+          <div className="mt-3 space-y-1">
+            {session.events.map((e, i) => (
+              <div key={i} className="flex items-center gap-2.5 text-[11px]">
+                <span className="text-[9px] text-gray-400 w-14 flex-shrink-0 font-mono">
+                  {new Date(e.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </span>
+                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${EVENT_TYPE_COLORS[e.type] ?? "bg-gray-100 text-gray-500"}`}>
+                  {e.type}
+                </span>
+                <span className="text-gray-600 truncate flex-1">{e.path || "/"}</span>
+                {e.duration_ms && e.duration_ms > 0 && (
+                  <span className="text-[10px] text-gray-400 flex-shrink-0">{fmtDuration(e.duration_ms)}</span>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Session metadata */}
+          <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-3">
+            {[
+              session.visitor_id && { label: "Visitor", value: session.visitor_id.slice(0, 12) + "…" },
+              session.language   && { label: "Language", value: session.language },
+              session.timezone   && { label: "Timezone", value: session.timezone },
+            ].filter(Boolean).map((item, i) => (
+              <div key={i} className="text-[10px]">
+                <span className="text-gray-400">{(item as {label:string;value:string}).label}: </span>
+                <span className="text-gray-600 font-medium">{(item as {label:string;value:string}).value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`;
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function SessionsView({ siteId }: { siteId: string }) {
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(7);
+
+  const load = useCallback((d: number) => {
+    setLoading(true);
+    fetch(`/api/web-analytics/sites/${siteId}/sessions?days=${d}`)
+      .then(r => r.json())
+      .then(d => setSessions(Array.isArray(d) ? d : []))
+      .finally(() => setLoading(false));
+  }, [siteId]);
+
+  useEffect(() => { load(days); }, [load, days]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-500">{sessions.length} sessions</p>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <select
+              value={days}
+              onChange={e => { setDays(Number(e.target.value)); load(Number(e.target.value)); }}
+              className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white appearance-none pr-7 cursor-pointer focus:outline-none"
+            >
+              <option value={1}>Today</option>
+              <option value={7}>Last 7 days</option>
+              <option value={30}>Last 30 days</option>
+            </select>
+            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
+          <button onClick={() => load(days)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-400">
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-300" size={24} /></div>
+      ) : sessions.length === 0 ? (
+        <div className="text-center py-16 text-sm text-gray-400">No sessions recorded yet</div>
+      ) : (
+        <div className="space-y-2">
+          {sessions.map(s => <SessionRow key={s.session_id} session={s} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Dashboard view for a single site ────────────────────────────────────────
 
 function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
@@ -238,6 +419,7 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
   const [showScript, setShowScript] = useState(false);
+  const [tab, setTab] = useState<"overview" | "sessions">("overview");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -293,7 +475,27 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
 
       {showScript && <ScriptSnippet site={site} />}
 
-      {loading ? (
+      {/* Tab switcher */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        {([
+          { key: "overview", label: "Overview", icon: <BarChart2 size={11} /> },
+          { key: "sessions", label: "Sessions",  icon: <List size={11} /> },
+        ] as const).map(({ key, label, icon }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              tab === key ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {icon} {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "sessions" ? (
+        <SessionsView siteId={site.id} />
+      ) : loading ? (
         <div className="flex items-center justify-center py-24">
           <Loader2 className="animate-spin text-gray-300" size={32} />
         </div>
@@ -443,6 +645,7 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
     </div>
   );
 }
+
 
 // ─── Sites list ───────────────────────────────────────────────────────────────
 
