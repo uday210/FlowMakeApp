@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   try {
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
-        getAll: () => request.cookies.getAll(),
+        getAll: () => [],
         setAll: (cookiesToSet) => {
           // Re-create the response so each Set-Cookie gets attached
           response = makeRedirect(redirectTo);
