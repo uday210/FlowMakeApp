@@ -17,12 +17,19 @@ async function verifyGithubSignature(body: string, signature: string, secret: st
 }
 
 async function verifyStripeSignature(body: string, sigHeader: string, secret: string) {
-  const parts = Object.fromEntries(sigHeader.split(",").map(p => p.split("="))) as Record<string, string>;
+  const parts = sigHeader.split(",").reduce((acc, p) => {
+    const idx = p.indexOf("=");
+    if (idx !== -1) acc[p.slice(0, idx)] = p.slice(idx + 1);
+    return acc;
+  }, {} as Record<string, string>);
   const timestamp = parts["t"];
   const payload = `${timestamp}.${body}`;
   const encoder = new TextEncoder();
+  // Stripe secrets are base64-encoded with a "whsec_" prefix
+  const rawSecret = secret.startsWith("whsec_") ? secret.slice(6) : secret;
+  const secretBytes = Uint8Array.from(atob(rawSecret), c => c.charCodeAt(0));
   const key = await crypto.subtle.importKey(
-    "raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    "raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
   const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
   const hex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
