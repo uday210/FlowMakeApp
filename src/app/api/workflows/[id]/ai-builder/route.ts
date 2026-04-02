@@ -267,10 +267,16 @@ export async function POST(
     return NextResponse.json({ error: "No AI provider API key configured. Set GROQ_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY." }, { status: 500 });
   }
 
-  // Build detailed current node info including config field keys
+  // Build detailed current node info including config field keys + select options
   const nodeDetails = nodes.map(n => {
     const def = NODE_DEFINITIONS.find(d => d.type === n.data.type);
-    const fieldKeys = def?.configFields?.map(f => `${f.key} (${f.type}${f.required ? ", required" : ""})`).join(", ") ?? "none";
+    const fieldKeys = def?.configFields?.map(f => {
+      let desc = `${f.key} (${f.type}${f.required ? ", required" : ""})`;
+      if (f.type === "select" && f.options?.length) {
+        desc += ` [options: ${f.options.map(o => o.value).join(" | ")}]`;
+      }
+      return desc;
+    }).join(", ") ?? "none";
     const currentConfig = Object.entries(n.data.config ?? {})
       .filter(([, v]) => v !== "" && v !== undefined && v !== null)
       .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
@@ -289,6 +295,9 @@ RULES:
 - Keep explanations short and focused.
 - When configuring a node, use EXACT field keys from the node's "config fields" list below.
 - Config values must always be strings. For JSON bodies/payloads, pass as a JSON string: body="{\"key\": \"value\"}".
+- For select fields, use ONLY the exact option values shown in [options: ...].
+- For trigger_schedule cron field: "every 5 min" = "*/5 * * * *", "every hour" = "0 * * * *", "daily 9am" = "0 9 * * *".
+- For trigger_interval: set every="5" unit="minutes" (not "minute").
 
 CURRENT WORKFLOW STATE:
 Nodes (${nodes.length}):
