@@ -127,21 +127,26 @@ function SdkModal({ server, onClose }: { server: McpServer; onClose: () => void 
   const mcpUrl = `${origin}/api/mcp/hosted/${slug}`;
   const sseUrl = `${origin}/api/mcp/hosted/${slug}/sse`;
 
+  const hasAuth = !!server.auth_key;
+  const authHeaderPy = hasAuth ? `\nHEADERS = {\n    "Content-Type": "application/json",\n    "Authorization": "Bearer YOUR_API_KEY",  # from server settings\n}` : `\nHEADERS = {"Content-Type": "application/json"}`;
+  const authHeaderJs = hasAuth ? `\nconst HEADERS = {\n  "Content-Type": "application/json",\n  "Authorization": "Bearer YOUR_API_KEY", // from server settings\n};` : `\nconst HEADERS = { "Content-Type": "application/json" };`;
+
   const pythonSnippet = `import requests
 
 MCP_URL = "${mcpUrl}"
-# or SSE: "${sseUrl}"
+# SSE transport: "${sseUrl}"
+${authHeaderPy}
 
-def call_tool(tool_name: str, arguments: dict):
+def call_tool(tool_name: str, args: dict):
     response = requests.post(
         MCP_URL,
         json={
             "jsonrpc": "2.0",
             "method": "tools/call",
-            "params": {"name": tool_name, "arguments": arguments},
+            "params": {"name": tool_name, "arguments": args},
             "id": 1
         },
-        headers={"Content-Type": "application/json"}
+        headers=HEADERS
     )
     return response.json()
 
@@ -150,15 +155,17 @@ result = call_tool("your_tool_name", {"param1": "value1"})
 print(result)`;
 
   const jsSnippet = `const MCP_URL = "${mcpUrl}";
+// SSE transport: "${sseUrl}"
+${authHeaderJs}
 
-async function callTool(toolName, arguments) {
+async function callTool(toolName, args) {
   const response = await fetch(MCP_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: HEADERS,
     body: JSON.stringify({
       jsonrpc: "2.0",
       method: "tools/call",
-      params: { name: toolName, arguments },
+      params: { name: toolName, arguments: args },
       id: 1
     })
   });
@@ -223,7 +230,12 @@ console.log(result);`;
             </p>
             {server.auth_key && (
               <p className="text-[11px] text-violet-600 mt-1">
-                Add <code className="bg-violet-100 px-1 rounded font-mono">Authorization: Bearer &lt;your-key&gt;</code> header for authentication.
+                Replace <code className="bg-violet-100 px-1 rounded font-mono">YOUR_API_KEY</code> with your actual key from the server settings (eye icon → copy key).
+              </p>
+            )}
+            {!server.auth_key && (
+              <p className="text-[11px] text-gray-400 mt-1">
+                No auth key set — this server is publicly accessible. Add one in server settings for security.
               </p>
             )}
           </div>
