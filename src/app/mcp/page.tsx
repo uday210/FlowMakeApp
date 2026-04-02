@@ -22,7 +22,7 @@ interface McpServer {
   auth_key?: string;
   slug?: string;
   status: "unknown" | "connected" | "error" | "active";
-  transport: "sse" | "http";
+  transport: "sse" | "http" | "both";
   enabled: boolean;
   tools_cache?: ExternalTool[];
   last_discovered_at?: string;
@@ -1673,25 +1673,29 @@ function ServerCard({
             </div>
           </div>
 
-          {/* Endpoint URLs for hosted servers */}
+          {/* Endpoint URLs for hosted servers — respect transport selection */}
           {isHosted && server.slug && (
             <div className="mt-3 space-y-1.5">
-              <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1.5">
-                <Zap size={10} className="text-violet-400 flex-shrink-0" />
-                <span className="text-[11px] text-gray-500 flex-shrink-0">SSE</span>
-                <span className="text-[11px] font-mono text-gray-600 truncate flex-1">{sseUrl}</span>
-                <button onClick={() => copy(sseUrl, "sse-" + server.id)} className="text-gray-400 hover:text-violet-600 flex-shrink-0">
-                  {copied === "sse-" + server.id ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
-                </button>
-              </div>
-              <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1.5">
-                <ExternalLink size={10} className="text-blue-400 flex-shrink-0" />
-                <span className="text-[11px] text-gray-500 flex-shrink-0">HTTP</span>
-                <span className="text-[11px] font-mono text-gray-600 truncate flex-1">{httpUrl}</span>
-                <button onClick={() => copy(httpUrl, "http-" + server.id)} className="text-gray-400 hover:text-blue-600 flex-shrink-0">
-                  {copied === "http-" + server.id ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
-                </button>
-              </div>
+              {(server.transport === "sse" || server.transport === "both") && (
+                <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1.5">
+                  <Zap size={10} className="text-violet-400 flex-shrink-0" />
+                  <span className="text-[11px] text-gray-500 flex-shrink-0">SSE</span>
+                  <span className="text-[11px] font-mono text-gray-600 truncate flex-1">{sseUrl}</span>
+                  <button onClick={() => copy(sseUrl, "sse-" + server.id)} className="text-gray-400 hover:text-violet-600 flex-shrink-0">
+                    {copied === "sse-" + server.id ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
+                  </button>
+                </div>
+              )}
+              {(server.transport === "http" || server.transport === "both") && (
+                <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1.5">
+                  <ExternalLink size={10} className="text-blue-400 flex-shrink-0" />
+                  <span className="text-[11px] text-gray-500 flex-shrink-0">HTTP</span>
+                  <span className="text-[11px] font-mono text-gray-600 truncate flex-1">{httpUrl}</span>
+                  <button onClick={() => copy(httpUrl, "http-" + server.id)} className="text-gray-400 hover:text-blue-600 flex-shrink-0">
+                    {copied === "http-" + server.id ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -1860,9 +1864,8 @@ function ServerCard({
                             <div className="flex items-center gap-1 flex-shrink-0">
                               <button
                                 onClick={() => setTestingTool({ name: tool.name, description: tool.description, inputSchema: tool.input_schema as Record<string, unknown> | undefined })}
-                                title="Test tool"
-                                className="p-1 text-gray-300 hover:text-violet-500 hover:bg-violet-50 rounded transition-colors">
-                                <Play size={12} />
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors">
+                                <Play size={10} /> Test
                               </button>
                               <button onClick={() => toggleTool(tool)} disabled={togglingTool === tool.id}
                                 className="p-1 text-gray-300 hover:text-green-500 hover:bg-green-50 rounded transition-colors" title={tool.enabled ? "Disable" : "Enable"}>
