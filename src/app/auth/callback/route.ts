@@ -7,6 +7,12 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const redirectTo = url.searchParams.get("redirect") ?? "/org";
 
+  // Use configured app URL or derive from headers to avoid Railway internal localhost URLs
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    || request.headers.get("x-forwarded-host") && `https://${request.headers.get("x-forwarded-host")}`
+    || url.origin;
+  const redirect = (path: string) => NextResponse.redirect(new URL(path, appUrl));
+
   if (code) {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -56,21 +62,19 @@ export async function GET(request: Request) {
           insertData.role = pendingRole;
         }
         await adminClient.from("profiles").insert(insertData);
-        return pendingOrgId
-          ? NextResponse.redirect(new URL("/org", request.url))
-          : NextResponse.redirect(new URL("/onboarding", request.url));
+        return pendingOrgId ? redirect("/org") : redirect("/onboarding");
       }
 
       if (!profile.org_id) {
         // Existing profile without org — check for pending invite
         if (pendingOrgId) {
           await adminClient.from("profiles").update({ org_id: pendingOrgId, role: pendingRole }).eq("id", data.user.id);
-          return NextResponse.redirect(new URL("/org", request.url));
+          return redirect("/org");
         }
-        return NextResponse.redirect(new URL("/onboarding", request.url));
+        return redirect("/onboarding");
       }
     }
   }
 
-  return NextResponse.redirect(new URL(redirectTo, request.url));
+  return redirect(redirectTo);
 }
