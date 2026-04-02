@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { executeWorkflow } from "@/lib/executor";
+import { hashKey } from "@/lib/apiAuth";
 import type { WorkflowNode, WorkflowEdge } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +63,27 @@ export async function POST(
   );
   const triggerType = triggerNode?.data?.type;
   const config = triggerNode?.data?.config ?? {};
+
+  // API key auth for trigger_webhook nodes
+  if (triggerType === "trigger_webhook" && config.api_key_id) {
+    const authHeader = request.headers.get("authorization") ?? "";
+    const rawKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    if (!rawKey) {
+      return NextResponse.json({ error: "Unauthorized — API key required" }, { status: 401 });
+    }
+    const keyHash = await hashKey(rawKey);
+    const { data: apiKey } = await supabase
+      .from("api_keys")
+      .select("id, is_active")
+      .eq("id", config.api_key_id as string)
+      .eq("key_hash", keyHash)
+      .single();
+    if (!apiKey || !apiKey.is_active) {
+      return NextResponse.json({ error: "Unauthorized — invalid or inactive API key" }, { status: 401 });
+    }
+    // Update last_used_at non-blocking
+    supabase.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", apiKey.id).then(() => {});
+  }
 
   // GitHub signature verification
   if (triggerType === "trigger_github_event") {

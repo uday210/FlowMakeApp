@@ -66,8 +66,16 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     category: "trigger",
     color: "#7c3aed",
     icon: "Globe",
-    defaultConfig: {},
-    configFields: [],
+    defaultConfig: { api_key_id: "" },
+    configFields: [
+      {
+        key: "api_key_id",
+        label: "Require API Key (optional)",
+        type: "remote_select" as const,
+        fetch_action: "api_keys",
+        placeholder: "No auth — open to anyone",
+      },
+    ],
   },
   {
     type: "trigger_schedule",

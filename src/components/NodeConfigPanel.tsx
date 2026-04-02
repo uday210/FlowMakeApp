@@ -417,6 +417,19 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
       } finally {
         setLoading(false);
       }
+    } else if (field.fetch_action === "api_keys") {
+      setLoading(true); setError("");
+      try {
+        const res = await fetch("/api/integrations/apikeys");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to load API keys");
+        setOptions([{ value: "", label: "No auth — open to anyone" }, ...(data.keys ?? [])]);
+        setFetched(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
