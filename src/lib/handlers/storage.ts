@@ -1,10 +1,10 @@
 import type { NodeHandler } from "./types";
+import { getGoogleAccessToken } from "./googleAuth";
 
 export const handlers: Record<string, NodeHandler> = {
   "action_google_drive": async ({ config }) => {
-    const accessToken = config.access_token as string;
+    const accessToken = await getGoogleAccessToken(config, "https://www.googleapis.com/auth/drive");
     const action = config.action as string;
-    if (!accessToken) throw new Error("Access token is required");
     const driveHeaders = { Authorization: `Bearer ${accessToken}` };
     if (action === "list") {
       const folderId = config.folder_id as string;

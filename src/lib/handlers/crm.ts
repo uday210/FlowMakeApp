@@ -1,4 +1,5 @@
 import type { NodeHandler } from "./types";
+import { getGoogleAccessToken } from "./googleAuth";
 
 export const handlers: Record<string, NodeHandler> = {
   "trigger_salesforce": async ({ config, node }) => {
@@ -636,33 +637,7 @@ export const handlers: Record<string, NodeHandler> = {
     const range = (config.range as string) || "Sheet1!A1";
     if (!spreadsheetId) throw new Error("Spreadsheet ID is required");
 
-    // Resolve access token — support service account (client_email + private_key) or raw token
-    let accessToken = config.access_token as string;
-    const clientEmail = config.client_email as string;
-    const privateKey = (config.private_key as string)?.replace(/\\n/g, "\n");
-    if (!accessToken && clientEmail && privateKey) {
-      const now = Math.floor(Date.now() / 1000);
-      const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" })).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
-      const claim = btoa(JSON.stringify({
-        iss: clientEmail, scope: "https://www.googleapis.com/auth/spreadsheets",
-        aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600,
-      })).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
-      const sigInput = `${header}.${claim}`;
-      const keyData = privateKey.replace(/-----BEGIN RSA PRIVATE KEY-----|-----BEGIN PRIVATE KEY-----|-----END RSA PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, "");
-      const keyBytes = Uint8Array.from(atob(keyData), c => c.charCodeAt(0));
-      const cryptoKey = await crypto.subtle.importKey("pkcs8", keyBytes, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
-      const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(sigInput));
-      const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
-      const jwt = `${sigInput}.${sigB64}`;
-      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
-      });
-      const tokenData = await tokenRes.json();
-      if (!tokenRes.ok) throw new Error(`Google auth failed: ${tokenData.error_description || tokenData.error}`);
-      accessToken = tokenData.access_token;
-    }
-    if (!accessToken) throw new Error("Provide either access_token or client_email + private_key");
+    const accessToken = await getGoogleAccessToken(config, "https://www.googleapis.com/auth/spreadsheets");
     const sheetsHeaders = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
     const sheetsBase = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
 
@@ -718,10 +693,9 @@ export const handlers: Record<string, NodeHandler> = {
   },
 
   "action_google_calendar": async ({ config, ctx }) => {
-    const accessToken = config.access_token as string;
+    const accessToken = await getGoogleAccessToken(config, "https://www.googleapis.com/auth/calendar");
     const action = config.action as string;
     const calendarId = (config.calendar_id as string) || "primary";
-    if (!accessToken) throw new Error("Access token is required");
     const calHeaders = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
     if (action === "list") {
       const maxResults = Number(config.max_results) || 10;

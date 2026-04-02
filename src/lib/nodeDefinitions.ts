@@ -725,9 +725,11 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     color: "#34A853",
     icon: "Table2",
     connectionType: "sheets",
-    defaultConfig: { poll_interval: "15", access_token: "", spreadsheet_id: "", sheet_name: "" },
+    defaultConfig: { poll_interval: "15", client_email: "", private_key: "", access_token: "", spreadsheet_id: "", sheet_name: "Sheet1" },
     configFields: [
-      { key: "access_token", label: "Access Token", type: "password" as const, required: true },
+      { key: "client_email", label: "Service Account Email", type: "text" as const, placeholder: "my-bot@project.iam.gserviceaccount.com" },
+      { key: "private_key", label: "Service Account Private Key", type: "password" as const, placeholder: "-----BEGIN PRIVATE KEY-----..." },
+      { key: "access_token", label: "OAuth Access Token (alternative)", type: "password" as const, placeholder: "ya29.xxx" },
       { key: "spreadsheet_id", label: "Spreadsheet ID", type: "text" as const, required: true, placeholder: "1BxiM..." },
       { key: "sheet_name", label: "Sheet Name", type: "text" as const, placeholder: "Sheet1" },
       { key: "poll_interval", label: "Poll Interval", type: "select" as const, options: [

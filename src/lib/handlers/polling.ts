@@ -1,4 +1,5 @@
 import type { NodeHandler } from "./types";
+import { getGoogleAccessToken } from "./googleAuth";
 
 const lookback = (config: Record<string, unknown>) =>
   (Number(config.poll_interval) || 15) * 2 * 60 * 1000; // 2x interval in ms
@@ -6,7 +7,7 @@ const lookback = (config: Record<string, unknown>) =>
 export const handlers: Record<string, NodeHandler> = {
 
   "trigger_gmail": async ({ config }) => {
-    const token = config.access_token as string;
+    const token = await getGoogleAccessToken(config, "https://www.googleapis.com/auth/gmail.readonly");
     if (!token) throw new Error("Gmail access token required");
     const sinceMs = Date.now() - lookback(config);
     const after = Math.floor(sinceMs / 1000);
@@ -44,10 +45,10 @@ export const handlers: Record<string, NodeHandler> = {
     return { new_items: data.value ?? [], count: (data.value ?? []).length, polled_at: new Date().toISOString() };
   },
 
-  "trigger_google_sheets": async ({ config }) => {
-    const token = config.access_token as string;
+  "trigger_google_sheets": async ({ config, ctx }) => {
     const spreadsheetId = config.spreadsheet_id as string;
-    if (!token || !spreadsheetId) throw new Error("Access token and spreadsheet ID required");
+    if (!spreadsheetId) throw new Error("Spreadsheet ID required");
+    const token = await getGoogleAccessToken(config, "https://www.googleapis.com/auth/spreadsheets.readonly");
     const sheetName = config.sheet_name as string || "Sheet1";
     const res = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}`,
@@ -58,14 +59,20 @@ export const handlers: Record<string, NodeHandler> = {
     const rows = data.values ?? [];
     const headers = rows[0] ?? [];
     const dataRows = rows.slice(1);
-    // Return last N rows added (approximation — Sheets has no created_at)
-    const lookbackRows = Math.min(dataRows.length, 10);
-    const newRows = dataRows.slice(-lookbackRows).map((row: string[]) => {
+    const totalRows = dataRows.length;
+
+    // Track last seen row count to detect truly new rows
+    const stateKey = `sheets_last_row_${spreadsheetId}_${sheetName}`;
+    const lastRowCount = Number((ctx.variables as Record<string, unknown>)[stateKey] ?? 0);
+    const newRows = dataRows.slice(lastRowCount).map((row: string[]) => {
       const obj: Record<string, string> = {};
       headers.forEach((h: string, i: number) => { obj[h] = row[i] ?? ""; });
       return obj;
     });
-    return { new_items: newRows, count: newRows.length, total_rows: dataRows.length, polled_at: new Date().toISOString() };
+    // Store new count for next poll via variables
+    (ctx.variables as Record<string, unknown>)[stateKey] = totalRows;
+
+    return { new_items: newRows, count: newRows.length, total_rows: totalRows, polled_at: new Date().toISOString() };
   },
 
   "trigger_airtable_record": async ({ config }) => {
