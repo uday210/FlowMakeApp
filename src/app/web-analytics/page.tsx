@@ -11,6 +11,7 @@ import {
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
+import WorldMap from "@/components/WorldMap";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -354,6 +355,9 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
             <TopList title="Top Pages" items={stats.top_pages} />
             <TopList title="Top Referrers" items={stats.top_referrers} valueLabel="Visits" />
           </div>
+
+          {/* World Map */}
+          <WorldMap countries={stats.countries} />
 
           {/* Geo: Countries + Regions + Cities */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
