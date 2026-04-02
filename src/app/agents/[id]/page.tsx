@@ -2229,6 +2229,8 @@ export default function AgentEditorPage({
           max_tokens: data.max_tokens ?? 1024,
           knowledge_base: data.knowledge_base ?? "",
           connected_workflows: data.connected_workflows ?? [],
+          agent_type: data.agent_type ?? "full",
+          intents: data.intents ?? [],
           appearance,
         });
       })

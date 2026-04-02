@@ -66,6 +66,8 @@ export async function POST(req: Request) {
       appearance: body.appearance ?? DEFAULT_APPEARANCE,
       starter_questions: body.starter_questions ?? [],
       is_active: body.is_active ?? true,
+      agent_type: body.agent_type ?? "full",
+      intents: body.intents ?? [],
       org_id: ctx.orgId,
     })
     .select()

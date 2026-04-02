@@ -47,6 +47,8 @@ export async function PUT(
   if (body.appearance !== undefined) updateData.appearance = body.appearance;
   if (body.starter_questions !== undefined) updateData.starter_questions = body.starter_questions;
   if (body.is_active !== undefined) updateData.is_active = body.is_active;
+  if (body.agent_type !== undefined) updateData.agent_type = body.agent_type;
+  if (body.intents !== undefined) updateData.intents = body.intents;
 
   const { data, error } = await ctx.admin
     .from("chatbots")
