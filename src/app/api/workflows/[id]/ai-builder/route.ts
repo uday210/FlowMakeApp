@@ -260,6 +260,17 @@ export async function POST(
     return NextResponse.json({ error: "No AI provider API key configured. Set GROQ_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY." }, { status: 500 });
   }
 
+  // Build detailed current node info including config field keys
+  const nodeDetails = nodes.map(n => {
+    const def = NODE_DEFINITIONS.find(d => d.type === n.data.type);
+    const fieldKeys = def?.configFields?.map(f => `${f.key} (${f.type}${f.required ? ", required" : ""})`).join(", ") ?? "none";
+    const currentConfig = Object.entries(n.data.config ?? {})
+      .filter(([, v]) => v !== "" && v !== undefined && v !== null)
+      .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+      .join(", ");
+    return `  [${n.id}] "${n.data.label}" type=${n.data.type}\n    config fields: ${fieldKeys}\n    current values: ${currentConfig || "none"}`;
+  }).join("\n");
+
   const SYSTEM = `You are an expert workflow automation builder for FlowMake (a Make.com-style platform).
 Your job: when the user describes what they want to automate, build it on the canvas by calling the provided tools.
 
@@ -269,9 +280,11 @@ RULES:
 - Build the full workflow, then briefly describe what you built.
 - If the user asks to modify an existing workflow, only change what's needed — don't clear and rebuild unless asked.
 - Keep explanations short and focused.
+- When configuring a node, use EXACT field keys from the node's "config fields" list below.
 
 CURRENT WORKFLOW STATE:
-Nodes (${nodes.length}): ${nodes.length === 0 ? "empty" : nodes.map(n => `[${n.id}] ${n.data.label} (${n.data.type})`).join(", ")}
+Nodes (${nodes.length}):
+${nodes.length === 0 ? "  (empty)" : nodeDetails}
 Edges (${edges.length}): ${edges.length === 0 ? "none" : edges.map(e => `${e.source} → ${e.target}`).join(", ")}
 
 AVAILABLE TRIGGERS:

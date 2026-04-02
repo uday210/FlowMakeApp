@@ -769,7 +769,16 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
               workflowId={id}
               nodes={nodes}
               edges={edges}
-              onNodesChange={(newNodes) => { handleNodesChange(newNodes); setAiInjectVersion(v => v + 1); }}
+              onNodesChange={(newNodes) => {
+                handleNodesChange(newNodes);
+                setAiInjectVersion(v => v + 1);
+                // Keep NodeConfigPanel in sync if the selected node was updated
+                setSelectedNode(prev => {
+                  if (!prev) return prev;
+                  const fresh = newNodes.find(n => n.id === prev.id);
+                  return fresh ?? prev;
+                });
+              }}
               onEdgesChange={(newEdges) => { handleEdgesChange(newEdges); setAiInjectVersion(v => v + 1); }}
               onClose={() => setShowAIBuilder(false)}
             />
