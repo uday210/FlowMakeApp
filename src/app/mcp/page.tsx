@@ -8,7 +8,7 @@ import {
   ChevronUp, ToggleLeft, ToggleRight, Link2, AlertCircle,
   CheckCircle2, Settings, Zap, ShieldCheck, ShieldOff, Eye, EyeOff, RotateCcw,
   History, Clock, XCircle, ChevronRight,
-  BarChart2, Bell, Code2, Package, Download, Play, Pencil,
+  BarChart2, Bell, Code2, Download, Play, Pencil,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -93,31 +93,6 @@ interface McpAlert {
   created_at: string;
 }
 
-// Marketplace entry type
-interface MarketplaceEntry {
-  name: string;
-  description: string;
-  url: string;
-  installUrl: string;
-  icon: string;
-}
-
-// ── Marketplace Data ──────────────────────────────────────────────────────────
-
-const MARKETPLACE_ENTRIES: MarketplaceEntry[] = [
-  { name: "Brave Search", description: "Web search via Brave Search API", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search", installUrl: "https://mcp.bravesearch.com/sse", icon: "🔍" },
-  { name: "GitHub", description: "Search repos, issues, PRs via GitHub API", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/github", installUrl: "https://api.githubcopilot.com/mcp/", icon: "🐙" },
-  { name: "Filesystem", description: "Read/write local files and directories", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem", installUrl: "", icon: "📁" },
-  { name: "PostgreSQL", description: "Query and inspect PostgreSQL databases", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/postgres", installUrl: "", icon: "🐘" },
-  { name: "Slack", description: "Post messages and read channels via Slack API", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/slack", installUrl: "", icon: "💬" },
-  { name: "Puppeteer", description: "Browser automation and web scraping", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer", installUrl: "", icon: "🤖" },
-  { name: "AWS KB Retrieval", description: "Retrieve data from AWS Knowledge Base", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/aws-kb-retrieval-server", installUrl: "", icon: "☁️" },
-  { name: "Google Maps", description: "Places search, directions, geocoding", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/google-maps", installUrl: "", icon: "🗺️" },
-  { name: "Fetch", description: "HTTP fetch and web content extraction", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch", installUrl: "", icon: "🌐" },
-  { name: "Memory", description: "Persistent key-value memory for agents", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/memory", installUrl: "", icon: "🧠" },
-  { name: "Sentry", description: "Query issues and events from Sentry", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/sentry", installUrl: "", icon: "🚨" },
-  { name: "Stripe", description: "Manage payments, customers, subscriptions", url: "https://mcp.stripe.com/", installUrl: "https://mcp.stripe.com/", icon: "💳" },
-];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -140,106 +115,6 @@ function buildInputSchema(params: InputParam[]): Record<string, unknown> {
   return { type: "object", properties, required };
 }
 
-// ── Marketplace Modal ─────────────────────────────────────────────────────────
-
-function MarketplaceModal({
-  onClose,
-  onInstall,
-}: {
-  onClose: () => void;
-  onInstall: (entry: MarketplaceEntry) => void;
-}) {
-  const [search, setSearch] = useState("");
-  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
-
-  const filtered = MARKETPLACE_ENTRIES.filter((e) =>
-    e.name.toLowerCase().includes(search.toLowerCase()) ||
-    e.description.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const copyUrl = async (url: string) => {
-    await navigator.clipboard.writeText(url);
-    setCopiedUrl(url);
-    setTimeout(() => setCopiedUrl(null), 2000);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <Package size={16} className="text-violet-600" />
-            <h2 className="text-sm font-semibold text-gray-800">MCP Server Marketplace</h2>
-          </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
-        </div>
-
-        <div className="px-6 py-3 border-b border-gray-100">
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search servers by name or description…"
-              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-violet-400"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {filtered.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 text-sm">No servers match your search.</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filtered.map((entry) => (
-                <div key={entry.name} className="border border-gray-200 rounded-xl p-4 flex flex-col gap-3 hover:border-violet-200 transition-colors">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl flex-shrink-0">{entry.icon}</span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{entry.name}</p>
-                      <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{entry.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-auto">
-                    <a
-                      href={entry.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 hover:underline"
-                    >
-                      <ExternalLink size={10} /> View Docs
-                    </a>
-                    <div className="ml-auto">
-                      {entry.installUrl ? (
-                        <button
-                          onClick={() => onInstall(entry)}
-                          className="flex items-center gap-1 text-[11px] bg-violet-600 text-white px-2.5 py-1 rounded-lg hover:bg-violet-700 transition-colors"
-                        >
-                          <Download size={10} /> Install
-                        </button>
-                      ) : (
-                        <div className="flex flex-col items-end gap-1">
-                          <button
-                            onClick={() => copyUrl(entry.url)}
-                            className="flex items-center gap-1 text-[11px] text-gray-600 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg transition-colors"
-                          >
-                            {copiedUrl === entry.url ? <CheckCheck size={10} className="text-green-500" /> : <Copy size={10} />}
-                            Copy URL
-                          </button>
-                          <span className="text-[10px] text-gray-400">Requires local setup</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── SDK Modal ─────────────────────────────────────────────────────────────────
 
@@ -2026,7 +1901,6 @@ export default function MCPToolboxesPage() {
   const [createType, setCreateType] = useState<"hosted" | "external">("hosted");
   const [createInitialUrl, setCreateInitialUrl] = useState("");
   const [filter, setFilter] = useState<"all" | "hosted" | "external">("all");
-  const [showMarketplace, setShowMarketplace] = useState(false);
 
   const openCreate = (type: "hosted" | "external" = "hosted", initialUrl = "") => {
     setCreateType(type);
@@ -2073,13 +1947,7 @@ export default function MCPToolboxesPage() {
           subtitle="Build your own MCP servers with scenarios as tools, or connect external MCP servers"
           action={
             <div className="flex gap-2">
-              <button
-                onClick={() => setShowMarketplace(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 hover:text-violet-700 transition-colors"
-              >
-                <Package size={14} /> Marketplace
-              </button>
-              <button
+<button
                 onClick={() => openCreate("external")}
                 className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 hover:text-violet-700 transition-colors"
               >
@@ -2133,11 +2001,7 @@ export default function MCPToolboxesPage() {
                 Build your own MCP server with scenarios as tools, or connect an external MCP server
               </p>
               <div className="flex gap-2 justify-center">
-                <button onClick={() => setShowMarketplace(true)}
-                  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 transition-colors">
-                  Browse Marketplace
-                </button>
-                <button onClick={() => openCreate("external")}
+<button onClick={() => openCreate("external")}
                   className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 transition-colors">
                   Connect External
                 </button>
@@ -2223,15 +2087,6 @@ export default function MCPToolboxesPage() {
         />
       )}
 
-      {showMarketplace && (
-        <MarketplaceModal
-          onClose={() => setShowMarketplace(false)}
-          onInstall={(entry) => {
-            setShowMarketplace(false);
-            openCreate("external", entry.installUrl);
-          }}
-        />
-      )}
     </>
   );
 }
