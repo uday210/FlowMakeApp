@@ -136,10 +136,17 @@ function executeTool(
       const nodeId = input.node_id as string;
       const node = nodes.find(n => n.id === nodeId);
       if (!node) return { content: `Node "${nodeId}" not found` };
-      if (input.config) node.data.config = { ...node.data.config, ...(input.config as Record<string, unknown>) };
+      if (input.config) {
+        // Coerce object/array values to JSON strings — textarea fields expect strings
+        const safeConfig: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(input.config as Record<string, unknown>)) {
+          safeConfig[k] = (typeof v === "object" && v !== null) ? JSON.stringify(v, null, 2) : v;
+        }
+        node.data.config = { ...node.data.config, ...safeConfig };
+      }
       if (input.label) node.data.label = input.label as string;
       return {
-        content: `Configured node "${node.data.label}"`,
+        content: `Configured node "${node.data.label}" — set: ${Object.keys(input.config as object ?? {}).join(", ")}`,
         delta: { nodes: { update: [{ id: nodeId, data: { label: node.data.label, type: node.data.type, config: node.data.config } }] } },
       };
     }
@@ -200,13 +207,13 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "configure_node",
-    description: "Update the config or label of an existing node",
+    description: "Update the config or label of an existing node. IMPORTANT: all config values must be strings — if a value is JSON (e.g. a response body), pass it as a JSON string like '{\"key\": \"value\"}', not as an object.",
     input_schema: {
       type: "object" as const,
       properties: {
         node_id: { type: "string", description: "ID of the node to configure" },
         label: { type: "string", description: "New display label (optional)" },
-        config: { type: "object", description: "Config fields to set/update (merged with existing)" },
+        config: { type: "object", description: "Config fields to set. Use exact key names from the node's config fields. All values must be strings — stringify any JSON values." },
       },
       required: ["node_id"],
     },
@@ -281,6 +288,7 @@ RULES:
 - If the user asks to modify an existing workflow, only change what's needed — don't clear and rebuild unless asked.
 - Keep explanations short and focused.
 - When configuring a node, use EXACT field keys from the node's "config fields" list below.
+- Config values must always be strings. For JSON bodies/payloads, pass as a JSON string: body="{\"key\": \"value\"}".
 
 CURRENT WORKFLOW STATE:
 Nodes (${nodes.length}):
