@@ -8,7 +8,7 @@ import {
   ChevronUp, ToggleLeft, ToggleRight, Link2, AlertCircle,
   CheckCircle2, Settings, Zap, ShieldCheck, ShieldOff, Eye, EyeOff, RotateCcw,
   History, Clock, XCircle, ChevronRight,
-  BarChart2, Bell, Code2, Package, Download, Play,
+  BarChart2, Bell, Code2, Package, Download, Play, Pencil,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -588,6 +588,131 @@ function CreateServerModal({
             className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors">
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
             {tab === "hosted" ? "Create Server" : "Connect Server"}
+          </button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Edit Server Modal ─────────────────────────────────────────────────────────
+
+function EditServerModal({
+  server,
+  onClose,
+  onUpdated,
+}: {
+  server: McpServer;
+  onClose: () => void;
+  onUpdated: (s: McpServer) => void;
+}) {
+  const isHosted = server.type === "hosted";
+  const [form, setForm] = useState({
+    name: server.name ?? "",
+    description: server.description ?? "",
+    url: server.url ?? "",
+    auth_key: server.auth_key ?? "",
+    slug: server.slug ?? "",
+    transport: server.transport ?? "sse",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const save = async () => {
+    if (!form.name) { setError("Name is required"); return; }
+    setSaving(true); setError("");
+    const body: Record<string, unknown> = {
+      name: form.name,
+      description: form.description,
+    };
+    if (!isHosted) {
+      body.url = form.url;
+      if (form.auth_key) body.auth_key = form.auth_key;
+    } else {
+      body.slug = form.slug;
+      body.transport = form.transport;
+    }
+    const res = await fetch(`/api/mcp-toolboxes/${server.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) { setError(data.error ?? "Failed to update"); return; }
+    onUpdated(data as McpServer);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800">Edit Server</h2>
+            <p className="text-[11px] text-gray-400 mt-0.5">{isHosted ? "Hosted" : "External"} · {server.name}</p>
+          </div>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
+        </div>
+
+        <div className="px-6 py-4 space-y-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Name *</label>
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Description</label>
+            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="What does this server do?"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400" />
+          </div>
+
+          {!isHosted && (
+            <>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Server URL *</label>
+                <input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })}
+                  placeholder="https://mcp.example.com/sse"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Auth Key</label>
+                <input type="password" value={form.auth_key} onChange={(e) => setForm({ ...form, auth_key: e.target.value })}
+                  placeholder="Leave blank to keep existing"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400" />
+              </div>
+            </>
+          )}
+
+          {isHosted && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Slug</label>
+                <input value={form.slug}
+                  onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400 font-mono" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Transport</label>
+                <select value={form.transport} onChange={(e) => setForm({ ...form, transport: e.target.value as "sse" | "http" })}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400 bg-white">
+                  <option value="sse">SSE</option>
+                  <option value="http">Streamable HTTP</option>
+                  <option value="both">Both</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+        </div>
+
+        <div className="flex gap-2 px-6 pb-5">
+          <button onClick={save} disabled={saving}
+            className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors">
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Settings size={13} />}
+            Save Changes
           </button>
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
         </div>
@@ -1361,7 +1486,7 @@ function ServerCard({
   onUpdate: (s: McpServer) => void;
   onDelete: (id: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [tools, setTools] = useState<McpTool[]>([]);
   const [loadingTools, setLoadingTools] = useState(false);
   const [discovering, setDiscovering] = useState(false);
@@ -1377,6 +1502,7 @@ function ServerCard({
   const [showSdk, setShowSdk] = useState(false);
   const [showOpenApiImporter, setShowOpenApiImporter] = useState(false);
   const [testingTool, setTestingTool] = useState<PlaygroundTool | null>(null);
+  const [showEdit, setShowEdit] = useState(false);
 
   const loadTools = useCallback(async () => {
     if (server.type !== "hosted") return;
@@ -1528,6 +1654,11 @@ function ServerCard({
               <button onClick={toggleServer} title={server.enabled ? "Disable" : "Enable"}
                 className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
                 {server.enabled ? <ToggleRight size={16} className="text-green-500" /> : <ToggleLeft size={16} />}
+              </button>
+              {/* Edit */}
+              <button onClick={() => setShowEdit(true)} title="Edit server"
+                className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                <Pencil size={13} />
               </button>
               {/* Expand/collapse */}
               <button onClick={() => setExpanded((e) => !e)}
@@ -1851,6 +1982,14 @@ function ServerCard({
           serverId={server.id}
           serverType={server.type}
           onClose={() => setTestingTool(null)}
+        />
+      )}
+
+      {showEdit && (
+        <EditServerModal
+          server={server}
+          onClose={() => setShowEdit(false)}
+          onUpdated={(updated) => { onUpdate(updated); setShowEdit(false); }}
         />
       )}
     </>
