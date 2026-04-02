@@ -25,15 +25,16 @@ async function verifyStripeSignature(body: string, sigHeader: string, secret: st
   const timestamp = parts["t"];
   const payload = `${timestamp}.${body}`;
   const encoder = new TextEncoder();
-  // Stripe secrets are base64-encoded with a "whsec_" prefix
+  // Try base64-decoded key (Stripe v2 event destinations)
   const rawSecret = secret.startsWith("whsec_") ? secret.slice(6) : secret;
-  const secretBytes = Uint8Array.from(atob(rawSecret), c => c.charCodeAt(0));
+  const secretBytes = Buffer.from(rawSecret, "base64");
   const key = await crypto.subtle.importKey(
     "raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
   const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
   const hex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
-  return (parts["v1"] ?? "") === hex;
+  // Check v1 (and v2 if Stripe ever uses it)
+  return (parts["v1"] ?? parts["v2"] ?? "") === hex;
 }
 
 export async function POST(
