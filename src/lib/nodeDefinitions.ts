@@ -1910,16 +1910,18 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "action_sheets",
     label: "Google Sheets",
-    description: "Append a row to a Google Sheet via API",
+    description: "Read and write Google Sheets using a Service Account or OAuth token",
     category: "action",
     subcategory: "Productivity",
     connectionType: "sheets",
-    connectionFields: ["access_token"],
+    connectionFields: ["client_email", "private_key"],
     color: "#0f9d58",
     icon: "Sheet",
-    defaultConfig: { access_token: "", action: "append_row", spreadsheet_id: "", range: "Sheet1!A1", values: "" },
+    defaultConfig: { client_email: "", private_key: "", access_token: "", action: "append_row", spreadsheet_id: "", range: "Sheet1!A1", values: "" },
     configFields: [
-      { key: "access_token", label: "OAuth Access Token", type: "password", placeholder: "ya29.xxx", required: true },
+      { key: "client_email", label: "Service Account Email", type: "text", placeholder: "my-bot@project.iam.gserviceaccount.com" },
+      { key: "private_key", label: "Service Account Private Key", type: "password", placeholder: "-----BEGIN PRIVATE KEY-----..." },
+      { key: "access_token", label: "OAuth Access Token (alternative to service account)", type: "password", placeholder: "ya29.xxx" },
       { key: "action", label: "Action", type: "select", required: true, options: [
         { label: "Append Row", value: "append_row" },
         { label: "Get Values", value: "get_values" },
