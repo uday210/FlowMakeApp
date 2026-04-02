@@ -10,10 +10,11 @@ import NodeConfigPanel from "@/components/NodeConfigPanel";
 import WorkflowLogger from "@/components/WorkflowLogger";
 import ConnectionsManager from "@/components/ConnectionsManager";
 import ScenarioStatsPanel from "@/components/ScenarioStatsPanel";
+import AIBuilderPanel from "@/components/AIBuilderPanel";
 import {
   Save, Play, ArrowLeft, Loader2, CheckCircle, AlertCircle,
   Plug, GitBranch, X, RotateCcw, RefreshCw, ChevronDown, ChevronRight,
-  Clock, XCircle, MinusCircle,
+  Clock, XCircle, MinusCircle, Sparkles,
 } from "lucide-react";
 
 const Canvas = dynamic(() => import("@/components/Canvas"), { ssr: false });
@@ -367,6 +368,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [execNodeStatuses, setExecNodeStatuses] = useState<Record<string, string>>({});
   const [canvasKey, setCanvasKey] = useState(0);
+  const [showAIBuilder, setShowAIBuilder] = useState(false);
   const prevNodeCount = useRef(0);
   const prevEdgeCount = useRef(0);
 
@@ -597,12 +599,23 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
           </button>
 
           <button
-            onClick={() => { setShowConnections(v => !v); setSelectedNode(null); setShowVersions(false); }}
+            onClick={() => { setShowConnections(v => !v); setSelectedNode(null); setShowVersions(false); setShowAIBuilder(false); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-lg transition-colors ${
               showConnections ? "bg-gray-800 text-white border-gray-800" : "text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
           >
             <Plug size={13} /> Connections
+          </button>
+
+          <button
+            onClick={() => { setShowAIBuilder(v => !v); setShowConnections(false); setShowVersions(false); setSelectedNode(null); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg transition-all ${
+              showAIBuilder
+                ? "bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-200"
+                : "text-violet-600 border-violet-200 hover:bg-violet-50"
+            }`}
+          >
+            <Sparkles size={13} /> AI Builder
           </button>
         </div>
 
@@ -747,6 +760,18 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
 
           {/* Connections */}
           {showConnections && <ConnectionsManager onClose={() => setShowConnections(false)} />}
+
+          {/* AI Builder */}
+          {showAIBuilder && (
+            <AIBuilderPanel
+              workflowId={id}
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
+              onClose={() => setShowAIBuilder(false)}
+            />
+          )}
 
           {/* Node config */}
           {selectedNode && !showConnections && (
