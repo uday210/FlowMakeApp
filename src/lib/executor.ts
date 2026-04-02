@@ -36,7 +36,9 @@ async function executeNodeOnce(
           if (o && typeof o === "object") return (o as Record<string, unknown>)[k];
           return undefined;
         }, allData);
-        return val !== undefined ? String(val) : "";
+        if (val === undefined || val === null) return "";
+        if (typeof val === "object") return JSON.stringify(val);
+        return String(val);
       });
     };
 
