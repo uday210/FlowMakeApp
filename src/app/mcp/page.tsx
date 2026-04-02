@@ -1760,7 +1760,7 @@ function ServerCard({
                         <p className="text-[11px] text-gray-400">Click &quot;Discover Tools&quot; to load available tools.</p>
                       </div>
                     ) : externalTools.map((tool, i) => (
-                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 group">
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
                         <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                           <Settings size={12} className="text-blue-500" />
                         </div>
@@ -1771,9 +1771,9 @@ function ServerCard({
                         <button
                           onClick={() => setTestingTool(tool)}
                           title="Test tool"
-                          className="p-1 text-gray-300 hover:text-violet-500 hover:bg-violet-50 rounded transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors flex-shrink-0"
                         >
-                          <Play size={12} />
+                          <Play size={10} /> Test
                         </button>
                       </div>
                     ))}
