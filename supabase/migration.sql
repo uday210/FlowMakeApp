@@ -76,6 +76,35 @@ create table if not exists mcp_alert_configs (
 );
 create index if not exists mcp_alert_configs_server_id_idx on mcp_alert_configs(server_id);
 
+-- Analytics datasets
+create table if not exists analytics_datasets (
+  id uuid primary key default gen_random_uuid(),
+  org_id text not null,
+  name text not null,
+  source_type text not null default 'upload', -- upload | db | merge
+  columns jsonb not null default '[]',
+  row_count integer not null default 0,
+  data jsonb not null default '[]',
+  parent_ids jsonb default '[]',
+  created_at timestamptz default now()
+);
+create index if not exists analytics_datasets_org_id_idx on analytics_datasets(org_id);
+
+-- Analytics dashboards
+create table if not exists analytics_dashboards (
+  id uuid primary key default gen_random_uuid(),
+  org_id text not null,
+  name text not null,
+  widgets jsonb not null default '[]',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists analytics_dashboards_org_id_idx on analytics_dashboards(org_id);
+
+create trigger analytics_dashboards_updated_at
+  before update on analytics_dashboards
+  for each row execute function update_updated_at();
+
 -- Row Level Security (optional – disable for local dev without auth)
 -- alter table workflows enable row level security;
 -- alter table executions enable row level security;
