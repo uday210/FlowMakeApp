@@ -13,7 +13,9 @@ export async function GET(request: Request) {
   // Falls back to origin for local development where x-forwarded-host is absent.
   const forwardedHost = request.headers.get("x-forwarded-host");
   const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
-  const baseUrl = forwardedHost ? `${forwardedProto}://${forwardedHost}` : origin;
+  const baseUrl = forwardedHost
+    ? `${forwardedProto}://${forwardedHost.split(",")[0].trim()}`
+    : origin;
 
   const script = `(function(){
   var SITE_KEY="${siteKey}";
@@ -77,7 +79,7 @@ export async function GET(request: Request) {
   return new NextResponse(script, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "no-store",
       "Access-Control-Allow-Origin": "*",
     },
   });
