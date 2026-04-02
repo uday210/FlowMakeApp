@@ -73,24 +73,29 @@ export async function POST(request: Request) {
       properties: properties ?? {},
     });
 
-    return NextResponse.json({ ok: true }, { headers: corsHeaders() });
+    return NextResponse.json({ ok: true }, { headers: corsHeaders(request) });
   } catch {
-    return NextResponse.json({ error: "Internal error" }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json({ error: "Internal error" }, { status: 500, headers: corsHeaders(request) });
   }
 }
 
 // Allow preflight from any origin (tracking script is cross-origin)
-export async function OPTIONS() {
+export async function OPTIONS(request: Request) {
   return new NextResponse(null, {
     status: 204,
-    headers: corsHeaders(),
+    headers: corsHeaders(request),
   });
 }
 
-function corsHeaders() {
+function corsHeaders(request: Request) {
+  // When credentials mode is "include" (Salesforce, etc.), wildcard is not allowed.
+  // Reflect the exact requesting origin back.
+  const origin = request.headers.get("origin") ?? "*";
   return {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Credentials": "true",
+    "Vary": "Origin",
   };
 }
