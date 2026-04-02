@@ -20,8 +20,6 @@ async function executeNodeOnce(
     if (node.data.config.connectionId && connections[node.data.config.connectionId as string]) {
       Object.assign(effectiveConfig, connections[node.data.config.connectionId as string]);
     }
-    const config = effectiveConfig;
-
     // ── Shared interpolation helper (available to ALL node cases) ──────────────
     // Resolves {{node_id.field}} and {{secret.NAME}} placeholders.
     const allData: Record<string, unknown> = { ...ctx.triggerData, ...ctx.nodeOutputs, variables: ctx.variables };
@@ -41,6 +39,11 @@ async function executeNodeOnce(
         return String(val);
       });
     };
+
+    // Pre-interpolate all string config values so handlers don't need to call interpolate() manually
+    const config: Record<string, unknown> = Object.fromEntries(
+      Object.entries(effectiveConfig).map(([k, v]) => [k, typeof v === "string" ? interpolate(v) : v])
+    );
 
     // Simple pass-through triggers — return trigger data directly
     const passThroughTriggers = new Set([
