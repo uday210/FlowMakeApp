@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrgContext } from "@/lib/orgContext";
+import { getOrgContext } from "@/lib/auth";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/spreadsheets",
