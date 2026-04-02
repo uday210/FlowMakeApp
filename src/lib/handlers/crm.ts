@@ -667,14 +667,16 @@ export const handlers: Record<string, NodeHandler> = {
     const sheetsBase = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
 
     // Normalize values: accepts 2D array OR array of objects (e.g. from My Table node)
+    const includeHeaders = config.include_headers === "true" || config.include_headers === true;
+    const EXCLUDED_KEYS = new Set(["id", "_created_at"]);
     const normalizeValues = (raw: unknown): unknown[][] => {
       const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
       if (!Array.isArray(parsed)) throw new Error("Values must be a JSON array");
       if (parsed.length === 0) return [];
       if (typeof parsed[0] === "object" && !Array.isArray(parsed[0]) && parsed[0] !== null) {
-        return parsed.map((obj: Record<string, unknown>) =>
-          Object.entries(obj).filter(([k]) => k !== "id" && k !== "_created_at").map(([, v]) => v ?? "")
-        );
+        const keys = Object.keys(parsed[0] as object).filter(k => !EXCLUDED_KEYS.has(k));
+        const rows = parsed.map((obj: Record<string, unknown>) => keys.map(k => obj[k] ?? ""));
+        return includeHeaders ? [keys, ...rows] : rows;
       }
       return parsed as unknown[][];
     };

@@ -1931,7 +1931,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
       ]},
       { key: "spreadsheet_id", label: "Spreadsheet ID", type: "text", placeholder: "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms", required: true },
       { key: "range", label: "Range (e.g. Sheet1!A1:D10)", type: "text", placeholder: "Sheet1!A1" },
-      { key: "values", label: "Values (JSON 2D array, for append/update)", type: "textarea", placeholder: '[["Name", "Email"], ["John", "john@example.com"]]' },
+      { key: "values", label: "Values (JSON 2D array or array of objects)", type: "textarea", placeholder: '[["Name", "Email"], ["John", "john@example.com"]]' },
+      { key: "include_headers", label: "Include column names as header row (when passing objects)", type: "select", options: [{ label: "No", value: "false" }, { label: "Yes", value: "true" }] },
     ],
   },
   {
