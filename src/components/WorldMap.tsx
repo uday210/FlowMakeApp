@@ -58,6 +58,12 @@ interface GeoFeature {
   geometry: { type: string; coordinates: number[][][] | number[][][][] };
 }
 
+// Crop to lat 78°N → 58°S to remove Arctic noise and trim Antarctica
+// Equirectangular: y = ((90 - lat) / 180) * H
+const CROP_TOP    = Math.round(((90 - 78) / 180) * 480);  // ~32px
+const CROP_BOTTOM = Math.round(((90 - (-58)) / 180) * 480); // ~395px
+const CROP_H      = CROP_BOTTOM - CROP_TOP;
+
 interface Props {
   countries: { value: string; count: number }[];
 }
@@ -168,7 +174,7 @@ export default function WorldMap({ countries }: Props) {
         ) : (
           <svg
             ref={svgRef}
-            viewBox={`0 0 ${W} ${H}`}
+            viewBox={`0 ${CROP_TOP} ${W} ${CROP_H}`}
             className="w-full h-auto"
             style={{ display: "block" }}
           >
