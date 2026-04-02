@@ -22,6 +22,8 @@ const PUBLIC_PREFIXES = [
   "/api/approvals/",
   "/api/scheduler/",
   "/api/mcp/hosted/",
+  "/api/tracker",
+  "/api/t",
   "/embed/",
   "/form/",
   "/sign/",
@@ -36,7 +38,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Always allow static files and Next.js internals
-  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || pathname === "/agent-test.html") {
+  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || pathname.endsWith(".html")) {
     return NextResponse.next();
   }
 

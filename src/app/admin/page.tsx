@@ -7,7 +7,7 @@ import {
   Building2, Users, Zap, RefreshCw, Shield, ChevronDown, ChevronRight,
   ToggleLeft, ToggleRight, Trash2, PenLine, Check, X, Loader2,
   Bot, Table2, AlertTriangle, Mail, Crown, UserX, Infinity,
-  KeyRound, Plug2, Plus, Eye, EyeOff,
+  KeyRound, Plug2, Plus, Eye, EyeOff, Send,
 } from "lucide-react";
 import { PLAN_LIMITS, PLAN_LABELS, RESOURCE_LABELS, type PlanName, type ResourceKey } from "@/lib/plan-limits";
 
@@ -657,11 +657,279 @@ function SuperAdminsTab({ users, orgs, onUserCreated }: { users: UserProfile[]; 
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+// ─── Platform Email Tab ───────────────────────────────────────────────────────
+
+const PROVIDERS = [
+  { value: "resend",    label: "Resend" },
+  { value: "sendgrid",  label: "SendGrid" },
+  { value: "mailgun",   label: "Mailgun" },
+  { value: "postmark",  label: "Postmark" },
+  { value: "smtp",      label: "SMTP" },
+  { value: "mailtrap",  label: "Mailtrap" },
+];
+
+function PlatformEmailTab() {
+  const [config, setConfig] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [showPass, setShowPass] = useState(false);
+
+  const showToast = (msg: string, ok: boolean) => {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  useEffect(() => {
+    fetch("/api/admin/platform-email")
+      .then(r => r.json())
+      .then(d => {
+        setConfig({
+          provider:       d.email_provider ?? "",
+          from_email:     d.email_from ?? "",
+          from_name:      d.email_from_name ?? "",
+          mailgun_domain: d.email_mailgun_domain ?? "",
+          mailgun_region: d.email_mailgun_region ?? "us",
+          smtp_host:      d.email_smtp_host ?? "",
+          smtp_port:      String(d.email_smtp_port ?? "587"),
+          smtp_user:      d.email_smtp_user ?? "",
+          smtp_secure:    String(d.email_smtp_secure ?? "true"),
+          mailtrap_inbox_id: d.email_mailtrap_inbox_id ?? "",
+        });
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const set = (k: string, v: string) => setConfig(prev => ({ ...prev, [k]: v }));
+
+  const save = async () => {
+    setSaving(true);
+    const res = await fetch("/api/admin/platform-email", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider:         config.provider || null,
+        from_email:       config.from_email,
+        from_name:        config.from_name,
+        api_key:          config.api_key,
+        mailgun_domain:   config.mailgun_domain,
+        mailgun_region:   config.mailgun_region,
+        smtp_host:        config.smtp_host,
+        smtp_port:        config.smtp_port ? parseInt(config.smtp_port) : null,
+        smtp_user:        config.smtp_user,
+        smtp_pass:        config.smtp_pass,
+        smtp_secure:      config.smtp_secure === "true",
+        mailtrap_inbox_id: config.mailtrap_inbox_id,
+      }),
+    });
+    setSaving(false);
+    showToast(res.ok ? "Saved successfully" : "Failed to save", res.ok);
+  };
+
+  const sendTest = async () => {
+    if (!testEmail.trim()) return;
+    setTesting(true);
+    const res = await fetch("/api/admin/platform-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: testEmail.trim() }),
+    });
+    setTesting(false);
+    const d = await res.json();
+    showToast(res.ok ? `Test email sent to ${testEmail}` : (d.error ?? "Failed"), res.ok);
+  };
+
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-300" size={24} /></div>;
+
+  const provider = config.provider;
+  const needsApiKey = ["resend", "sendgrid", "postmark", "mailgun", "mailtrap"].includes(provider);
+  const isMailgun = provider === "mailgun";
+  const isSmtp = provider === "smtp";
+  const isMailtrap = provider === "mailtrap";
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      {toast && (
+        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium ${toast.ok ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+          {toast.ok ? <Check size={14} /> : <X size={14} />} {toast.msg}
+        </div>
+      )}
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Platform Email</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Used as fallback when an org has no email provider configured.</p>
+        </div>
+
+        {/* Provider */}
+        <div>
+          <label className="text-xs font-semibold text-gray-600 block mb-1.5">Provider</label>
+          <select value={provider} onChange={e => set("provider", e.target.value)}
+            className="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 bg-white outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100">
+            <option value="">— Select provider —</option>
+            {PROVIDERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </div>
+
+        {provider && (
+          <>
+            {/* From fields */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">From Email</label>
+                <input value={config.from_email} onChange={e => set("from_email", e.target.value)}
+                  placeholder="noreply@yourapp.com"
+                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">From Name</label>
+                <input value={config.from_name} onChange={e => set("from_name", e.target.value)}
+                  placeholder="FlowMake"
+                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+              </div>
+            </div>
+
+            {/* API Key */}
+            {needsApiKey && (
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+                  {isMailtrap ? "Mailtrap API Token" : `${PROVIDERS.find(p => p.value === provider)?.label} API Key`}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPass ? "text" : "password"}
+                    value={config.api_key ?? ""}
+                    onChange={e => set("api_key", e.target.value)}
+                    placeholder="Leave blank to keep existing key"
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 pr-10 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  />
+                  <button type="button" onClick={() => setShowPass(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Mailgun extras */}
+            {isMailgun && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Mailgun Domain</label>
+                  <input value={config.mailgun_domain} onChange={e => set("mailgun_domain", e.target.value)}
+                    placeholder="mg.yourapp.com"
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Region</label>
+                  <select value={config.mailgun_region} onChange={e => set("mailgun_region", e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 bg-white outline-none focus:border-violet-400">
+                    <option value="us">US</option>
+                    <option value="eu">EU</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Mailtrap inbox ID */}
+            {isMailtrap && (
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Inbox ID (optional — for sandbox)</label>
+                <input value={config.mailtrap_inbox_id} onChange={e => set("mailtrap_inbox_id", e.target.value)}
+                  placeholder="Leave blank for production sending"
+                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+              </div>
+            )}
+
+            {/* SMTP fields */}
+            {isSmtp && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-xs font-semibold text-gray-600 block mb-1.5">SMTP Host</label>
+                    <input value={config.smtp_host} onChange={e => set("smtp_host", e.target.value)}
+                      placeholder="smtp.yourprovider.com"
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 block mb-1.5">Port</label>
+                    <input value={config.smtp_port} onChange={e => set("smtp_port", e.target.value)}
+                      placeholder="587"
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 block mb-1.5">SMTP Username</label>
+                    <input value={config.smtp_user} onChange={e => set("smtp_user", e.target.value)}
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 block mb-1.5">SMTP Password</label>
+                    <div className="relative">
+                      <input type={showPass ? "text" : "password"} value={config.smtp_pass ?? ""}
+                        onChange={e => set("smtp_pass", e.target.value)}
+                        placeholder="Leave blank to keep existing"
+                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 pr-10 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                      <button type="button" onClick={() => setShowPass(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="smtp_secure" checked={config.smtp_secure === "true"}
+                    onChange={e => set("smtp_secure", String(e.target.checked))}
+                    className="rounded" />
+                  <label htmlFor="smtp_secure" className="text-xs text-gray-600">Use TLS/SSL</label>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <button onClick={save} disabled={saving}
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50 transition-all hover:opacity-90"
+          style={{ background: "linear-gradient(135deg, #7c3aed, #ec4899)" }}>
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+          Save Configuration
+        </button>
+      </div>
+
+      {/* Test send */}
+      {config.provider && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">Send Test Email</h3>
+          <p className="text-xs text-gray-400 mb-4">Verify your platform email config by sending a test message.</p>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={testEmail}
+              onChange={e => setTestEmail(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && sendTest()}
+              placeholder="Enter email address"
+              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+            <button onClick={sendTest} disabled={testing || !testEmail.trim()}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-violet-600 rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-colors">
+              {testing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              Send Test
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"orgs" | "users" | "superadmins" | "plans">("orgs");
+  const [tab, setTab] = useState<"orgs" | "users" | "superadmins" | "plans" | "platform-email">("orgs");
   const [isAdmin, setIsAdmin] = useState(false);
   const [search, setSearch] = useState("");
   const [showCreateOrg, setShowCreateOrg] = useState(false);
@@ -804,6 +1072,7 @@ export default function AdminPage() {
                 { key: "users", label: `All Users (${users.length})` },
                 { key: "superadmins", label: `Super Admins (${users.filter(u => u.role === "superadmin").length})` },
                 { key: "plans", label: "Plans & Limits" },
+                { key: "platform-email", label: "Platform Email" },
               ] as const).map(({ key, label }) => (
                 <button key={key} onClick={() => setTab(key)}
                   className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${tab === key ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
@@ -909,6 +1178,7 @@ export default function AdminPage() {
 
           {tab === "superadmins" && <SuperAdminsTab users={users} orgs={orgs} onUserCreated={handleUserCreated} />}
           {tab === "plans" && <PlansTab />}
+          {tab === "platform-email" && <PlatformEmailTab />}
         </div>
       </div>
 

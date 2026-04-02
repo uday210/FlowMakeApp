@@ -45,6 +45,35 @@ async function getOrgEmailConfig(orgId: string): Promise<OrgEmailConfig | null> 
   return data ?? null;
 }
 
+async function getPlatformEmailConfig(): Promise<OrgEmailConfig | null> {
+  try {
+    const admin = createClient(supabaseUrl, supabaseServiceKey);
+    const { data } = await admin
+      .from("platform_settings")
+      .select("email_provider, email_from, email_from_name, email_api_key, email_mailgun_domain, email_mailgun_region, email_smtp_host, email_smtp_port, email_smtp_user, email_smtp_pass, email_smtp_secure")
+      .eq("id", 1)
+      .single();
+
+    if (!data?.email_provider || !data?.email_from) return null;
+
+    return {
+      provider:       data.email_provider,
+      from_email:     data.email_from,
+      from_name:      data.email_from_name ?? "",
+      api_key:        data.email_api_key ?? undefined,
+      mailgun_domain: data.email_mailgun_domain ?? undefined,
+      mailgun_region: data.email_mailgun_region ?? "us",
+      smtp_host:      data.email_smtp_host ?? undefined,
+      smtp_port:      data.email_smtp_port ?? undefined,
+      smtp_user:      data.email_smtp_user ?? undefined,
+      smtp_pass:      data.email_smtp_pass ?? undefined,
+      smtp_secure:    data.email_smtp_secure ?? true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function sendViaResend(config: { apiKey: string; from: string; fromName: string }, opts: SendEmailOptions) {
   const from = config.fromName ? `${config.fromName} <${config.from}>` : config.from;
   const res = await fetch("https://api.resend.com/emails", {
@@ -228,7 +257,13 @@ export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
       }
     }
 
-    // 2. Fall back to app-level Resend
+    // 2. Fall back to platform-level email config (set by superadmin)
+    const platformConfig = await getPlatformEmailConfig();
+    if (platformConfig) {
+      return await sendEmailWithConfig(platformConfig, opts);
+    }
+
+    // 3. Fall back to env var Resend (legacy)
     const appApiKey = process.env.RESEND_API_KEY;
     const appFrom   = process.env.EMAIL_FROM || "noreply@flowmakeapp.com";
     const appName   = process.env.EMAIL_FROM_NAME || "FlowMake";
@@ -238,7 +273,7 @@ export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
       return true;
     }
 
-    // 3. No email configured — silently skip
+    // 4. No email configured — silently skip
     console.warn(`[emailSender] No email provider configured for org ${opts.orgId}. Skipping email to ${opts.to}.`);
     return false;
   } catch (err) {
