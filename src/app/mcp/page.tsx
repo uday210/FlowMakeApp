@@ -1620,21 +1620,37 @@ function ServerCard({
 
   return (
     <>
-      <div className={`bg-white border rounded-xl transition-all ${server.enabled ? "border-gray-200 hover:border-violet-200" : "border-gray-100 opacity-60"}`}>
+      <div className={`bg-white rounded-xl overflow-hidden transition-all border-l-4 shadow-sm ${
+        server.enabled
+          ? isHosted
+            ? "border-l-violet-500 border border-violet-100 hover:border-violet-200 hover:shadow-md"
+            : "border-l-blue-400 border border-blue-100 hover:border-blue-200 hover:shadow-md"
+          : isHosted
+            ? "border-l-violet-200 border border-gray-100 opacity-60"
+            : "border-l-blue-200 border border-gray-100 opacity-60"
+      }`}>
+        {/* Colored type header band */}
+        <div className={`px-4 py-2 flex items-center gap-2 ${isHosted ? "bg-violet-50" : "bg-blue-50"}`}>
+          <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 ${isHosted ? "bg-violet-200" : "bg-blue-200"}`}>
+            {isHosted ? <Server size={11} className="text-violet-700" /> : <Plug size={11} className="text-blue-700" />}
+          </div>
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${isHosted ? "text-violet-600" : "text-blue-600"}`}>
+            {isHosted ? "My MCP Server" : "External MCP Server"}
+          </span>
+          <div className="flex-1" />
+          <StatusDot status={server.status} />
+          <span className={`text-[10px] font-medium ${server.enabled ? "text-green-600" : "text-gray-400"}`}>
+            {server.enabled ? "enabled" : "disabled"}
+          </span>
+        </div>
+
         {/* Header */}
         <div className="p-4">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isHosted ? "bg-violet-100" : "bg-blue-50"}`}>
-                {isHosted ? <Server size={16} className="text-violet-600" /> : <Plug size={16} className="text-blue-500" />}
-              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <StatusDot status={server.status} />
                   <span className="text-sm font-semibold text-gray-800 truncate">{server.name}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${isHosted ? "bg-violet-100 text-violet-700" : "bg-blue-50 text-blue-600"}`}>
-                    {isHosted ? "hosted" : "external"}
-                  </span>
                 </div>
                 {server.description && (
                   <p className="text-[11px] text-gray-400 mt-0.5 truncate">{server.description}</p>
@@ -2136,10 +2152,21 @@ export default function MCPToolboxesPage() {
               {/* Hosted servers section */}
               {(filter === "all" || filter === "hosted") && hosted.length > 0 && (
                 <section>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Server size={14} className="text-violet-600" />
-                    <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">My MCP Servers</h3>
-                    <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">{hosted.length}</span>
+                  <div className="flex items-center gap-3 mb-4 pb-3 border-b border-violet-100">
+                    <div className="w-8 h-8 bg-violet-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Server size={15} className="text-violet-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-gray-800">My MCP Servers</h3>
+                        <span className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-semibold">{hosted.length}</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400">Servers you built — expose your scenarios as MCP tools for Claude, Cline and other AI agents</p>
+                    </div>
+                    <button onClick={() => openCreate("hosted")}
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-[11px] font-semibold rounded-lg hover:bg-violet-700 transition-colors flex-shrink-0">
+                      <Plus size={11} /> New Server
+                    </button>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {hosted.map((s) => (
@@ -2154,10 +2181,21 @@ export default function MCPToolboxesPage() {
               {/* External servers section */}
               {(filter === "all" || filter === "external") && external.length > 0 && (
                 <section>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Plug size={14} className="text-blue-500" />
-                    <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">External Servers</h3>
-                    <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">{external.length}</span>
+                  <div className="flex items-center gap-3 mb-4 pb-3 border-b border-blue-100">
+                    <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Plug size={15} className="text-blue-500" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-gray-800">Connected External Servers</h3>
+                        <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold">{external.length}</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400">Third-party MCP servers connected to your workspace — discover and test their tools here</p>
+                    </div>
+                    <button onClick={() => openCreate("external")}
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-[11px] font-semibold rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0">
+                      <Plug size={11} /> Connect Server
+                    </button>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {external.map((s) => (
