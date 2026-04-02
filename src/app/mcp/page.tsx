@@ -1106,44 +1106,64 @@ function AlertsTabContent({ serverId }: { serverId: string }) {
   );
 }
 
-// ── Tool Test Modal (Playground) ─────────────────────────────────────────────
+// ── Tool Playground Modal ─────────────────────────────────────────────────────
 
-function ToolTestModal({
+interface PlaygroundTool {
+  name: string;
+  description?: string;
+  inputSchema?: Record<string, unknown>;
+}
+
+function ToolPlaygroundModal({
   tool,
   serverId,
+  serverType,
   onClose,
 }: {
-  tool: McpTool;
+  tool: PlaygroundTool;
   serverId: string;
+  serverType: "hosted" | "external";
   onClose: () => void;
 }) {
-  const schema = tool.input_schema as { properties?: Record<string, { type?: string; description?: string }>; required?: string[] } | null;
+  const schema = tool.inputSchema as { properties?: Record<string, { type?: string; description?: string }>; required?: string[] } | null;
   const properties = schema?.properties ?? {};
   const paramKeys = Object.keys(properties);
 
   const [args, setArgs] = useState<Record<string, string>>(
     Object.fromEntries(paramKeys.map((k) => [k, ""]))
   );
+  const [jsonMode, setJsonMode] = useState(paramKeys.length === 0);
+  const [rawJson, setRawJson] = useState("{}");
+  const [jsonError, setJsonError] = useState("");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ output?: string; error?: string; duration_ms?: number } | null>(null);
 
   const run = async () => {
     setRunning(true);
     setResult(null);
+    setJsonError("");
     try {
-      // Coerce values to their declared types
-      const coerced: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(args)) {
-        const declaredType = properties[k]?.type;
-        if (declaredType === "number") coerced[k] = v === "" ? undefined : Number(v);
-        else if (declaredType === "boolean") coerced[k] = v === "true";
-        else coerced[k] = v;
+      let finalArgs: Record<string, unknown> = {};
+
+      if (jsonMode) {
+        try { finalArgs = JSON.parse(rawJson); } catch {
+          setJsonError("Invalid JSON");
+          setRunning(false);
+          return;
+        }
+      } else {
+        for (const [k, v] of Object.entries(args)) {
+          const t = properties[k]?.type;
+          if (t === "number") finalArgs[k] = v === "" ? undefined : Number(v);
+          else if (t === "boolean") finalArgs[k] = v === "true";
+          else if (v !== "") finalArgs[k] = v;
+        }
       }
 
-      const res = await fetch(`/api/mcp-toolboxes/${serverId}/tools/${tool.id}/test`, {
+      const res = await fetch(`/api/mcp-toolboxes/${serverId}/test-tool`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ arguments: coerced }),
+        body: JSON.stringify({ tool_name: tool.name, arguments: finalArgs }),
       });
       const data = await res.json();
 
@@ -1166,38 +1186,82 @@ function ToolTestModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 sticky top-0 bg-white">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-              <Play size={13} className="text-violet-500" />
-              Test Tool
-            </h2>
-            <p className="text-[11px] text-gray-400 font-mono mt-0.5">{tool.name}</p>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+              <Play size={14} className="text-violet-600" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-gray-900">Tool Playground</h2>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${serverType === "hosted" ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>
+                  {serverType}
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400 font-mono">{tool.name}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <X size={14} />
+          </button>
         </div>
 
-        <div className="px-6 py-4 space-y-4">
-          {/* Input args */}
-          <div>
-            <p className="text-xs font-semibold text-gray-700 mb-2">Input Arguments</p>
-            {paramKeys.length === 0 ? (
-              <p className="text-[11px] text-gray-400 italic">This tool takes no arguments.</p>
+        <div className="flex flex-1 min-h-0">
+          {/* Left: inputs */}
+          <div className="flex-1 px-6 py-4 overflow-y-auto border-r border-gray-100">
+            {tool.description && (
+              <p className="text-[11px] text-gray-500 mb-4 leading-relaxed">{tool.description}</p>
+            )}
+
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-gray-700">Input Arguments</p>
+              {paramKeys.length > 0 && (
+                <button
+                  onClick={() => setJsonMode(!jsonMode)}
+                  className="text-[10px] text-violet-600 hover:text-violet-700 px-2 py-0.5 rounded border border-violet-200 hover:bg-violet-50 transition-colors"
+                >
+                  {jsonMode ? "Form view" : "JSON view"}
+                </button>
+              )}
+            </div>
+
+            {jsonMode ? (
+              <div>
+                <textarea
+                  value={rawJson}
+                  onChange={(e) => { setRawJson(e.target.value); setJsonError(""); }}
+                  rows={8}
+                  placeholder='{"key": "value"}'
+                  className={`w-full px-3 py-2.5 text-xs font-mono border rounded-xl focus:outline-none resize-none ${jsonError ? "border-red-300 focus:border-red-400" : "border-gray-200 focus:border-violet-400"}`}
+                />
+                {jsonError && <p className="text-[11px] text-red-500 mt-1">{jsonError}</p>}
+              </div>
+            ) : paramKeys.length === 0 ? (
+              <div className="py-6 text-center rounded-xl border border-dashed border-gray-200 bg-gray-50">
+                <p className="text-[11px] text-gray-400">No arguments required</p>
+                <p className="text-[10px] text-gray-300 mt-0.5">This tool runs without any input</p>
+              </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {paramKeys.map((k) => {
                   const prop = properties[k];
                   const isRequired = schema?.required?.includes(k);
                   return (
-                    <div key={k}>
-                      <label className="text-[11px] font-medium text-gray-600 mb-0.5 block">
-                        <span className="font-mono">{k}</span>
-                        {prop.type && <span className="text-gray-400 ml-1">({prop.type})</span>}
-                        {isRequired && <span className="text-red-400 ml-1">*</span>}
-                        {prop.description && <span className="text-gray-400 ml-1">— {prop.description}</span>}
-                      </label>
+                    <div key={k} className="group">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[11px] font-semibold text-gray-700 font-mono">{k}</span>
+                        {prop.type && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">{prop.type}</span>
+                        )}
+                        {isRequired && <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-50 text-red-400 font-medium">required</span>}
+                      </div>
+                      {prop.description && (
+                        <p className="text-[10px] text-gray-400 mb-1">{prop.description}</p>
+                      )}
                       {prop.type === "boolean" ? (
                         <select
                           value={args[k]}
@@ -1213,7 +1277,7 @@ function ToolTestModal({
                           type={prop.type === "number" ? "number" : "text"}
                           value={args[k]}
                           onChange={(e) => setArgs({ ...args, [k]: e.target.value })}
-                          placeholder={prop.description ?? k}
+                          placeholder={prop.description ?? `Enter ${k}…`}
                           className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400 font-mono"
                         />
                       )}
@@ -1224,36 +1288,60 @@ function ToolTestModal({
             )}
           </div>
 
-          {/* Result */}
-          {result && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className={`text-[11px] font-semibold uppercase tracking-wide ${result.error ? "text-red-500" : "text-green-600"}`}>
-                  {result.error ? "Error" : "Output"}
-                </p>
-                {result.duration_ms != null && (
-                  <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                    <Clock size={10} />{result.duration_ms}ms
-                  </span>
-                )}
+          {/* Right: output */}
+          <div className="w-80 flex flex-col px-5 py-4">
+            <p className="text-xs font-semibold text-gray-700 mb-3">Output</p>
+            {running ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl bg-gray-50 border border-gray-100">
+                <Loader2 size={20} className="animate-spin text-violet-400" />
+                <p className="text-[11px] text-gray-400">Executing…</p>
               </div>
-              <pre className={`text-[11px] rounded-xl p-3 overflow-x-auto whitespace-pre-wrap max-h-60 ${result.error ? "bg-red-50 border border-red-100 text-red-700" : "bg-gray-900 text-green-300"}`}>
-                {result.error ?? result.output}
-              </pre>
-            </div>
-          )}
+            ) : result ? (
+              <div className="flex-1 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${result.error ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}>
+                    {result.error ? <XCircle size={10} /> : <CheckCircle2 size={10} />}
+                    {result.error ? "Error" : "Success"}
+                  </span>
+                  {result.duration_ms != null && (
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                      <Clock size={10} />{result.duration_ms}ms
+                    </span>
+                  )}
+                </div>
+                <pre className={`flex-1 text-[11px] rounded-xl p-3 overflow-auto whitespace-pre-wrap min-h-32 ${result.error ? "bg-red-50 border border-red-100 text-red-700" : "bg-gray-900 text-green-300"}`}>
+                  {result.error ?? result.output}
+                </pre>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl bg-gray-50 border border-dashed border-gray-200">
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                  <Play size={16} className="text-gray-300 ml-0.5" />
+                </div>
+                <p className="text-[11px] text-gray-400 text-center">Hit Run to see<br />the tool output</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-2 px-6 pb-5 sticky bottom-0 bg-white pt-2 border-t border-gray-100">
+        {/* Footer */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
           <button
             onClick={run}
             disabled={running}
-            className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 px-5 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-colors shadow-sm"
           >
             {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
             {running ? "Running…" : "Run Tool"}
           </button>
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Close</button>
+          {result && (
+            <button onClick={() => setResult(null)} className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
+              Clear output
+            </button>
+          )}
+          <button onClick={onClose} className="ml-auto px-4 py-2 text-sm text-gray-500 hover:bg-gray-200 rounded-xl transition-colors">
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -1288,7 +1376,7 @@ function ServerCard({
   const [clearingHistory, setClearingHistory] = useState(false);
   const [showSdk, setShowSdk] = useState(false);
   const [showOpenApiImporter, setShowOpenApiImporter] = useState(false);
-  const [testingTool, setTestingTool] = useState<McpTool | null>(null);
+  const [testingTool, setTestingTool] = useState<PlaygroundTool | null>(null);
 
   const loadTools = useCallback(async () => {
     if (server.type !== "hosted") return;
@@ -1639,7 +1727,9 @@ function ServerCard({
                               </div>
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
-                              <button onClick={() => setTestingTool(tool)} title="Test tool"
+                              <button
+                                onClick={() => setTestingTool({ name: tool.name, description: tool.description, inputSchema: tool.input_schema as Record<string, unknown> | undefined })}
+                                title="Test tool"
                                 className="p-1 text-gray-300 hover:text-violet-500 hover:bg-violet-50 rounded transition-colors">
                                 <Play size={12} />
                               </button>
@@ -1670,7 +1760,7 @@ function ServerCard({
                         <p className="text-[11px] text-gray-400">Click &quot;Discover Tools&quot; to load available tools.</p>
                       </div>
                     ) : externalTools.map((tool, i) => (
-                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 group">
                         <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                           <Settings size={12} className="text-blue-500" />
                         </div>
@@ -1678,7 +1768,13 @@ function ServerCard({
                           <span className="text-xs font-semibold text-gray-800 font-mono">{tool.name}</span>
                           {tool.description && <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{tool.description}</p>}
                         </div>
-                        <CheckCircle2 size={14} className="text-green-400 flex-shrink-0 mt-0.5" />
+                        <button
+                          onClick={() => setTestingTool(tool)}
+                          title="Test tool"
+                          className="p-1 text-gray-300 hover:text-violet-500 hover:bg-violet-50 rounded transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                        >
+                          <Play size={12} />
+                        </button>
                       </div>
                     ))}
                     {server.last_discovered_at && (
@@ -1750,9 +1846,10 @@ function ServerCard({
       )}
 
       {testingTool && (
-        <ToolTestModal
+        <ToolPlaygroundModal
           tool={testingTool}
           serverId={server.id}
+          serverType={server.type}
           onClose={() => setTestingTool(null)}
         />
       )}
