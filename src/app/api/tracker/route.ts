@@ -8,7 +8,14 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const siteKey = searchParams.get("s") ?? "";
 
-  const baseUrl = origin;
+  // Use canonical app URL so the script works when embedded on external sites.
+  // Railway/proxies may set origin to localhost — prefer the public env var or
+  // the x-forwarded-host header.
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
+    (forwardedHost ? `${forwardedProto}://${forwardedHost}` : origin);
 
   const script = `(function(){
   var SITE_KEY="${siteKey}";
