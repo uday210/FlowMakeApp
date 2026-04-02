@@ -369,6 +369,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
   const [execNodeStatuses, setExecNodeStatuses] = useState<Record<string, string>>({});
   const [canvasKey, setCanvasKey] = useState(0);
   const [showAIBuilder, setShowAIBuilder] = useState(false);
+  const [aiInjectVersion, setAiInjectVersion] = useState(0);
   const prevNodeCount = useRef(0);
   const prevEdgeCount = useRef(0);
 
@@ -696,6 +697,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
               nodeDataPatch={nodeDataPatch}
               onNodePatchApplied={() => setNodeDataPatch(null)}
               nodeStatuses={execNodeStatuses}
+              externalInject={aiInjectVersion > 0 ? { nodes, edges, version: aiInjectVersion } : null}
             />
             {showExec && (
               <WorkflowLogger logs={execLogs} status={execStatus} onClose={() => setShowExec(false)} />
@@ -767,8 +769,8 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
               workflowId={id}
               nodes={nodes}
               edges={edges}
-              onNodesChange={handleNodesChange}
-              onEdgesChange={handleEdgesChange}
+              onNodesChange={(newNodes) => { handleNodesChange(newNodes); setAiInjectVersion(v => v + 1); }}
+              onEdgesChange={(newEdges) => { handleEdgesChange(newEdges); setAiInjectVersion(v => v + 1); }}
               onClose={() => setShowAIBuilder(false)}
             />
           )}

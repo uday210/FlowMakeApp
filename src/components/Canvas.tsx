@@ -151,6 +151,8 @@ interface CanvasProps {
   onNodePatchApplied?: () => void;
   /** Keyed by node_id → "success" | "error" | "skipped". Pass {} to reset. */
   nodeStatuses?: Record<string, string>;
+  /** When version increments, Canvas replaces its internal state with these nodes/edges */
+  externalInject?: { nodes: Node[]; edges: Edge[]; version: number } | null;
 }
 
 export default function Canvas({
@@ -162,13 +164,24 @@ export default function Canvas({
   nodeDataPatch,
   onNodePatchApplied,
   nodeStatuses = {},
+  externalInject,
 }: CanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const lastInjectedVersion = useRef(-1);
 
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(
     initialEdges.map((e) => ({ ...e, type: e.type ?? "makeEdge" }))
   );
+
+  // External inject: when version increments, replace internal state
+  useEffect(() => {
+    if (!externalInject) return;
+    if (externalInject.version === lastInjectedVersion.current) return;
+    lastInjectedVersion.current = externalInject.version;
+    setNodes(externalInject.nodes.map(n => ({ ...n, type: n.type ?? "workflowNode" })));
+    setEdges(externalInject.edges.map(e => ({ ...e, type: e.type ?? "makeEdge" })));
+  }, [externalInject]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!nodeDataPatch) return;
