@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import {
   X, Send, Loader2, Sparkles, Trash2, Bot, User,
-  Plus, Minus, GitMerge, Settings, Zap,
+  Plus, Minus, GitMerge, Settings, Zap, CheckCircle2,
 } from "lucide-react";
 
 // ─── AG-UI Event Types ────────────────────────────────────────────────────────
@@ -76,12 +76,13 @@ interface Props {
   onNodesChange: (nodes: Node[]) => void;
   onEdgesChange: (edges: Edge[]) => void;
   onClose: () => void;
+  onSave: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AIBuilderPanel({
-  workflowId, nodes, edges, onNodesChange, onEdgesChange, onClose,
+  workflowId, nodes, edges, onNodesChange, onEdgesChange, onClose, onSave,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -93,6 +94,9 @@ export default function AIBuilderPanel({
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
   const [activeTools, setActiveTools] = useState<string[]>([]);
+  const [builtSinceLastSave, setBuiltSinceLastSave] = useState(false);
+  const onSaveRef = useRef(onSave);
+  useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
 
   // Keep a mutable ref of nodes/edges so tool execution sees latest state
   const nodesRef = useRef<Node[]>(nodes);
@@ -270,6 +274,17 @@ export default function AIBuilderPanel({
               break;
             }
 
+            case "RUN_FINISHED": {
+              // Auto-save so the workflow can be Run immediately
+              setTimeout(() => {
+                onSaveRef.current();
+                setBuiltSinceLastSave(true);
+                // Hide the "Saved" badge after 3 seconds
+                setTimeout(() => setBuiltSinceLastSave(false), 3000);
+              }, 300);
+              break;
+            }
+
             case "RUN_ERROR": {
               setMessages(prev => [...prev, {
                 id: crypto.randomUUID(), role: "assistant",
@@ -310,6 +325,12 @@ export default function AIBuilderPanel({
           <p className="text-xs font-bold text-white">AI Scenario Builder</p>
           <p className="text-[10px] text-violet-200">Powered by AG-UI Protocol</p>
         </div>
+        {builtSinceLastSave && (
+          <div className="flex items-center gap-0.5 text-[9px] text-green-300 font-medium animate-fade-in">
+            <CheckCircle2 size={10} className="text-green-300" />
+            Saved
+          </div>
+        )}
         <button
           onClick={clearChat}
           className="p-1 text-white/60 hover:text-white transition-colors rounded"

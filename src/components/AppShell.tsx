@@ -39,6 +39,7 @@ const USER_NAV = [
   { href: "/doc-templates", icon: LayoutTemplate, label: "Doc Composer" },
   { href: "/email-templates", icon: Mail, label: "Email Templates" },
   { href: "/analytics", icon: BarChart2, label: "Analytics" },
+  { href: "/web-analytics", icon: Globe, label: "Web Analytics" },
   { href: "/help", icon: HelpCircle, label: "Help & Docs" },
 ];
 

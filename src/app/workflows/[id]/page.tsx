@@ -781,6 +781,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
               }}
               onEdgesChange={(newEdges) => { handleEdgesChange(newEdges); setAiInjectVersion(v => v + 1); }}
               onClose={() => setShowAIBuilder(false)}
+              onSave={handleSave}
             />
           )}
 

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlowMake Analytics — Test Site</title>
+  <script defer src="http://localhost:3000/api/tracker?s=8cb2e3fa7bd87eb25e85164572d7667c"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f8f9fc; color: #1e293b; }
+
+    header { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; padding: 48px 32px; text-align: center; }
+    header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+    header p  { font-size: 1rem; opacity: 0.85; }
+
+    nav { background: white; border-bottom: 1px solid #e2e8f0; display: flex; gap: 0; }
+    nav a { padding: 14px 24px; text-decoration: none; font-size: 14px; font-weight: 500; color: #64748b; border-bottom: 2px solid transparent; transition: all 0.15s; cursor: pointer; }
+    nav a:hover, nav a.active { color: #7c3aed; border-bottom-color: #7c3aed; }
+
+    main { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+
+    .hero { background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 40px; text-align: center; margin-bottom: 32px; }
+    .hero h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 12px; }
+    .hero p  { color: #64748b; font-size: 15px; line-height: 1.6; max-width: 520px; margin: 0 auto 24px; }
+
+    .btn { display: inline-block; padding: 12px 28px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-primary { background: #7c3aed; color: white; }
+    .btn-primary:hover { background: #6d28d9; }
+    .btn-secondary { background: #f1f5f9; color: #475569; margin-left: 8px; }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 32px; }
+    .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; }
+    .card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+    .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .card p  { font-size: 13px; color: #64748b; line-height: 1.5; }
+
+    .event-log { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; }
+    .event-log h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: #374151; }
+    #log { font-family: monospace; font-size: 12px; color: #059669; background: #f0fdf4; border-radius: 8px; padding: 16px; min-height: 80px; max-height: 200px; overflow-y: auto; line-height: 1.8; }
+    #log .entry { border-bottom: 1px solid #d1fae5; padding: 2px 0; }
+
+    .status-bar { position: fixed; bottom: 16px; right: 16px; background: #1e293b; color: white; border-radius: 10px; padding: 10px 16px; font-size: 12px; font-weight: 500; opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; }
+    .status-bar.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🧪 Analytics Test Site</h1>
+  <p>Every action below fires a real tracking event — check your dashboard</p>
+</header>
+
+<nav>
+  <a class="active" onclick="navigate(this, 'Home')">Home</a>
+  <a onclick="navigate(this, 'Features')">Features</a>
+  <a onclick="navigate(this, 'Pricing')">Pricing</a>
+  <a onclick="navigate(this, 'Blog')">Blog</a>
+  <a onclick="navigate(this, 'Contact')">Contact</a>
+</nav>
+
+<main>
+  <div class="hero">
+    <h2>Test your tracking integration</h2>
+    <p>This page auto-tracks page views on load, navigation clicks, and outbound links. Use the buttons below to fire custom events and confirm they appear in your analytics dashboard.</p>
+    <button class="btn btn-primary" onclick="fireCustom('cta_click', { button: 'Get Started' })">Fire CTA Click</button>
+    <button class="btn btn-secondary" onclick="fireCustom('demo_request', { plan: 'pro' })">Fire Demo Request</button>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon" style="background:#ede9fe">📊</div>
+      <h3>Page Views</h3>
+      <p>Automatically tracked when this page loaded and on every nav click above.</p>
+      <button class="btn btn-secondary" style="margin-top:12px;font-size:12px;padding:8px 16px" onclick="fireCustom('feature_click',{feature:'pageviews'})">Track feature click</button>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#dbeafe">🖱️</div>
+      <h3>Click Events</h3>
+      <p>Outbound link clicks are tracked automatically. Try this one:</p>
+      <a href="https://github.com" target="_blank" style="display:inline-block;margin-top:12px;font-size:13px">Visit GitHub →</a>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#dcfce7">⚡</div>
+      <h3>Custom Events</h3>
+      <p>Use <code>window.waTrack(name, props)</code> to fire any event from your code.</p>
+      <button class="btn btn-secondary" style="margin-top:12px;font-size:12px;padding:8px 16px" onclick="fireCustom('purchase',{plan:'pro',amount:49})">Simulate Purchase</button>
+    </div>
+  </div>
+
+  <div class="event-log">
+    <h3>📡 Event log (this session)</h3>
+    <div id="log"><span style="color:#94a3b8">Waiting for events…</span></div>
+  </div>
+</main>
+
+<div class="status-bar" id="statusBar"></div>
+
+<script>
+  var logEl = document.getElementById("log");
+  var statusEl = document.getElementById("statusBar");
+  var statusTimer;
+
+  function showStatus(msg) {
+    statusEl.textContent = msg;
+    statusEl.classList.add("show");
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(function() { statusEl.classList.remove("show"); }, 2500);
+  }
+
+  function addLog(type, detail) {
+    if (logEl.querySelector("span")) logEl.innerHTML = "";
+    var entry = document.createElement("div");
+    entry.className = "entry";
+    entry.textContent = new Date().toLocaleTimeString() + "  [" + type + "]  " + JSON.stringify(detail);
+    logEl.insertBefore(entry, logEl.firstChild);
+  }
+
+  function navigate(el, page) {
+    document.querySelectorAll("nav a").forEach(function(a) { a.classList.remove("active"); });
+    el.classList.add("active");
+    history.pushState({}, "", "/test-site.html#" + page.toLowerCase());
+    addLog("pageview", { page: page });
+    showStatus("✓ Pageview fired: " + page);
+  }
+
+  function fireCustom(name, props) {
+    if (window.waTrack) {
+      window.waTrack(name, props);
+      addLog(name, props);
+      showStatus("✓ Custom event fired: " + name);
+    } else {
+      addLog("ERROR", { msg: "waTrack not ready yet — wait a moment and retry" });
+      showStatus("⚠ Tracker not ready yet");
+    }
+  }
+
+  // Log the initial pageview
+  addLog("pageview", { url: location.href, referrer: document.referrer || "(direct)" });
+  showStatus("✓ Pageview tracked on load");
+</script>
+
+</body>
+</html>
