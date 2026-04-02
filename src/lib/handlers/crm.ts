@@ -666,10 +666,21 @@ export const handlers: Record<string, NodeHandler> = {
     const sheetsHeaders = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
     const sheetsBase = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
 
+    // Normalize values: accepts 2D array OR array of objects (e.g. from My Table node)
+    const normalizeValues = (raw: unknown): unknown[][] => {
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (!Array.isArray(parsed)) throw new Error("Values must be a JSON array");
+      if (parsed.length === 0) return [];
+      if (typeof parsed[0] === "object" && !Array.isArray(parsed[0]) && parsed[0] !== null) {
+        return parsed.map((obj: Record<string, unknown>) =>
+          Object.entries(obj).filter(([k]) => k !== "id" && k !== "_created_at").map(([, v]) => v ?? "")
+        );
+      }
+      return parsed as unknown[][];
+    };
+
     if (sheetsAction === "append_row") {
-      const valuesRaw = config.values as string;
-      let values: unknown[][];
-      try { values = JSON.parse(valuesRaw); } catch { throw new Error("Values must be a valid JSON array"); }
+      const values = normalizeValues(config.values);
       const res = await fetch(`${sheetsBase}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`, {
         method: "POST", headers: sheetsHeaders, body: JSON.stringify({ values }),
       });
@@ -682,9 +693,8 @@ export const handlers: Record<string, NodeHandler> = {
       if (!res.ok) throw new Error(data.error?.message || `Sheets ${res.status}`);
       return { range: data.range, values: data.values, row_count: data.values?.length ?? 0 };
     } else if (sheetsAction === "update_values") {
-      const valuesRaw = config.values as string;
       let values: unknown[][];
-      try { values = JSON.parse(valuesRaw); } catch { throw new Error("Values must be a valid JSON array"); }
+      try { values = normalizeValues(config.values); } catch { throw new Error("Values must be a valid JSON array"); }
       const res = await fetch(`${sheetsBase}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`, {
         method: "PUT", headers: sheetsHeaders, body: JSON.stringify({ values }),
       });
