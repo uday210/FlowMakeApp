@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import AppShell, { PageHeader } from "@/components/AppShell";
 import {
@@ -47,7 +47,7 @@ interface ServiceField {
   options?: { label: string; value: string }[];
 }
 
-type IconComponent = (props: { size?: number }) => JSX.Element;
+type IconComponent = (props: { size?: number }) => React.ReactElement;
 
 interface ServiceType {
   value: string;
