@@ -559,7 +559,7 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
           </div>
 
           {/* World Map */}
-          <WorldMap countries={stats.countries} />
+          <WorldMap countries={stats.countries} cities={stats.cities} />
 
           {/* Geo: Countries + Regions + Cities */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -38,6 +38,86 @@ function resolveCountry(value: string): number | null {
   return NAME_TO_NUM[value] ?? null;
 }
 
+// City name → [lon, lat]  (subset of major world cities)
+const CITY_COORDS: Record<string, [number, number]> = {
+  // North America
+  "New York": [-74.006, 40.712], "Los Angeles": [-118.244, 34.052],
+  "Chicago": [-87.629, 41.878], "Houston": [-95.370, 29.760],
+  "Phoenix": [-112.074, 33.449], "Philadelphia": [-75.165, 39.952],
+  "San Antonio": [-98.494, 29.424], "San Diego": [-117.161, 32.715],
+  "Dallas": [-96.797, 32.776], "San Jose": [-121.886, 37.338],
+  "Austin": [-97.743, 30.267], "Jacksonville": [-81.655, 30.332],
+  "Seattle": [-122.333, 47.606], "Denver": [-104.990, 39.739],
+  "Boston": [-71.058, 42.360], "Portland": [-122.676, 45.523],
+  "Miami": [-80.192, 25.774], "Atlanta": [-84.388, 33.749],
+  "Minneapolis": [-93.265, 44.977], "Las Vegas": [-115.139, 36.175],
+  "Toronto": [-79.383, 43.653], "Montreal": [-73.568, 45.501],
+  "Vancouver": [-123.121, 49.282], "Calgary": [-114.066, 51.045],
+  "Mexico City": [-99.133, 19.433], "Guadalajara": [-103.349, 20.666],
+  // Europe
+  "London": [-0.128, 51.507], "Paris": [2.349, 48.864],
+  "Berlin": [13.405, 52.520], "Madrid": [-3.703, 40.417],
+  "Rome": [12.496, 41.903], "Vienna": [16.373, 48.208],
+  "Amsterdam": [4.895, 52.370], "Brussels": [4.352, 50.846],
+  "Stockholm": [18.068, 59.329], "Oslo": [10.757, 59.913],
+  "Copenhagen": [12.568, 55.676], "Helsinki": [24.938, 60.170],
+  "Warsaw": [21.012, 52.230], "Prague": [14.421, 50.088],
+  "Budapest": [19.040, 47.498], "Bucharest": [26.097, 44.439],
+  "Athens": [23.728, 37.984], "Lisbon": [-9.139, 38.717],
+  "Barcelona": [2.154, 41.390], "Munich": [11.576, 48.137],
+  "Hamburg": [9.993, 53.551], "Frankfurt": [8.682, 50.110],
+  "Zurich": [8.541, 47.376], "Geneva": [6.143, 46.204],
+  "Dublin": [-6.260, 53.350], "Edinburgh": [-3.188, 55.953],
+  "Manchester": [-2.238, 53.483], "Milan": [9.190, 45.464],
+  "Kiev": [30.523, 50.450], "Kyiv": [30.523, 50.450],
+  "Minsk": [27.566, 53.904], "Vilnius": [25.280, 54.687],
+  "Riga": [24.106, 56.946], "Tallinn": [24.745, 59.437],
+  "Sofia": [23.320, 42.698], "Zagreb": [15.978, 45.815],
+  "Belgrade": [20.457, 44.802], "Bratislava": [17.107, 48.148],
+  // Asia
+  "Tokyo": [139.692, 35.689], "Osaka": [135.502, 34.694],
+  "Beijing": [116.407, 39.904], "Shanghai": [121.474, 31.230],
+  "Shenzhen": [114.058, 22.543], "Guangzhou": [113.264, 23.129],
+  "Mumbai": [72.878, 19.076], "Delhi": [77.209, 28.614],
+  "Bangalore": [77.594, 12.972], "Hyderabad": [78.474, 17.385],
+  "Chennai": [80.270, 13.083], "Kolkata": [88.363, 22.573],
+  "Pune": [73.857, 18.520], "Ahmedabad": [72.587, 23.022],
+  "Seoul": [126.978, 37.566], "Busan": [129.042, 35.101],
+  "Jakarta": [106.845, -6.208], "Surabaya": [112.752, -7.249],
+  "Manila": [120.984, 14.599], "Singapore": [103.820, 1.352],
+  "Kuala Lumpur": [101.687, 3.140], "Bangkok": [100.501, 13.754],
+  "Ho Chi Minh City": [106.660, 10.823], "Hanoi": [105.851, 21.028],
+  "Taipei": [121.565, 25.033], "Hong Kong": [114.183, 22.307],
+  "Dubai": [55.296, 25.205], "Abu Dhabi": [54.366, 24.454],
+  "Riyadh": [46.738, 24.686], "Jeddah": [39.192, 21.485],
+  "Istanbul": [28.978, 41.013], "Ankara": [32.866, 39.920],
+  "Tehran": [51.423, 35.694], "Baghdad": [44.361, 33.341],
+  "Karachi": [67.010, 24.861], "Lahore": [74.329, 31.558],
+  "Dhaka": [90.407, 23.810], "Colombo": [79.862, 6.932],
+  "Kathmandu": [85.314, 27.717], "Tashkent": [69.240, 41.299],
+  "Almaty": [76.951, 43.238], "Bishkek": [74.582, 42.871],
+  "Ulaanbaatar": [106.921, 47.886], "Yangon": [96.160, 16.866],
+  "Phnom Penh": [104.916, 11.562],
+  // Oceania
+  "Sydney": [151.209, -33.868], "Melbourne": [144.963, -37.814],
+  "Brisbane": [153.023, -27.470], "Perth": [115.861, -31.951],
+  "Adelaide": [138.601, -34.929], "Auckland": [174.763, -36.848],
+  // Africa
+  "Cairo": [31.233, 30.044], "Lagos": [3.397, 6.455],
+  "Kinshasa": [15.322, -4.322], "Johannesburg": [28.047, -26.204],
+  "Cape Town": [18.424, -33.925], "Nairobi": [36.817, -1.292],
+  "Addis Ababa": [38.762, 9.025], "Dar es Salaam": [39.273, -6.800],
+  "Khartoum": [32.560, 15.552], "Accra": [-0.187, 5.603],
+  "Casablanca": [-7.589, 33.573], "Tunis": [10.181, 36.818],
+  "Algiers": [3.042, 36.752],
+  // South America
+  "São Paulo": [-46.633, -23.548], "Rio de Janeiro": [-43.173, -22.906],
+  "Buenos Aires": [-58.382, -34.604], "Lima": [-77.043, -12.046],
+  "Bogotá": [-74.073, 4.711], "Santiago": [-70.649, -33.459],
+  "Caracas": [-66.879, 10.480], "Quito": [-78.467, -0.180],
+  "Montevideo": [-56.165, -34.901], "Asunción": [-57.636, -25.286],
+};
+
 // Equirectangular projection
 function lonLatToXY(lon: number, lat: number, w: number, h: number): [number, number] {
   const x = ((lon + 180) / 360) * w;
@@ -82,9 +162,10 @@ const CROP_H      = CROP_BOTTOM - CROP_TOP;
 
 interface Props {
   countries: { value: string; count: number }[];
+  cities?: { value: string; count: number }[];
 }
 
-export default function WorldMap({ countries }: Props) {
+export default function WorldMap({ countries, cities = [] }: Props) {
   const [features, setFeatures] = useState<GeoFeature[]>([]);
   const [tooltip, setTooltip] = useState<{ name: string; count: number; x: number; y: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -147,6 +228,12 @@ export default function WorldMap({ countries }: Props) {
     }
   }
 
+  // Build city dots data
+  const cityDots = cities
+    .map(c => ({ name: c.value, count: c.count, coords: CITY_COORDS[c.value] }))
+    .filter(c => c.coords != null) as { name: string; count: number; coords: [number, number] }[];
+  const maxCityCount = cityDots.reduce((m, c) => Math.max(m, c.count), 1);
+
   function getColor(id: string): string {
     const num = parseInt(id, 10);
     const count = countMap[num];
@@ -175,12 +262,17 @@ export default function WorldMap({ countries }: Props) {
     <div className="bg-white rounded-xl border border-gray-200 p-4">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-semibold text-gray-700">🗺️ Visitor Map</p>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-gray-400">Low</span>
-          {["#ddd6fe","#a78bfa","#7c3aed","#5b21b6"].map(c => (
-            <div key={c} className="w-5 h-2.5 rounded-sm" style={{ background: c }} />
-          ))}
-          <span className="text-[9px] text-gray-400">High</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-gray-400">Countries</span>
+            {["#ddd6fe","#a78bfa","#7c3aed","#5b21b6"].map(c => (
+              <div key={c} className="w-4 h-2 rounded-sm" style={{ background: c }} />
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-white" />
+            <span className="text-[9px] text-gray-400">Cities</span>
+          </div>
         </div>
       </div>
 
@@ -212,6 +304,27 @@ export default function WorldMap({ countries }: Props) {
                     if (!count) return;
                     setTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
                   }}
+                  onMouseLeave={() => setTooltip(null)}
+                />
+              );
+            })}
+            {/* City dots */}
+            {cityDots.map((city, i) => {
+              const [x, y] = lonLatToXY(city.coords[0], city.coords[1], W, H);
+              const r = Math.max(3, Math.min(9, 3 + (city.count / maxCityCount) * 6));
+              return (
+                <circle
+                  key={i}
+                  cx={x}
+                  cy={y}
+                  r={r}
+                  fill="#f59e0b"
+                  fillOpacity={0.85}
+                  stroke="#fff"
+                  strokeWidth={1}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={(e) => setTooltip({ name: city.name, count: city.count, x: e.clientX, y: e.clientY })}
+                  onMouseMove={(e) => setTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)}
                   onMouseLeave={() => setTooltip(null)}
                 />
               );
