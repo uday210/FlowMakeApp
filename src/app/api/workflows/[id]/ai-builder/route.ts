@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { getOrgContext } from "@/lib/auth";
 import { NODE_DEFINITIONS } from "@/lib/nodeDefinitions";
 
@@ -239,12 +240,25 @@ export async function POST(
   // Mutable copies we mutate as tools execute
   const nodes: WFNode[] = (body.nodes ?? []).map(n => ({ ...n }));
   const edges: WFEdge[] = (body.edges ?? []).map(e => ({ ...e }));
-  const messages: Anthropic.MessageParam[] = body.messages ?? [];
+  const userMessages = body.messages ?? [];
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "No ANTHROPIC_API_KEY" }, { status: 500 });
+  // Pick best available provider: Groq (free) → OpenAI → Anthropic
+  type ProviderMode = "openai" | "groq" | "anthropic";
+  let providerMode: ProviderMode;
+  let providerModel: string;
 
-  const anthropic = new Anthropic({ apiKey });
+  if (process.env.GROQ_API_KEY) {
+    providerMode = "groq";
+    providerModel = "llama-3.3-70b-versatile";
+  } else if (process.env.OPENAI_API_KEY) {
+    providerMode = "openai";
+    providerModel = "gpt-4o-mini";
+  } else if (process.env.ANTHROPIC_API_KEY) {
+    providerMode = "anthropic";
+    providerModel = "claude-sonnet-4-6";
+  } else {
+    return NextResponse.json({ error: "No AI provider API key configured. Set GROQ_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY." }, { status: 500 });
+  }
 
   const SYSTEM = `You are an expert workflow automation builder for FlowMake (a Make.com-style platform).
 Your job: when the user describes what they want to automate, build it on the canvas by calling the provided tools.
@@ -266,82 +280,103 @@ ${TRIGGERS}
 AVAILABLE ACTIONS:
 ${ACTIONS}`;
 
+  // OpenAI-compatible tools (works for OpenAI + Groq)
+  const OAI_TOOLS: OpenAI.Chat.ChatCompletionTool[] = TOOLS.map(t => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.input_schema,
+    },
+  }));
+
   const stream = new ReadableStream({
     async start(controller) {
       const emit = makeEmitter(controller);
       const runId = crypto.randomUUID();
-
       emit({ type: "RUN_STARTED", runId });
 
       try {
-        let iteration = 0;
-        const MAX_ITER = 8;
-        const history: Anthropic.MessageParam[] = [...messages];
+        if (providerMode === "anthropic") {
+          // ── Anthropic agentic loop ─────────────────────────────────────────
+          const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+          const history: Anthropic.MessageParam[] = [...(userMessages as Anthropic.MessageParam[])];
+          let iteration = 0;
+          while (iteration++ < 8) {
+            const response = await anthropic.messages.create({
+              model: providerModel, max_tokens: 2048, system: SYSTEM, tools: TOOLS, messages: history,
+            });
+            const msgId = crypto.randomUUID();
+            let hasText = false;
+            for (const block of response.content) {
+              if (block.type === "text" && block.text) {
+                if (!hasText) { emit({ type: "TEXT_MESSAGE_START", messageId: msgId, role: "assistant" }); hasText = true; }
+                for (const word of block.text.split(" ")) emit({ type: "TEXT_MESSAGE_CONTENT", messageId: msgId, delta: word + " " });
+              }
+            }
+            if (hasText) emit({ type: "TEXT_MESSAGE_END", messageId: msgId });
 
-        while (iteration < MAX_ITER) {
-          iteration++;
-
-          const response = await anthropic.messages.create({
-            model: "claude-sonnet-4-6",
-            max_tokens: 2048,
-            system: SYSTEM,
-            tools: TOOLS,
-            messages: history,
+            const toolBlocks = response.content.filter(b => b.type === "tool_use") as Anthropic.ToolUseBlock[];
+            if (toolBlocks.length > 0) {
+              const toolResults: Anthropic.ToolResultBlockParam[] = [];
+              for (const tool of toolBlocks) {
+                emit({ type: "TOOL_CALL_START", toolCallId: tool.id, toolName: tool.name });
+                const result = executeTool(tool.name, tool.input as ToolInput, nodes, edges);
+                if (result.delta) emit({ type: "STATE_DELTA", delta: result.delta });
+                emit({ type: "TOOL_CALL_END", toolCallId: tool.id, toolName: tool.name, result: result.content });
+                toolResults.push({ type: "tool_result", tool_use_id: tool.id, content: result.content });
+              }
+              history.push({ role: "assistant", content: response.content });
+              history.push({ role: "user", content: toolResults });
+            }
+            if (response.stop_reason === "end_turn" || response.stop_reason !== "tool_use") break;
+          }
+        } else {
+          // ── OpenAI / Groq agentic loop ─────────────────────────────────────
+          const oaiClient = new OpenAI({
+            apiKey: providerMode === "groq" ? process.env.GROQ_API_KEY! : process.env.OPENAI_API_KEY!,
+            baseURL: providerMode === "groq" ? "https://api.groq.com/openai/v1" : undefined,
           });
+          const history: OpenAI.Chat.ChatCompletionMessageParam[] = [
+            { role: "system", content: SYSTEM },
+            ...(userMessages as OpenAI.Chat.ChatCompletionMessageParam[]),
+          ];
+          let iteration = 0;
+          while (iteration++ < 8) {
+            const response = await oaiClient.chat.completions.create({
+              model: providerModel, max_tokens: 2048, tools: OAI_TOOLS, tool_choice: "auto", messages: history,
+            });
+            const choice = response.choices[0];
+            const msg = choice.message;
+            const msgId = crypto.randomUUID();
 
-          const msgId = crypto.randomUUID();
-          let hasText = false;
-
-          // Stream text content
-          for (const block of response.content) {
-            if (block.type === "text" && block.text) {
-              if (!hasText) {
-                emit({ type: "TEXT_MESSAGE_START", messageId: msgId, role: "assistant" });
-                hasText = true;
-              }
-              // Stream word by word for a nice effect
-              const words = block.text.split(" ");
-              for (const word of words) {
-                emit({ type: "TEXT_MESSAGE_CONTENT", messageId: msgId, delta: word + " " });
-              }
-            }
-          }
-
-          if (hasText) {
-            emit({ type: "TEXT_MESSAGE_END", messageId: msgId });
-          }
-
-          // Process tool calls
-          const toolUseBlocks = response.content.filter(b => b.type === "tool_use") as Anthropic.ToolUseBlock[];
-
-          if (toolUseBlocks.length > 0) {
-            const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-            for (const tool of toolUseBlocks) {
-              emit({ type: "TOOL_CALL_START", toolCallId: tool.id, toolName: tool.name });
-
-              const result = executeTool(tool.name, tool.input as ToolInput, nodes, edges);
-
-              if (result.delta) {
-                emit({ type: "STATE_DELTA", delta: result.delta });
-              }
-
-              emit({ type: "TOOL_CALL_END", toolCallId: tool.id, toolName: tool.name, result: result.content });
-
-              toolResults.push({
-                type: "tool_result",
-                tool_use_id: tool.id,
-                content: result.content,
-              });
+            if (msg.content) {
+              emit({ type: "TEXT_MESSAGE_START", messageId: msgId, role: "assistant" });
+              for (const word of msg.content.split(" ")) emit({ type: "TEXT_MESSAGE_CONTENT", messageId: msgId, delta: word + " " });
+              emit({ type: "TEXT_MESSAGE_END", messageId: msgId });
             }
 
-            // Continue the conversation with tool results
-            history.push({ role: "assistant", content: response.content });
-            history.push({ role: "user", content: toolResults });
-          }
+            if (msg.tool_calls && msg.tool_calls.length > 0) {
+              history.push(msg);
+              const toolResults: OpenAI.Chat.ChatCompletionToolMessageParam[] = [];
+              for (const tc of msg.tool_calls) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const fn = (tc as any).function as { name: string; arguments: string };
+                emit({ type: "TOOL_CALL_START", toolCallId: tc.id, toolName: fn.name });
+                let toolInput: ToolInput = {};
+                try { toolInput = JSON.parse(fn.arguments); } catch { /* ignore */ }
+                const result = executeTool(fn.name, toolInput, nodes, edges);
+                if (result.delta) emit({ type: "STATE_DELTA", delta: result.delta });
+                emit({ type: "TOOL_CALL_END", toolCallId: tc.id, toolName: fn.name, result: result.content });
+                toolResults.push({ role: "tool", tool_call_id: tc.id, content: result.content });
+              }
+              history.push(...toolResults);
+            } else {
+              break;
+            }
 
-          if (response.stop_reason === "end_turn") break;
-          if (response.stop_reason !== "tool_use") break;
+            if (choice.finish_reason === "stop") break;
+          }
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
