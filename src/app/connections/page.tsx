@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import AppShell, { PageHeader } from "@/components/AppShell";
 import {
   Link2,
@@ -46,7 +47,20 @@ interface ServiceField {
   options?: { label: string; value: string }[];
 }
 
-const SERVICE_TYPES = [
+type IconComponent = (props: { size?: number }) => JSX.Element;
+
+interface ServiceType {
+  value: string;
+  label: string;
+  icon: IconComponent;
+  color: string;
+  fields: ServiceField[];
+  oauthConnect?: boolean;
+}
+
+const SERVICE_TYPES: ServiceType[] = [
+  // ── Google (OAuth) ─────────────────────────────────────────────────────────
+  { value: "google", label: "Google (OAuth)", icon: Globe, color: "bg-blue-100 text-blue-600", fields: [], oauthConnect: true },
   // ── AI & ML ────────────────────────────────────────────────────────────────
   { value: "openai", label: "OpenAI", icon: Bot, color: "bg-green-100 text-green-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
   { value: "anthropic", label: "Anthropic / Claude", icon: Bot, color: "bg-amber-100 text-amber-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
@@ -209,7 +223,9 @@ function ServiceBadge({ type }: { type: string }) {
   );
 }
 
-export default function ConnectionsPage() {
+function ConnectionsPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -217,6 +233,7 @@ export default function ConnectionsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [form, setForm] = useState({ name: "", type: "openai", config: {} as Record<string, string> });
   const [serviceSearch, setServiceSearch] = useState("");
@@ -226,15 +243,27 @@ export default function ConnectionsPage() {
     ? SERVICE_TYPES.filter((s) => s.label.toLowerCase().includes(serviceSearch.toLowerCase()))
     : SERVICE_TYPES;
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     fetch("/api/connections")
       .then((r) => r.json())
       .then((d) => setConnections(Array.isArray(d) ? d : []))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const success = searchParams.get("success");
+    const err = searchParams.get("error");
+    if (success === "google_connected") {
+      setSuccessMsg("Google account connected successfully!");
+      setTimeout(() => setSuccessMsg(null), 4000);
+      router.replace("/connections");
+    } else if (err) {
+      setError(`OAuth failed: ${err.replace(/_/g, " ")}`);
+      router.replace("/connections");
+    }
+  }, [load, searchParams, router]);
 
   const save = async () => {
     if (!form.name.trim()) return;
@@ -296,6 +325,12 @@ export default function ConnectionsPage() {
       />
 
       <main className="flex-1 overflow-auto px-8 py-6">
+        {successMsg && (
+          <div className="mb-4 flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+            <CheckCircle size={14} /> {successMsg}
+            <button onClick={() => setSuccessMsg(null)} className="ml-auto text-green-400 hover:text-green-600">×</button>
+          </div>
+        )}
         {error && (
           <div className="mb-4 flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             <AlertCircle size={14} /> {error}
@@ -369,45 +404,75 @@ export default function ConnectionsPage() {
                 />
               </div>
 
-              {(selectedService.fields as ServiceField[]).map((field) => (
-                <div key={field.key}>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">{field.label}</label>
-                  {field.type === "select" ? (
-                    <select
-                      value={form.config[field.key] ?? ""}
-                      onChange={(e) => setForm({ ...form, config: { ...form.config, [field.key]: e.target.value } })}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
-                    >
-                      <option value="">-- select --</option>
-                      {field.options?.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type={field.type}
-                      placeholder={field.placeholder}
-                      value={form.config[field.key] ?? ""}
-                      onChange={(e) => setForm({ ...form, config: { ...form.config, [field.key]: e.target.value } })}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
-                    />
-                  )}
+              {selectedService.oauthConnect ? (
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
+                  <p className="font-medium mb-1">Connect via Google OAuth</p>
+                  <p className="text-xs text-blue-500 mb-3">
+                    You will be redirected to Google to authorize access to Sheets, Drive, Calendar, and Gmail for your org.
+                  </p>
+                  <a
+                    href="/api/oauth/google/start"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-blue-200 rounded-lg text-sm font-semibold text-blue-700 hover:bg-blue-50 transition-colors shadow-sm"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M44.5 20H24V28.5H35.9C34.7 33.1 30.5 36.5 24 36.5C16.5 36.5 10.5 30.5 10.5 23C10.5 15.5 16.5 9.5 24 9.5C27.3 9.5 30.3 10.7 32.6 12.7L38.6 6.7C35 3.4 29.8 1.5 24 1.5C12.4 1.5 3 10.9 3 22.5C3 34.1 12.4 43.5 24 43.5C35 43.5 44.5 34.5 44.5 23C44.5 22 44.4 21 44.5 20Z" fill="#4285F4"/>
+                      <path d="M6.3 13.7L13.4 19C15.4 14.1 19.3 10.5 24 9.5C27.3 9.5 30.3 10.7 32.6 12.7L38.6 6.7C35 3.4 29.8 1.5 24 1.5C16.5 1.5 10 6.7 6.3 13.7Z" fill="#EA4335"/>
+                      <path d="M24 43.5C29.7 43.5 34.8 41.6 38.4 38.4L31.8 32.8C29.6 34.4 26.9 35.5 24 35.5C17.6 35.5 12.2 31.1 10.6 25.1L3.5 30.3C7.2 37.6 15 43.5 24 43.5Z" fill="#34A853"/>
+                      <path d="M44.5 20H24V28.5H35.9C35.3 31 33.9 33.1 31.8 34.6L38.4 40.2C42.4 36.5 44.5 30.5 44.5 23C44.5 22 44.4 21 44.5 20Z" fill="#FBBC05"/>
+                    </svg>
+                    Sign in with Google
+                  </a>
                 </div>
-              ))}
+              ) : (
+                selectedService.fields.map((field) => (
+                  <div key={field.key}>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">{field.label}</label>
+                    {field.type === "select" ? (
+                      <select
+                        value={form.config[field.key] ?? ""}
+                        onChange={(e) => setForm({ ...form, config: { ...form.config, [field.key]: e.target.value } })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
+                      >
+                        <option value="">-- select --</option>
+                        {field.options?.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type}
+                        placeholder={field.placeholder}
+                        value={form.config[field.key] ?? ""}
+                        onChange={(e) => setForm({ ...form, config: { ...form.config, [field.key]: e.target.value } })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400"
+                      />
+                    )}
+                  </div>
+                ))
+              )}
             </div>
 
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={save}
-                disabled={saving || !form.name.trim()}
-                className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
-              >
-                {saving ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />} Save
-              </button>
-              <button onClick={() => setShowing(false)} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
-                Cancel
-              </button>
-            </div>
+            {!selectedService.oauthConnect && (
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={save}
+                  disabled={saving || !form.name.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                >
+                  {saving ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />} Save
+                </button>
+                <button onClick={() => setShowing(false)} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+                  Cancel
+                </button>
+              </div>
+            )}
+            {selectedService.oauthConnect && (
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setShowing(false)} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -455,6 +520,9 @@ export default function ConnectionsPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-800">{conn.name}</p>
                           <p className="text-[11px] text-gray-400 mt-0.5">
+                            {conn.type === "google" && conn.config?.email
+                              ? <>Connected as <span className="text-blue-500">{conn.config.email}</span> · </>
+                              : null}
                             Added {new Date(conn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </p>
                         </div>
@@ -479,5 +547,13 @@ export default function ConnectionsPage() {
         )}
       </main>
     </AppShell>
+  );
+}
+
+export default function ConnectionsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConnectionsPageInner />
+    </Suspense>
   );
 }

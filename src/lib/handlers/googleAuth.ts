@@ -10,9 +10,30 @@ export async function getGoogleAccessToken(
   config: Record<string, unknown>,
   scope: string
 ): Promise<string> {
-  const accessToken = config.access_token as string | undefined;
+  const refreshToken = config.refresh_token as string | undefined;
+  const expiry = Number(config.expiry ?? 0);
+  let accessToken = config.access_token as string | undefined;
   const clientEmail = config.client_email as string | undefined;
   const privateKey = (config.private_key as string | undefined)?.replace(/\\n/g, "\n");
+
+  // OAuth refresh token flow (user-connected Google account)
+  if (refreshToken) {
+    // Return cached access token if still valid (with 60s buffer)
+    if (accessToken && expiry > Date.now() + 60_000) return accessToken;
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: process.env.GOOGLE_CLIENT_ID ?? "",
+        client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(`Google token refresh failed: ${data.error_description || data.error}`);
+    return data.access_token as string;
+  }
 
   if (accessToken) return accessToken;
 

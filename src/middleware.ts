@@ -19,6 +19,7 @@ const PUBLIC_PREFIXES = [
   "/api/webhook/",
   "/api/esign/",
   "/api/v1/",
+  "/api/oauth/",
   "/api/approvals/",
   "/api/scheduler/",
   "/api/mcp/hosted/",
