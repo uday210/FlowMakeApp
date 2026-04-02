@@ -7,7 +7,7 @@ import {
   Loader2, X, Plus, Check, Copy, Send,
   Lock, Info, ExternalLink, ChevronDown, History, MessageSquare, User, Bot,
   Paperclip, File, Trash2, Shield, Sliders, Server, Monitor,
-  Globe, ToggleLeft, ToggleRight, AlertTriangle,
+  Globe, ToggleLeft, ToggleRight, AlertTriangle, BrainCircuit, Zap,
 } from "lucide-react";
 //import { useRef } from "react";
 import MarkdownMessage from "@/components/MarkdownMessage";
@@ -63,6 +63,8 @@ type Chatbot = {
   mcp_tools: MCPTool[];
   is_active: boolean;
   created_at: string;
+  agent_type: "full" | "simple";
+  intents: Intent[];
 };
 
 type WorkflowItem = {
@@ -105,6 +107,13 @@ type MCPTool = {
   server_url: string;
   description: string;
   enabled: boolean;
+};
+
+type Intent = {
+  id: string;
+  name: string;
+  triggers: string;
+  response: string;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -586,21 +595,23 @@ function OverviewTab({
         />
       </div>
 
-      <div>
-        <label className="text-xs font-semibold text-gray-600 mb-1 block">System Prompt</label>
-        <p className="text-[11px] text-gray-400 mb-1.5">
-          The instructions that define your agent&apos;s personality and behavior.
-        </p>
-        <textarea
-          value={chatbot.system_prompt}
-          onChange={e => onChange({ system_prompt: e.target.value })}
-          rows={6}
-          placeholder="You are a helpful assistant..."
-          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
-        />
-      </div>
+      {chatbot.agent_type !== "simple" && (
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">System Prompt</label>
+          <p className="text-[11px] text-gray-400 mb-1.5">
+            The instructions that define your agent&apos;s personality and behavior.
+          </p>
+          <textarea
+            value={chatbot.system_prompt}
+            onChange={e => onChange({ system_prompt: e.target.value })}
+            rows={6}
+            placeholder="You are a helpful assistant..."
+            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
+          />
+        </div>
+      )}
 
-      <div>
+      {chatbot.agent_type !== "simple" && <div>
         <div className="flex items-center justify-between mb-1">
           <label className="text-xs font-semibold text-gray-600">Knowledge Base</label>
           <button
@@ -656,7 +667,7 @@ function OverviewTab({
         <p className="text-[10px] text-gray-400 mt-1">
           Text above is always appended to the prompt. Use uploaded files for large documents.
         </p>
-      </div>
+      </div>}
 
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
@@ -1313,8 +1324,7 @@ function EmbedTab({ chatbot }: { chatbot: Chatbot }) {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [domains, setDomains] = useState("");
 
-  const [origin, setOrigin] = useState("");
-  useEffect(() => { setOrigin(window.location.origin); }, []);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const embedUrl = `${origin}/embed/${chatbot.id}`;
 
   const iframeCode = `<iframe
@@ -1756,7 +1766,7 @@ function MCPTab({
 
 // ─── Main Editor Page ─────────────────────────────────────────────────────────
 
-type TabId = "overview" | "model" | "tools" | "behavior" | "mcp" | "branding" | "embed" | "history";
+type TabId = "overview" | "model" | "tools" | "behavior" | "mcp" | "branding" | "embed" | "history" | "intents";
 
 // ─── History Tab ──────────────────────────────────────────────────────────────
 
@@ -1906,12 +1916,215 @@ function HistoryTab({ agentId }: { agentId: string }) {
   );
 }
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+// ─── Tab: Simple Bot Intents ───────────────────────────────────────────────────
+
+function SimpleBotIntentsTab({
+  chatbot,
+  onChange,
+}: {
+  chatbot: Chatbot;
+  onChange: (updates: Partial<Chatbot>) => void;
+}) {
+  const intents: Intent[] = chatbot.intents ?? [];
+  const [newName, setNewName] = useState("");
+  const [newTriggers, setNewTriggers] = useState("");
+  const [newResponse, setNewResponse] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Intent | null>(null);
+
+  const addIntent = () => {
+    if (!newName.trim() || !newTriggers.trim() || !newResponse.trim()) return;
+    const intent: Intent = {
+      id: crypto.randomUUID(),
+      name: newName.trim(),
+      triggers: newTriggers.trim(),
+      response: newResponse.trim(),
+    };
+    onChange({ intents: [...intents, intent] });
+    setNewName(""); setNewTriggers(""); setNewResponse(""); setAdding(false);
+  };
+
+  const removeIntent = (id: string) => {
+    onChange({ intents: intents.filter(i => i.id !== id) });
+  };
+
+  const startEdit = (intent: Intent) => {
+    setEditingId(intent.id);
+    setEditForm({ ...intent });
+  };
+
+  const saveEdit = () => {
+    if (!editForm) return;
+    onChange({ intents: intents.map(i => i.id === editForm.id ? editForm : i) });
+    setEditingId(null); setEditForm(null);
+  };
+
+  const appearance = chatbot.appearance ?? DEFAULT_APPEARANCE;
+  const setAppearance = (updates: Partial<Appearance>) => {
+    onChange({ appearance: { ...appearance, ...updates } });
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Greeting & Fallback */}
+      <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 space-y-3">
+        <h3 className="text-xs font-semibold text-emerald-800">Bot Messages</h3>
+        <div>
+          <label className="text-[11px] font-semibold text-gray-600 mb-1 block">Greeting Message</label>
+          <textarea
+            value={appearance.greetingMessage ?? ""}
+            onChange={e => setAppearance({ greetingMessage: e.target.value })}
+            rows={2}
+            placeholder="Hi! How can I help you?"
+            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 resize-none bg-white"
+          />
+        </div>
+        <div>
+          <label className="text-[11px] font-semibold text-gray-600 mb-1 block">Fallback Message</label>
+          <input
+            value={(appearance as Appearance & { fallbackMessage?: string }).fallbackMessage ?? ""}
+            onChange={e => setAppearance({ ...(appearance as object), fallbackMessage: e.target.value } as Partial<Appearance>)}
+            placeholder="Sorry, I didn't understand that."
+            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 bg-white"
+          />
+          <p className="text-[10px] text-gray-400 mt-1">Shown when no intent matches the user input.</p>
+        </div>
+      </div>
+
+      {/* Intents list */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-xs font-semibold text-gray-900">Intents</h3>
+            <p className="text-[11px] text-gray-400">Keyword-matched responses — no AI needed.</p>
+          </div>
+          {!adding && (
+            <button
+              onClick={() => setAdding(true)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 transition-colors"
+            >
+              <Plus size={12} /> Add Intent
+            </button>
+          )}
+        </div>
+
+        {intents.length === 0 && !adding && (
+          <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl">
+            <MessageSquare size={20} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-xs text-gray-400">No intents yet. Add one to get started.</p>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {intents.map(intent => (
+            <div key={intent.id} className="border border-gray-200 rounded-xl overflow-hidden">
+              {editingId === intent.id && editForm ? (
+                <div className="p-3 space-y-2 bg-emerald-50/50">
+                  <input
+                    value={editForm.name}
+                    onChange={e => setEditForm(f => f ? { ...f, name: e.target.value } : f)}
+                    placeholder="Intent name"
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-emerald-400 bg-white"
+                  />
+                  <input
+                    value={editForm.triggers}
+                    onChange={e => setEditForm(f => f ? { ...f, triggers: e.target.value } : f)}
+                    placeholder="Trigger keywords (comma-separated)"
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-emerald-400 bg-white font-mono text-xs"
+                  />
+                  <textarea
+                    value={editForm.response}
+                    onChange={e => setEditForm(f => f ? { ...f, response: e.target.value } : f)}
+                    rows={2}
+                    placeholder="Bot response"
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-emerald-400 resize-none bg-white"
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={saveEdit} className="flex-1 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700">Save</button>
+                    <button onClick={() => { setEditingId(null); setEditForm(null); }} className="px-3 py-1.5 border border-gray-200 text-gray-500 text-xs rounded-lg hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-800">{intent.name}</p>
+                      <p className="text-[10px] text-emerald-600 font-mono mt-0.5 truncate">{intent.triggers}</p>
+                      <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{intent.response}</p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button onClick={() => startEdit(intent)} className="p-1 text-gray-400 hover:text-gray-700 transition-colors">
+                        <FileText size={11} />
+                      </button>
+                      <button onClick={() => removeIntent(intent.id)} className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {adding && (
+          <div className="border border-emerald-200 rounded-xl p-3 space-y-2 bg-emerald-50/50 mt-2">
+            <input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder="Intent name (e.g. Greeting)"
+              className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-emerald-400 bg-white"
+            />
+            <input
+              value={newTriggers}
+              onChange={e => setNewTriggers(e.target.value)}
+              placeholder="Trigger keywords (e.g. hello, hi, hey)"
+              className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-emerald-400 bg-white font-mono text-xs"
+            />
+            <textarea
+              value={newResponse}
+              onChange={e => setNewResponse(e.target.value)}
+              rows={2}
+              placeholder="Bot response..."
+              className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-emerald-400 resize-none bg-white"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={addIntent}
+                disabled={!newName.trim() || !newTriggers.trim() || !newResponse.trim()}
+                className="flex-1 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-40"
+              >
+                Add Intent
+              </button>
+              <button
+                onClick={() => { setAdding(false); setNewName(""); setNewTriggers(""); setNewResponse(""); }}
+                className="px-3 py-1.5 border border-gray-200 text-gray-500 text-xs rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const FULL_AGENT_TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "Overview", icon: <FileText size={13} /> },
   { id: "model", label: "Model", icon: <Cpu size={13} /> },
   { id: "tools", label: "Tools", icon: <Wrench size={13} /> },
   { id: "behavior", label: "Behavior", icon: <Shield size={13} /> },
   { id: "mcp", label: "MCP", icon: <Server size={13} /> },
+  { id: "branding", label: "Branding", icon: <Palette size={13} /> },
+  { id: "embed", label: "Embed", icon: <Code2 size={13} /> },
+  { id: "history", label: "History", icon: <History size={13} /> },
+];
+
+const SIMPLE_BOT_TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: "overview", label: "Overview", icon: <FileText size={13} /> },
+  { id: "intents", label: "Intents", icon: <Zap size={13} /> },
   { id: "branding", label: "Branding", icon: <Palette size={13} /> },
   { id: "embed", label: "Embed", icon: <Code2 size={13} /> },
   { id: "history", label: "History", icon: <History size={13} /> },
@@ -2089,6 +2302,17 @@ export default function AgentEditorPage({
         </button>
         <div className="flex items-center gap-2 flex-1">
           <span className="text-sm font-semibold text-gray-900 truncate">{chatbot.name}</span>
+          {chatbot.agent_type === "simple" ? (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 bg-emerald-100 text-emerald-700">
+              <MessageSquare size={9} />
+              Simple Bot
+            </span>
+          ) : (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 bg-violet-100 text-violet-700">
+              <BrainCircuit size={9} />
+              Full Agent
+            </span>
+          )}
           <span
             className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${chatbot.is_active
                 ? "bg-green-100 text-green-700"
@@ -2138,49 +2362,61 @@ export default function AgentEditorPage({
         {/* Left panel */}
         <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
           {/* Tabs */}
-          <div className="flex border-b border-gray-200 flex-shrink-0">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-all border-b-2 ${activeTab === tab.id
-                    ? "border-violet-500 text-violet-600"
-                    : "border-transparent text-gray-400 hover:text-gray-600"
-                  }`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {(() => {
+            const isSimple = chatbot.agent_type === "simple";
+            const tabs = isSimple ? SIMPLE_BOT_TABS : FULL_AGENT_TABS;
+            const activeColor = isSimple ? "border-emerald-500 text-emerald-600" : "border-violet-500 text-violet-600";
+            return (
+              <>
+                <div className="flex border-b border-gray-200 flex-shrink-0">
+                  {tabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-all border-b-2 ${activeTab === tab.id
+                          ? activeColor
+                          : "border-transparent text-gray-400 hover:text-gray-600"
+                        }`}
+                    >
+                      {tab.icon}
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
 
-          {/* Tab content */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {activeTab === "overview" && (
-              <OverviewTab chatbot={chatbot} onChange={handleChange} />
-            )}
-            {activeTab === "model" && (
-              <ModelTab chatbot={chatbot} onChange={handleChange} />
-            )}
-            {activeTab === "tools" && (
-              <ToolsTab chatbot={chatbot} onChange={handleChange} />
-            )}
-            {activeTab === "behavior" && (
-              <BehaviorTab chatbot={chatbot} onChange={handleChange} />
-            )}
-            {activeTab === "mcp" && (
-              <MCPTab chatbot={chatbot} onChange={handleChange} />
-            )}
-            {activeTab === "branding" && (
-              <BrandingTab chatbot={chatbot} onChange={handleChange} />
-            )}
-            {activeTab === "embed" && (
-              <EmbedTab chatbot={chatbot} />
-            )}
-            {activeTab === "history" && agentId && (
-              <HistoryTab agentId={agentId} />
-            )}
-          </div>
+                {/* Tab content */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  {activeTab === "overview" && (
+                    <OverviewTab chatbot={chatbot} onChange={handleChange} />
+                  )}
+                  {activeTab === "intents" && isSimple && (
+                    <SimpleBotIntentsTab chatbot={chatbot} onChange={handleChange} />
+                  )}
+                  {activeTab === "model" && !isSimple && (
+                    <ModelTab chatbot={chatbot} onChange={handleChange} />
+                  )}
+                  {activeTab === "tools" && !isSimple && (
+                    <ToolsTab chatbot={chatbot} onChange={handleChange} />
+                  )}
+                  {activeTab === "behavior" && !isSimple && (
+                    <BehaviorTab chatbot={chatbot} onChange={handleChange} />
+                  )}
+                  {activeTab === "mcp" && !isSimple && (
+                    <MCPTab chatbot={chatbot} onChange={handleChange} />
+                  )}
+                  {activeTab === "branding" && (
+                    <BrandingTab chatbot={chatbot} onChange={handleChange} />
+                  )}
+                  {activeTab === "embed" && (
+                    <EmbedTab chatbot={chatbot} />
+                  )}
+                  {activeTab === "history" && agentId && (
+                    <HistoryTab agentId={agentId} />
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Right panel: live chat preview */}

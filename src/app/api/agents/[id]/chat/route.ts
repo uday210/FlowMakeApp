@@ -820,6 +820,48 @@ export async function POST(
 
   const { messages } = (await req.json()) as { messages: ChatMessage[] };
 
+  // ── Simple bot: pure intent matching, no LLM ─────────────────────────────
+  if (chatbot.agent_type === "simple") {
+    const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+    const input = (lastUserMsg?.content ?? "").toLowerCase().trim();
+
+    type IntentRow = { name: string; triggers: string; response: string };
+    const intents: IntentRow[] = chatbot.intents ?? [];
+    const fallback: string =
+      chatbot.appearance?.fallbackMessage ??
+      "Sorry, I didn't understand that. Could you rephrase?";
+
+    let reply = fallback;
+    for (const intent of intents) {
+      const keywords = intent.triggers
+        .split(",")
+        .map((k: string) => k.trim().toLowerCase())
+        .filter(Boolean);
+      if (keywords.some((kw: string) => input.includes(kw))) {
+        reply = intent.response;
+        break;
+      }
+    }
+
+    // Stream reply as SSE to match what the embed page expects
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text_delta", text: reply })}\n\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "message_stop" })}\n\n`));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        ...CORS_HEADERS,
+      },
+    });
+  }
+
   const origin = new URL(req.url).origin;
   const provider: string = chatbot.provider ?? "anthropic";
 
