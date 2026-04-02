@@ -1338,7 +1338,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
   if (!node || !nodeData || !def) return null;
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const webhookTriggers = ["trigger_webhook", "trigger_github_event", "trigger_stripe", "trigger_email_inbound", "trigger_rss_poll"];
+  const webhookTriggers = ["trigger_webhook", "trigger_github_event", "trigger_stripe", "trigger_email_inbound", "trigger_rss_poll", "trigger_telegram_update", "trigger_discord_event", "trigger_linear_event", "trigger_jira_event", "trigger_hubspot", "trigger_shopify", "trigger_slack_event", "trigger_stripe", "trigger_paypal_webhook", "trigger_gitlab_event", "trigger_bitbucket_event", "trigger_sentry_alert", "trigger_pagerduty", "trigger_datadog", "trigger_clickup", "trigger_asana", "trigger_zendesk", "trigger_intercom", "trigger_freshdesk", "trigger_square_webhook", "trigger_paddle", "trigger_tally", "trigger_typeform", "trigger_woocommerce", "trigger_calendly", "trigger_pipedrive"];
   const webhookUrl = webhookTriggers.includes(nodeData.type) ? `${origin}/api/webhook/${workflowId}` : null;
   const formUrl = nodeData.type === "trigger_form" ? `${origin}/form/${workflowId}` : null;
   const copyUrl = webhookUrl || formUrl;

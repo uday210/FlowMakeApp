@@ -371,9 +371,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     category: "trigger" as const,
     color: "#26A5E4",
     icon: "MessageSquare",
-    defaultConfig: { bot_token: "", update_type: "any" },
+    defaultConfig: { update_type: "any" },
     configFields: [
-      { key: "bot_token", label: "Bot Token (optional, for verification)", type: "password" as const, placeholder: "Your Telegram bot token" },
       { key: "update_type", label: "Update Type", type: "select" as const, options: [
         { label: "Any update", value: "any" },
         { label: "Message", value: "message" },
