@@ -45,11 +45,27 @@ function lonLatToXY(lon: number, lat: number, w: number, h: number): [number, nu
   return [x, y];
 }
 
+// Split ring at antimeridian crossings to avoid horizontal lines across the map
 function projectRing(ring: number[][], w: number, h: number): string {
-  return ring.map(([lon, lat], i) => {
+  if (ring.length === 0) return "";
+  const subpaths: string[][] = [[]];
+  for (let i = 0; i < ring.length; i++) {
+    const [lon, lat] = ring[i];
     const [x, y] = lonLatToXY(lon, lat, w, h);
-    return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ") + "Z";
+    const current = subpaths[subpaths.length - 1];
+    if (i > 0) {
+      const prevLon = ring[i - 1][0];
+      // Antimeridian crossing: longitude jumps by more than 180°
+      if (Math.abs(lon - prevLon) > 180) {
+        subpaths.push([]);
+      }
+    }
+    subpaths[subpaths.length - 1].push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  return subpaths
+    .filter(s => s.length > 1)
+    .map(pts => "M" + pts[0] + " L" + pts.slice(1).join(" L") + "Z")
+    .join(" ");
 }
 
 interface GeoFeature {
