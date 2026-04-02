@@ -849,16 +849,305 @@ export const handlers: Record<string, NodeHandler> = {
       if (!priceId) throw new Error("Price ID is required");
       const body = new URLSearchParams({
         "line_items[0][price]": priceId,
-        "line_items[0][quantity]": "1",
-        mode: "payment",
+        "line_items[0][quantity]": String(Number(config.quantity) || 1),
+        mode: (config.mode as string) || "payment",
         success_url: successUrl,
         cancel_url: cancelUrl,
       });
       if (config.customer_id) body.append("customer", config.customer_id as string);
+      if (config.customer_email) body.append("customer_email", config.customer_email as string);
       const res = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: stripeHeaders, body: body.toString() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
       return { id: data.id, url: data.url, status: data.status };
+
+    // ── Payment Links ──────────────────────────────────────────────────────────
+    } else if (action === "create_payment_link") {
+      const priceId = config.price_id as string;
+      if (!priceId) throw new Error("Price ID is required");
+      const body = new URLSearchParams({
+        "line_items[0][price]": priceId,
+        "line_items[0][quantity]": String(Number(config.quantity) || 1),
+      });
+      if (config.after_completion_url) {
+        body.append("after_completion[type]", "redirect");
+        body.append("after_completion[redirect][url]", config.after_completion_url as string);
+      }
+      const res = await fetch("https://api.stripe.com/v1/payment_links", { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, url: data.url, active: data.active };
+    } else if (action === "get_payment_link") {
+      const plId = config.payment_link_id as string;
+      if (!plId) throw new Error("Payment Link ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/payment_links/${plId}`, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, url: data.url, active: data.active };
+    } else if (action === "deactivate_payment_link") {
+      const plId = config.payment_link_id as string;
+      if (!plId) throw new Error("Payment Link ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/payment_links/${plId}`, { method: "POST", headers: stripeHeaders, body: "active=false" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, active: data.active };
+
+    // ── Products ───────────────────────────────────────────────────────────────
+    } else if (action === "create_product") {
+      const name = config.product_name as string;
+      if (!name) throw new Error("Product name is required");
+      const body = new URLSearchParams({ name });
+      if (config.product_description) body.append("description", config.product_description as string);
+      if (config.product_images) body.append("images[0]", config.product_images as string);
+      const res = await fetch("https://api.stripe.com/v1/products", { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, name: data.name, description: data.description, active: data.active };
+    } else if (action === "get_product") {
+      const productId = config.product_id as string;
+      if (!productId) throw new Error("Product ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/products/${productId}`, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, name: data.name, description: data.description, active: data.active };
+    } else if (action === "update_product") {
+      const productId = config.product_id as string;
+      if (!productId) throw new Error("Product ID is required");
+      const body = new URLSearchParams();
+      if (config.product_name) body.append("name", config.product_name as string);
+      if (config.product_description) body.append("description", config.product_description as string);
+      const res = await fetch(`https://api.stripe.com/v1/products/${productId}`, { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, name: data.name, description: data.description, updated: true };
+    } else if (action === "list_products") {
+      const limit = Number(config.limit) || 10;
+      const res = await fetch(`https://api.stripe.com/v1/products?limit=${limit}&active=true`, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { count: data.data?.length, products: data.data?.map((p: Record<string, unknown>) => ({ id: p.id, name: p.name, description: p.description, active: p.active })) };
+    } else if (action === "delete_product") {
+      const productId = config.product_id as string;
+      if (!productId) throw new Error("Product ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/products/${productId}`, { method: "DELETE", headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, deleted: data.deleted };
+
+    // ── Prices ─────────────────────────────────────────────────────────────────
+    } else if (action === "create_price") {
+      const productId = config.product_id as string;
+      const amount = Number(config.amount);
+      if (!productId) throw new Error("Product ID is required");
+      if (!amount || isNaN(amount)) throw new Error("Amount is required");
+      const body = new URLSearchParams({
+        product: productId,
+        unit_amount: String(amount),
+        currency: (config.currency as string) || "usd",
+      });
+      if (config.recurring_interval) {
+        body.append("recurring[interval]", config.recurring_interval as string);
+      }
+      const res = await fetch("https://api.stripe.com/v1/prices", { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, unit_amount: data.unit_amount, currency: data.currency, type: data.type, recurring: data.recurring };
+    } else if (action === "list_prices") {
+      const productId = config.product_id as string;
+      const url = productId ? `https://api.stripe.com/v1/prices?product=${productId}&limit=20` : "https://api.stripe.com/v1/prices?limit=20";
+      const res = await fetch(url, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { count: data.data?.length, prices: data.data?.map((p: Record<string, unknown>) => ({ id: p.id, unit_amount: p.unit_amount, currency: p.currency, type: p.type })) };
+
+    // ── Customer Management ────────────────────────────────────────────────────
+    } else if (action === "get_customer") {
+      const customerId = config.customer_id as string;
+      if (!customerId) throw new Error("Customer ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/customers/${customerId}`, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, email: data.email, name: data.name, balance: data.balance, created: data.created };
+    } else if (action === "list_customers") {
+      const limit = Number(config.limit) || 10;
+      const url = config.customer_email
+        ? `https://api.stripe.com/v1/customers?email=${encodeURIComponent(config.customer_email as string)}&limit=${limit}`
+        : `https://api.stripe.com/v1/customers?limit=${limit}`;
+      const res = await fetch(url, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { count: data.data?.length, customers: data.data?.map((c: Record<string, unknown>) => ({ id: c.id, email: c.email, name: c.name })) };
+    } else if (action === "delete_customer") {
+      const customerId = config.customer_id as string;
+      if (!customerId) throw new Error("Customer ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/customers/${customerId}`, { method: "DELETE", headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, deleted: data.deleted };
+
+    // ── Subscriptions ──────────────────────────────────────────────────────────
+    } else if (action === "get_subscription") {
+      const subId = config.subscription_id as string;
+      if (!subId) throw new Error("Subscription ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subId}`, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, customer: data.customer, current_period_end: data.current_period_end };
+    } else if (action === "list_subscriptions") {
+      const limit = Number(config.limit) || 10;
+      const url = config.customer_id
+        ? `https://api.stripe.com/v1/subscriptions?customer=${config.customer_id}&limit=${limit}`
+        : `https://api.stripe.com/v1/subscriptions?limit=${limit}`;
+      const res = await fetch(url, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { count: data.data?.length, subscriptions: data.data?.map((s: Record<string, unknown>) => ({ id: s.id, status: s.status, customer: s.customer })) };
+    } else if (action === "update_subscription") {
+      const subId = config.subscription_id as string;
+      if (!subId) throw new Error("Subscription ID is required");
+      const body = new URLSearchParams();
+      if (config.price_id) body.append("items[0][price]", config.price_id as string);
+      if (config.quantity) body.append("items[0][quantity]", String(Number(config.quantity)));
+      if (config.proration_behavior) body.append("proration_behavior", config.proration_behavior as string);
+      const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subId}`, { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, updated: true };
+    } else if (action === "pause_subscription") {
+      const subId = config.subscription_id as string;
+      if (!subId) throw new Error("Subscription ID is required");
+      const body = new URLSearchParams({ "pause_collection[behavior]": "void" });
+      const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subId}`, { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, paused: true };
+    } else if (action === "resume_subscription") {
+      const subId = config.subscription_id as string;
+      if (!subId) throw new Error("Subscription ID is required");
+      const body = new URLSearchParams({ "pause_collection": "" });
+      const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subId}`, { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, resumed: true };
+
+    // ── Invoices ───────────────────────────────────────────────────────────────
+    } else if (action === "create_invoice") {
+      const customerId = config.customer_id as string;
+      if (!customerId) throw new Error("Customer ID is required");
+      const body = new URLSearchParams({ customer: customerId });
+      if (config.description) body.append("description", config.description as string);
+      if (config.days_until_due) body.append("days_until_due", String(Number(config.days_until_due)));
+      const res = await fetch("https://api.stripe.com/v1/invoices", { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, amount_due: data.amount_due, hosted_invoice_url: data.hosted_invoice_url };
+    } else if (action === "get_invoice") {
+      const invoiceId = config.invoice_id as string;
+      if (!invoiceId) throw new Error("Invoice ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/invoices/${invoiceId}`, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, amount_due: data.amount_due, amount_paid: data.amount_paid, hosted_invoice_url: data.hosted_invoice_url, invoice_pdf: data.invoice_pdf };
+    } else if (action === "list_invoices") {
+      const limit = Number(config.limit) || 10;
+      const url = config.customer_id
+        ? `https://api.stripe.com/v1/invoices?customer=${config.customer_id}&limit=${limit}`
+        : `https://api.stripe.com/v1/invoices?limit=${limit}`;
+      const res = await fetch(url, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { count: data.data?.length, invoices: data.data?.map((i: Record<string, unknown>) => ({ id: i.id, status: i.status, amount_due: i.amount_due, hosted_invoice_url: i.hosted_invoice_url })) };
+    } else if (action === "send_invoice") {
+      const invoiceId = config.invoice_id as string;
+      if (!invoiceId) throw new Error("Invoice ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/invoices/${invoiceId}/send`, { method: "POST", headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, sent: true };
+    } else if (action === "finalize_invoice") {
+      const invoiceId = config.invoice_id as string;
+      if (!invoiceId) throw new Error("Invoice ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/invoices/${invoiceId}/finalize`, { method: "POST", headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, hosted_invoice_url: data.hosted_invoice_url, invoice_pdf: data.invoice_pdf };
+    } else if (action === "void_invoice") {
+      const invoiceId = config.invoice_id as string;
+      if (!invoiceId) throw new Error("Invoice ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/invoices/${invoiceId}/void`, { method: "POST", headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, voided: true };
+    } else if (action === "pay_invoice") {
+      const invoiceId = config.invoice_id as string;
+      if (!invoiceId) throw new Error("Invoice ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/invoices/${invoiceId}/pay`, { method: "POST", headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, paid: data.paid };
+
+    // ── Payment Intents (extended) ─────────────────────────────────────────────
+    } else if (action === "cancel_payment_intent") {
+      const piId = config.payment_intent_id as string;
+      if (!piId) throw new Error("Payment Intent ID is required");
+      const res = await fetch(`https://api.stripe.com/v1/payment_intents/${piId}/cancel`, { method: "POST", headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, status: data.status, canceled: true };
+    } else if (action === "list_payment_intents") {
+      const limit = Number(config.limit) || 10;
+      const url = config.customer_id
+        ? `https://api.stripe.com/v1/payment_intents?customer=${config.customer_id}&limit=${limit}`
+        : `https://api.stripe.com/v1/payment_intents?limit=${limit}`;
+      const res = await fetch(url, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { count: data.data?.length, payment_intents: data.data?.map((pi: Record<string, unknown>) => ({ id: pi.id, amount: pi.amount, currency: pi.currency, status: pi.status })) };
+
+    // ── Coupons & Discounts ────────────────────────────────────────────────────
+    } else if (action === "create_coupon") {
+      const body = new URLSearchParams();
+      if (config.coupon_percent_off) body.append("percent_off", String(Number(config.coupon_percent_off)));
+      if (config.coupon_amount_off) body.append("amount_off", String(Number(config.coupon_amount_off)));
+      if (config.coupon_duration) body.append("duration", config.coupon_duration as string);
+      if (config.coupon_id) body.append("id", config.coupon_id as string);
+      const res = await fetch("https://api.stripe.com/v1/coupons", { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, percent_off: data.percent_off, amount_off: data.amount_off, duration: data.duration };
+    } else if (action === "apply_coupon") {
+      const customerId = config.customer_id as string;
+      const couponId = config.coupon_id as string;
+      if (!customerId || !couponId) throw new Error("Customer ID and Coupon ID are required");
+      const body = new URLSearchParams({ coupon: couponId });
+      const res = await fetch(`https://api.stripe.com/v1/customers/${customerId}`, { method: "POST", headers: stripeHeaders, body: body.toString() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { id: data.id, discount: data.discount, applied: true };
+
+    // ── Balance & Payouts ──────────────────────────────────────────────────────
+    } else if (action === "retrieve_balance") {
+      const res = await fetch("https://api.stripe.com/v1/balance", { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return {
+        available: data.available?.map((b: Record<string, unknown>) => ({ amount: b.amount, currency: b.currency })),
+        pending: data.pending?.map((b: Record<string, unknown>) => ({ amount: b.amount, currency: b.currency })),
+      };
+    } else if (action === "list_payouts") {
+      const limit = Number(config.limit) || 10;
+      const res = await fetch(`https://api.stripe.com/v1/payouts?limit=${limit}`, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { count: data.data?.length, payouts: data.data?.map((p: Record<string, unknown>) => ({ id: p.id, amount: p.amount, currency: p.currency, status: p.status, arrival_date: p.arrival_date })) };
+
+    // ── Disputes ───────────────────────────────────────────────────────────────
+    } else if (action === "list_disputes") {
+      const limit = Number(config.limit) || 10;
+      const res = await fetch(`https://api.stripe.com/v1/disputes?limit=${limit}`, { headers: stripeHeaders });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `Stripe ${res.status}`);
+      return { count: data.data?.length, disputes: data.data?.map((d: Record<string, unknown>) => ({ id: d.id, amount: d.amount, currency: d.currency, status: d.status, reason: d.reason })) };
     }
     return undefined;
   },
