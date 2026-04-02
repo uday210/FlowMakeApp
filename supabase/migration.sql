@@ -76,6 +76,10 @@ create table if not exists mcp_alert_configs (
 );
 create index if not exists mcp_alert_configs_server_id_idx on mcp_alert_configs(server_id);
 
+-- Agent type + intents for simple intent-based bots
+alter table chatbots add column if not exists agent_type text not null default 'full';
+alter table chatbots add column if not exists intents jsonb not null default '[]';
+
 -- Analytics datasets
 create table if not exists analytics_datasets (
   id uuid primary key default gen_random_uuid(),

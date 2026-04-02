@@ -6,9 +6,19 @@ import AppShell, { PageHeader } from "@/components/AppShell";
 import {
   Plus, Trash2, Loader2, X, Check, Copy, Bot,
   AlertCircle, Sparkles, Code2, Settings, Zap,
+  MessageSquare, BrainCircuit, ChevronRight, ToggleLeft, ToggleRight,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type AgentType = "full" | "simple";
+
+type Intent = {
+  id: string;
+  name: string;
+  triggers: string;   // comma-separated keywords
+  response: string;
+};
 
 type Provider = "anthropic" | "openai" | "gemini" | "groq" | "mistral";
 
@@ -42,6 +52,7 @@ type Chatbot = {
   id: string;
   name: string;
   description: string;
+  agent_type: AgentType;
   system_prompt: string;
   knowledge_base: string;
   provider: Provider;
@@ -52,6 +63,7 @@ type Chatbot = {
   appearance: Appearance;
   starter_questions: string[];
   connected_workflows: ConnectedWorkflow[];
+  intents: Intent[];
   is_active: boolean;
   created_at: string;
 };
@@ -91,7 +103,7 @@ const EXAMPLE_PROMPTS = [
   "IT helpdesk assistant",
 ];
 
-type TemplateConfig = Omit<Chatbot, "id" | "is_active" | "created_at" | "api_key" | "connected_workflows">;
+type TemplateConfig = Omit<Chatbot, "id" | "is_active" | "created_at" | "api_key" | "connected_workflows" | "agent_type" | "intents">;
 
 const TEMPLATES: (TemplateConfig & { emoji: string; category: string })[] = [
   {
@@ -325,6 +337,266 @@ const TEMPLATES: (TemplateConfig & { emoji: string; category: string })[] = [
   },
 ];
 
+// ─── New Agent Type Picker Modal ──────────────────────────────────────────────
+
+function NewAgentTypePicker({ onClose, onFull, onSimple }: {
+  onClose: () => void;
+  onFull: () => void;
+  onSimple: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Create New Agent</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Choose the type of agent to build</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400"><X size={16} /></button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {/* Full Agent */}
+          <button onClick={onFull} className="group text-left border-2 border-gray-100 hover:border-violet-400 rounded-2xl p-5 transition-all hover:shadow-md hover:shadow-violet-100">
+            <div className="w-12 h-12 bg-violet-50 group-hover:bg-violet-100 rounded-xl flex items-center justify-center mb-4 transition-colors">
+              <BrainCircuit size={22} className="text-violet-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Full Agent</h3>
+            <p className="text-xs text-gray-500 leading-relaxed mb-3">
+              LLM-powered with system prompt, knowledge base, AI provider config, workflow connections and full appearance control.
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {["System Prompt", "AI Model", "Knowledge Base", "Workflows"].map(f => (
+                <span key={f} className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-medium">{f}</span>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-violet-600 group-hover:gap-2 transition-all">
+              Get started <ChevronRight size={13} />
+            </div>
+          </button>
+
+          {/* Simple Bot */}
+          <button onClick={onSimple} className="group text-left border-2 border-gray-100 hover:border-emerald-400 rounded-2xl p-5 transition-all hover:shadow-md hover:shadow-emerald-100">
+            <div className="w-12 h-12 bg-emerald-50 group-hover:bg-emerald-100 rounded-xl flex items-center justify-center mb-4 transition-colors">
+              <MessageSquare size={22} className="text-emerald-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Simple Bot</h3>
+            <p className="text-xs text-gray-500 leading-relaxed mb-3">
+              Intent-based rule engine. Define keywords and fixed responses. No AI model required — instant, predictable replies.
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {["Intents", "Keywords", "Fixed Replies", "Fallback"].map(f => (
+                <span key={f} className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-medium">{f}</span>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-emerald-600 group-hover:gap-2 transition-all">
+              Get started <ChevronRight size={13} />
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Simple Bot Creator Modal ─────────────────────────────────────────────────
+
+function SimpleBotModal({ onClose, onCreate }: {
+  onClose: () => void;
+  onCreate: (bot: Chatbot) => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [greeting, setGreeting] = useState("Hi! How can I help you today?");
+  const [fallback, setFallback] = useState("Sorry, I didn't understand that. Could you rephrase?");
+  const [avatar, setAvatar] = useState("🤖");
+  const [primaryColor, setPrimaryColor] = useState("#10b981");
+  const [intents, setIntents] = useState<Intent[]>([
+    { id: crypto.randomUUID(), name: "", triggers: "", response: "" },
+  ]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const AVATARS = ["🤖", "💬", "🧠", "⚡", "🎯", "💡", "🛎️", "🌟"];
+  const COLORS = ["#10b981", "#7c3aed", "#2563eb", "#f59e0b", "#ef4444", "#0ea5e9", "#ec4899"];
+
+  const addIntent = () =>
+    setIntents(prev => [...prev, { id: crypto.randomUUID(), name: "", triggers: "", response: "" }]);
+
+  const updateIntent = (id: string, field: keyof Intent, value: string) =>
+    setIntents(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+
+  const removeIntent = (id: string) =>
+    setIntents(prev => prev.filter(i => i.id !== id));
+
+  const handleSave = async () => {
+    if (!name.trim()) { setError("Bot name is required."); return; }
+    const filled = intents.filter(i => i.name.trim() && i.triggers.trim() && i.response.trim());
+    if (filled.length === 0) { setError("Add at least one complete intent."); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          description: description.trim(),
+          agent_type: "simple",
+          system_prompt: "",
+          knowledge_base: "",
+          provider: "anthropic",
+          model: "claude-haiku-4-5-20251001",
+          temperature: 0,
+          max_tokens: 512,
+          is_active: true,
+          intents: filled,
+          starter_questions: filled.map(i => i.name),
+          appearance: {
+            agentName: name.trim(),
+            avatar,
+            primaryColor,
+            headerBg: primaryColor,
+            userBubbleBg: primaryColor,
+            botBubbleBg: "#ffffff",
+            userBubbleText: "#ffffff",
+            botBubbleText: "#1f2937",
+            greetingMessage: greeting,
+            placeholder: "Type a message...",
+            sendButtonLabel: "Send",
+            showBranding: true,
+            position: "bottom-right",
+            windowWidth: 400,
+            borderRadius: 16,
+            fallbackMessage: fallback,
+          },
+          connected_workflows: [],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to create bot");
+      onCreate(data);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to create");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2 text-white">
+            <MessageSquare size={18} />
+            <div>
+              <h2 className="font-semibold">Create Simple Bot</h2>
+              <p className="text-xs text-emerald-100">Intent-based · No AI model needed</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-lg text-white"><X size={16} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Name + description */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Bot Name *</label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Support Bot" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Description</label>
+              <input value={description} onChange={e => setDescription(e.target.value)} placeholder="What does this bot do?" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+          </div>
+
+          {/* Avatar + Color */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Avatar</label>
+              <div className="flex gap-2 flex-wrap">
+                {AVATARS.map(a => (
+                  <button key={a} onClick={() => setAvatar(a)} className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center border-2 transition-all ${avatar === a ? "border-emerald-500 bg-emerald-50" : "border-gray-100 hover:border-gray-300"}`}>{a}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Color</label>
+              <div className="flex gap-2">
+                {COLORS.map(c => (
+                  <button key={c} onClick={() => setPrimaryColor(c)} style={{ background: c }} className={`w-7 h-7 rounded-full transition-all ${primaryColor === c ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : "opacity-70 hover:opacity-100"}`} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Greeting + Fallback */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Greeting Message</label>
+              <textarea value={greeting} onChange={e => setGreeting(e.target.value)} rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Fallback Message</label>
+              <textarea value={fallback} onChange={e => setFallback(e.target.value)} rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+            </div>
+          </div>
+
+          {/* Intents */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Intents</label>
+                <p className="text-[11px] text-gray-400 mt-0.5">When the user says any keyword → send the response</p>
+              </div>
+              <button onClick={addIntent} className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                <Plus size={12} /> Add Intent
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {intents.map((intent, idx) => (
+                <div key={intent.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Intent {idx + 1}</span>
+                    {intents.length > 1 && (
+                      <button onClick={() => removeIntent(intent.id)} className="p-1 text-gray-300 hover:text-red-400 rounded-lg"><Trash2 size={12} /></button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-gray-500 mb-1 block">Intent name</label>
+                      <input value={intent.name} onChange={e => updateIntent(intent.id, "name", e.target.value)} placeholder="e.g. Book Appointment" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-gray-500 mb-1 block">Trigger keywords <span className="text-gray-400">(comma-separated)</span></label>
+                      <input value={intent.triggers} onChange={e => updateIntent(intent.id, "triggers", e.target.value)} placeholder="book, appointment, schedule, meeting" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500 mb-1 block">Response</label>
+                    <textarea value={intent.response} onChange={e => updateIntent(intent.id, "response", e.target.value)} placeholder="To book an appointment, please visit our calendar at..." rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-white" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t px-6 py-4 flex gap-3 flex-shrink-0 bg-white">
+          <button onClick={onClose} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={14} />}
+            Create Simple Bot
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Template Card ─────────────────────────────────────────────────────────────
 
 function TemplateCard({
@@ -481,12 +753,12 @@ function AgentCard({
   onConfigure: () => void;
   onClone: () => void;
 }) {
+  const isSimple = agent.agent_type === "simple";
   const provider = agent.provider ?? "anthropic";
   const providerInfo = PROVIDER_COLORS[provider as Provider] ?? PROVIDER_COLORS.anthropic;
   const avatar = agent.appearance?.avatar ?? "🤖";
   const primaryColor = agent.appearance?.primaryColor ?? "#7c3aed";
   const connectedCount = (agent.connected_workflows ?? []).filter(w => w.enabled).length;
-  // Shorten model name for display (e.g. "claude-haiku-4-5-20251001" → "claude-haiku-4-5")
   const shortModel = agent.model?.replace(/-\d{8,}$/, "").replace(/^(claude|gpt|gemini|llama|mistral)-/, m => m) ?? "";
 
   return (
@@ -521,15 +793,29 @@ function AgentCard({
 
       {/* Badges */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <span
-          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
-          style={{ backgroundColor: providerInfo.bg }}
-        >
-          {providerInfo.icon} {providerInfo.text}
-        </span>
-        <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-2 py-0.5 rounded-full font-mono">
-          {shortModel}
-        </span>
+        {/* Agent type badge */}
+        {isSimple ? (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+            <MessageSquare size={9} /> Simple Bot
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
+            <BrainCircuit size={9} /> Full Agent
+          </span>
+        )}
+        {!isSimple && (
+          <span
+            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+            style={{ backgroundColor: providerInfo.bg }}
+          >
+            {providerInfo.icon} {providerInfo.text}
+          </span>
+        )}
+        {!isSimple && (
+          <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-2 py-0.5 rounded-full font-mono">
+            {shortModel}
+          </span>
+        )}
         {connectedCount > 0 && (
           <span className="text-[10px] bg-amber-50 text-amber-600 font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
             <Zap size={9} />
@@ -543,11 +829,27 @@ function AgentCard({
         )}
       </div>
 
-      {/* System prompt preview — fixed height so all cards align */}
+      {/* Body preview */}
       <div className="flex-1 mb-4">
-        <p className="text-[11px] text-gray-400 line-clamp-3 leading-relaxed">
-          {agent.system_prompt || <span className="italic">No system prompt set</span>}
-        </p>
+        {isSimple ? (
+          <div className="space-y-1.5">
+            {(agent.intents ?? []).slice(0, 3).map((intent, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+                <span className="text-[11px] text-gray-500 leading-tight">
+                  <span className="font-medium text-gray-700">{intent.name || "Unnamed"}</span>
+                  {intent.triggers && <span className="text-gray-400"> — {intent.triggers.split(",").slice(0,2).map(t=>t.trim()).join(", ")}</span>}
+                </span>
+              </div>
+            ))}
+            {(agent.intents ?? []).length === 0 && <p className="text-[11px] text-gray-400 italic">No intents configured</p>}
+            {(agent.intents ?? []).length > 3 && <p className="text-[11px] text-gray-400">+{(agent.intents ?? []).length - 3} more intents</p>}
+          </div>
+        ) : (
+          <p className="text-[11px] text-gray-400 line-clamp-3 leading-relaxed">
+            {agent.system_prompt || <span className="italic">No system prompt set</span>}
+          </p>
+        )}
       </div>
 
       {/* Actions */}
@@ -591,6 +893,8 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [embedAgent, setEmbedAgent] = useState<Chatbot | null>(null);
   const [templateLoading, setTemplateLoading] = useState<number | null>(null);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showSimpleBot, setShowSimpleBot] = useState(false);
 
   // AI generation
   const [aiPrompt, setAiPrompt] = useState("");
@@ -727,7 +1031,7 @@ export default function AgentsPage() {
         subtitle="Create embeddable chatbots for your website"
         action={
           <button
-            onClick={() => router.push("/agents/new")}
+            onClick={() => setShowTypePicker(true)}
             className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
           >
             <Plus size={14} /> New Agent
@@ -861,6 +1165,21 @@ export default function AgentsPage() {
         <EmbedModal
           agent={embedAgent}
           onClose={() => setEmbedAgent(null)}
+        />
+      )}
+
+      {showTypePicker && (
+        <NewAgentTypePicker
+          onClose={() => setShowTypePicker(false)}
+          onFull={() => { setShowTypePicker(false); router.push("/agents/new"); }}
+          onSimple={() => { setShowTypePicker(false); setShowSimpleBot(true); }}
+        />
+      )}
+
+      {showSimpleBot && (
+        <SimpleBotModal
+          onClose={() => setShowSimpleBot(false)}
+          onCreate={(bot) => { setAgents(prev => [bot, ...prev]); setShowSimpleBot(false); }}
         />
       )}
     </AppShell>
