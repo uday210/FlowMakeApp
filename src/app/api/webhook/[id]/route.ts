@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { executeWorkflow } from "@/lib/executor";
 import { hashKey } from "@/lib/apiAuth";
+import Stripe from "stripe";
 import type { WorkflowNode, WorkflowEdge } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -16,25 +17,14 @@ async function verifyGithubSignature(body: string, signature: string, secret: st
   return hex === signature;
 }
 
-async function verifyStripeSignature(body: string, sigHeader: string, secret: string) {
-  const parts = sigHeader.split(",").reduce((acc, p) => {
-    const idx = p.indexOf("=");
-    if (idx !== -1) acc[p.slice(0, idx)] = p.slice(idx + 1);
-    return acc;
-  }, {} as Record<string, string>);
-  const timestamp = parts["t"];
-  const payload = `${timestamp}.${body}`;
-  const encoder = new TextEncoder();
-  // Try base64-decoded key (Stripe v2 event destinations)
-  const rawSecret = secret.startsWith("whsec_") ? secret.slice(6) : secret;
-  const secretBytes = Buffer.from(rawSecret, "base64");
-  const key = await crypto.subtle.importKey(
-    "raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-  const hex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
-  // Check v1 (and v2 if Stripe ever uses it)
-  return (parts["v1"] ?? parts["v2"] ?? "") === hex;
+function verifyStripeSignature(body: string, sigHeader: string, secret: string): boolean {
+  try {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_placeholder", { apiVersion: "2026-03-25.dahlia" });
+    stripe.webhooks.constructEvent(body, sigHeader, secret);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(
