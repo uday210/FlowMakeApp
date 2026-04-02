@@ -8,14 +8,12 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const siteKey = searchParams.get("s") ?? "";
 
-  // Use canonical app URL so the script works when embedded on external sites.
-  // Railway/proxies may set origin to localhost — prefer the public env var or
-  // the x-forwarded-host header.
+  // On Railway the request origin is localhost (internal proxy).
+  // Use x-forwarded-host to get the real public domain in production.
+  // Falls back to origin for local development where x-forwarded-host is absent.
   const forwardedHost = request.headers.get("x-forwarded-host");
   const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    (forwardedHost ? `${forwardedProto}://${forwardedHost}` : origin);
+  const baseUrl = forwardedHost ? `${forwardedProto}://${forwardedHost}` : origin;
 
   const script = `(function(){
   var SITE_KEY="${siteKey}";
