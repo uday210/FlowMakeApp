@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
@@ -6,8 +7,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholde
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
+export async function GET(request: NextRequest) {
+  const url = request.nextUrl;
   const code = url.searchParams.get("code");
 
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || url.host;
@@ -18,18 +19,31 @@ export async function GET(request: Request) {
 
   if (!code) return go("/org");
 
+  // We need a mutable redirect response to attach session cookies to
+  let response = go("/org");
+
   try {
-    // Use a plain supabase-js client — no cookie handling needed here.
-    // Supabase will set the session via the access_token in the URL hash on the client side.
-    // On the server we just need to exchange the code for tokens and set them as cookies manually.
-    const { data, error } = await createClient(supabaseUrl, supabaseAnonKey).auth.exchangeCodeForSession(code);
+    // Use @supabase/ssr so it can read the PKCE code_verifier from cookies
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll: (cookiesToSet) => {
+          response = go("/org");
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
+          );
+        },
+      },
+    });
+
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error || !data?.user) {
       console.error("[auth/callback] exchange error:", error?.message ?? "no user");
       return go("/auth/login?error=auth_failed");
     }
 
-    // Upsert profile (best-effort — don't block login if this fails)
+    // Upsert profile (best-effort)
     try {
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       const admin = createClient(supabaseUrl, serviceKey ?? supabaseAnonKey);
@@ -51,39 +65,27 @@ export async function GET(request: Request) {
         };
         if (pendingOrgId) { row.org_id = pendingOrgId; row.role = pendingRole; }
         await admin.from("profiles").insert(row);
-        return go(pendingOrgId ? "/org" : "/onboarding");
+
+        const dest = pendingOrgId ? "/org" : "/onboarding";
+        const r = go(dest);
+        response.cookies.getAll().forEach(c => r.cookies.set(c.name, c.value));
+        return r;
       }
 
       if (!profile.org_id) {
         if (pendingOrgId) {
           await admin.from("profiles").update({ org_id: pendingOrgId, role: pendingRole }).eq("id", data.user.id);
-          return go("/org");
+          const r = go("/org");
+          response.cookies.getAll().forEach(c => r.cookies.set(c.name, c.value));
+          return r;
         }
-        return go("/onboarding");
+        const r = go("/onboarding");
+        response.cookies.getAll().forEach(c => r.cookies.set(c.name, c.value));
+        return r;
       }
     } catch (profileErr) {
       console.error("[auth/callback] profile error:", profileErr);
     }
-
-    // Build response with session cookies
-    const response = go("/org");
-
-    // Set access token and refresh token as cookies so SSR auth works
-    const maxAge = data.session?.expires_in ?? 3600;
-    response.cookies.set("sb-access-token", data.session?.access_token ?? "", {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      maxAge,
-      path: "/",
-    });
-    response.cookies.set("sb-refresh-token", data.session?.refresh_token ?? "", {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 365,
-      path: "/",
-    });
 
     return response;
   } catch (err) {
