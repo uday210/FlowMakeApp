@@ -653,7 +653,7 @@ function ConnectionsPageInner() {
               {inUseModal.workflows.map((wf) => (
                 <li key={wf.id}>
                   <a
-                    href={`/scenarios/${wf.id}`}
+                    href={`/workflows/${wf.id}`}
                     className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-xs font-medium text-violet-700 hover:bg-violet-50 transition-colors"
                   >
                     <Zap size={11} className="flex-shrink-0" />
