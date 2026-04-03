@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, use } from "react";
 import dynamic from "next/dynamic";
-import { CheckCircle, PenLine, Type, RotateCcw, Loader2, AlertCircle, Clock, User } from "lucide-react";
+import { CheckCircle, PenLine, Type, RotateCcw, Loader2, AlertCircle, Clock, User, Sparkles, Send, ChevronDown, ChevronUp, X } from "lucide-react";
 
 const PDFSigningViewer = dynamic(() => import("@/components/PDFSigningViewer"), { ssr: false });
 
@@ -43,11 +43,182 @@ interface EsignRequest {
   signed_at: string | null;
   signing_order: number;
   file_url: string | null;
+  ai_enabled: boolean;
   document_fields: EsignField[];
   previous_signatures: PreviousSignature[];
 }
 
 type SignMode = "draw" | "type";
+
+// ─── AI Chat Widget ────────────────────────────────────────────────────────────
+
+interface ChatMessage { role: "user" | "assistant"; content: string }
+
+const SUGGESTED_QUESTIONS = [
+  "Summarize this document",
+  "What am I agreeing to?",
+  "Are there any important deadlines?",
+  "What are my obligations?",
+];
+
+function AiChatWidget({ documentId }: { documentId: string }) {
+  const [open, setOpen]       = useState(false);
+  const [input, setInput]     = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [streaming, setStreaming] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, open]);
+
+  const send = async (text?: string) => {
+    const msg = (text ?? input).trim();
+    if (!msg || streaming) return;
+    setInput("");
+    const userMsg: ChatMessage = { role: "user", content: msg };
+    setMessages(prev => [...prev, userMsg]);
+    setStreaming(true);
+
+    const assistantMsg: ChatMessage = { role: "assistant", content: "" };
+    setMessages(prev => [...prev, assistantMsg]);
+
+    try {
+      const res = await fetch(`/api/documents/${documentId}/ai-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, history: messages }),
+      });
+
+      if (!res.ok || !res.body) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: "Sorry, something went wrong. Please try again." };
+          return updated;
+        });
+        return;
+      }
+
+      const provider = res.headers.get("X-Provider") ?? "openai";
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (data === "[DONE]") break;
+          try {
+            const json = JSON.parse(data);
+            let chunk = "";
+            if (provider === "anthropic") {
+              chunk = json.delta?.text ?? "";
+            } else {
+              chunk = json.choices?.[0]?.delta?.content ?? "";
+            }
+            if (chunk) {
+              setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { role: "assistant", content: updated[updated.length - 1].content + chunk };
+                return updated;
+              });
+            }
+          } catch { /* skip malformed chunks */ }
+        }
+      }
+    } catch {
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: "assistant", content: "Sorry, something went wrong." };
+        return updated;
+      });
+    } finally {
+      setStreaming(false);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-indigo-100 rounded-2xl shadow-sm overflow-hidden">
+      {/* Header — always visible */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-indigo-50/40 transition-colors"
+      >
+        <div className="w-7 h-7 rounded-xl bg-indigo-600 flex items-center justify-center flex-shrink-0">
+          <Sparkles size={14} className="text-white" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-gray-800">Ask AI about this document</p>
+          <p className="text-xs text-gray-400">Get a summary or ask any question before signing</p>
+        </div>
+        {open ? <ChevronUp size={16} className="text-gray-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-indigo-50">
+          {/* Suggested questions */}
+          {messages.length === 0 && (
+            <div className="px-5 py-3 flex flex-wrap gap-2">
+              {SUGGESTED_QUESTIONS.map(q => (
+                <button
+                  key={q}
+                  onClick={() => send(q)}
+                  className="text-xs px-3 py-1.5 rounded-full border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors font-medium"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Messages */}
+          {messages.length > 0 && (
+            <div className="px-5 py-3 space-y-3 max-h-72 overflow-y-auto">
+              {messages.map((m, i) => (
+                <div key={i} className={`flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] text-xs rounded-xl px-3 py-2 leading-relaxed ${
+                    m.role === "user"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 text-gray-700"
+                  }`}>
+                    {m.content || (streaming && i === messages.length - 1 ? <span className="animate-pulse">▋</span> : "")}
+                  </div>
+                </div>
+              ))}
+              <div ref={bottomRef} />
+            </div>
+          )}
+
+          {/* Input */}
+          <div className="px-5 py-3 border-t border-gray-100 flex gap-2">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              placeholder="Ask a question about this document…"
+              disabled={streaming}
+              className="flex-1 text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400 disabled:opacity-50"
+            />
+            <button
+              onClick={() => send()}
+              disabled={!input.trim() || streaming}
+              className="p-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-40"
+            >
+              {streaming ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SignPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -419,6 +590,11 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
               </div>
             )}
           </div>
+        )}
+
+        {/* AI Chat Widget */}
+        {req.ai_enabled && req.document_id && (
+          <AiChatWidget documentId={req.document_id} />
         )}
 
         {/* Signature pad */}

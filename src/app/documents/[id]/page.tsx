@@ -74,6 +74,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [pageCount, setPageCount]         = useState(1);
   const [activeSignerIdx, setActiveSignerIdx] = useState(0);
   const [isTemplate, setIsTemplate]       = useState(false);
+  const [aiEnabled, setAiEnabled]         = useState(false);
   const [showStatus, setShowStatus]       = useState(false);
   const [sendSuccess, setSendSuccess]     = useState<{ email: string; url: string | null; order: number }[]>([]);
   const [copiedId, setCopiedId]           = useState<string | null>(null);
@@ -106,6 +107,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     setSignerRequests(statusData.requests || []);
     setPageCount(docData.page_count || 1);
     setIsTemplate(!!docData.is_template);
+    setAiEnabled(!!docData.ai_enabled);
     setEmailTemplateId(docData.email_template_id || "");
     if (statusData.requests?.length > 0) setShowStatus(true);
     setLoading(false);
@@ -361,6 +363,26 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
           title="Template mode: assign fields to role slots (Signer 1, 2…) then send to any email via the API"
         >
           {isTemplate ? "◆ Template" : "Make Template"}
+        </button>
+
+        <button
+          onClick={async () => {
+            const next = !aiEnabled;
+            setAiEnabled(next);
+            if (doc) {
+              await fetch(`/api/documents/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: doc.name, page_count: pageCount, status: doc.status, is_template: isTemplate, ai_enabled: next }),
+              });
+            }
+          }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+            aiEnabled ? "bg-amber-50 text-amber-700 border-amber-200" : "text-gray-500 border-gray-200 hover:bg-gray-50"
+          }`}
+          title="Let signers chat with an AI about this document before signing"
+        >
+          ✦ {aiEnabled ? "AI On" : "AI Off"}
         </button>
 
         <button

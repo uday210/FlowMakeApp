@@ -44,6 +44,7 @@ const ORG_NAV = [
     section: "Utilities",
     items: [
       { id: "email", label: "Email Accounts", icon: Mail },
+      { id: "esign-ai", label: "E-Sign AI", icon: Sparkles },
     ],
   },
 ];
@@ -198,6 +199,17 @@ export default function OrgDashboard() {
         <div className="flex h-full overflow-hidden">
           <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} org={org} />
           <EmailConfigsPanel />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (activeNav === "esign-ai") {
+    return (
+      <AppShell>
+        <div className="flex h-full overflow-hidden">
+          <OrgSidebar activeNav={activeNav} setActiveNav={setActiveNav} org={org} />
+          <EsignAIPanel />
         </div>
       </AppShell>
     );
@@ -1605,6 +1617,188 @@ function UsersPanel({ currentUserId }: { currentUserId: string }) {
         <p className="text-xs text-gray-400">
           Admins can invite members, change roles, and manage the organization. Members can use all features but cannot change org settings.
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── E-Sign AI Panel ──────────────────────────────────────────────────────────
+
+const ESIGN_AI_PROVIDERS = [
+  { value: "openai",    label: "OpenAI",    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"] },
+  { value: "anthropic", label: "Anthropic", models: ["claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-opus-4-6"] },
+];
+
+function EsignAIPanel() {
+  const [enabled, setEnabled]     = useState(false);
+  const [provider, setProvider]   = useState("openai");
+  const [model, setModel]         = useState("gpt-4o-mini");
+  const [apiKey, setApiKey]       = useState("");
+  const [showKey, setShowKey]     = useState(false);
+  const [loading, setLoading]     = useState(true);
+  const [saving, setSaving]       = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
+
+  useEffect(() => {
+    fetch("/api/org/esign-ai")
+      .then(r => r.json())
+      .then(d => {
+        if (!d.error) {
+          setEnabled(d.esign_ai_enabled ?? false);
+          setProvider(d.esign_ai_provider ?? "openai");
+          setModel(d.esign_ai_model ?? "gpt-4o-mini");
+          setApiKey(d.esign_ai_api_key ?? "");
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const models = ESIGN_AI_PROVIDERS.find(p => p.value === provider)?.models ?? [];
+
+  const handleProviderChange = (v: string) => {
+    setProvider(v);
+    setModel(ESIGN_AI_PROVIDERS.find(p => p.value === v)?.models[0] ?? "");
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/org/esign-ai", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ esign_ai_enabled: enabled, esign_ai_provider: provider, esign_ai_model: model, esign_ai_api_key: apiKey }),
+      });
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch { setSaveStatus("error"); }
+    finally {
+      setSaving(false);
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    }
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-[#f8f9fc]">
+      <header className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">E-Sign AI Assistant</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Let signers ask questions about documents before signing</p>
+        </div>
+      </header>
+
+      <div className="px-8 py-6 max-w-2xl space-y-6">
+        {loading ? (
+          <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-violet-400" /></div>
+        ) : (
+          <>
+            {/* Enable toggle */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Enable AI Assistant</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  When enabled, signers see a chat panel on the signing page where they can ask questions about the document they are signing.
+                </p>
+              </div>
+              <button
+                onClick={() => setEnabled(v => !v)}
+                className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors duration-200 ${enabled ? "bg-violet-600" : "bg-gray-300"}`}
+              >
+                <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${enabled ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
+
+            {/* Provider + model + key */}
+            <div className={`bg-white rounded-2xl border border-gray-100 p-6 space-y-4 transition-opacity ${!enabled ? "opacity-40 pointer-events-none" : ""}`}>
+              <p className="text-sm font-semibold text-gray-800">LLM Configuration</p>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Provider</label>
+                <div className="flex gap-2">
+                  {ESIGN_AI_PROVIDERS.map(p => (
+                    <button
+                      key={p.value}
+                      onClick={() => handleProviderChange(p.value)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                        provider === p.value
+                          ? "bg-violet-600 text-white border-violet-600"
+                          : "bg-white text-gray-500 border-gray-200 hover:border-violet-300"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Model</label>
+                <select
+                  value={model}
+                  onChange={e => setModel(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400 bg-white"
+                >
+                  {models.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">API Key</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type={showKey ? "text" : "password"}
+                    value={apiKey}
+                    onChange={e => setApiKey(e.target.value)}
+                    placeholder={provider === "openai" ? "sk-..." : "sk-ant-..."}
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-violet-400"
+                  />
+                  <button
+                    onClick={() => setShowKey(v => !v)}
+                    className="px-3 py-2.5 text-xs text-gray-400 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    {showKey ? "Hide" : "Show"}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Stored securely. Used only server-side when signers chat with documents.
+                </p>
+              </div>
+            </div>
+
+            {/* Per-document note */}
+            <div className="bg-violet-50 border border-violet-100 rounded-2xl px-5 py-4 flex gap-3">
+              <Sparkles size={16} className="text-violet-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-violet-700">Per-document control</p>
+                <p className="text-xs text-violet-500 mt-0.5">
+                  Even with AI enabled here, you can toggle it on or off for each individual document from the document editor.
+                </p>
+              </div>
+            </div>
+
+            {/* Save */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-50"
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Save Settings
+              </button>
+              {saveStatus === "saved" && (
+                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                  <CheckCircle2 size={13} /> Saved
+                </span>
+              )}
+              {saveStatus === "error" && (
+                <span className="flex items-center gap-1 text-xs text-red-500 font-medium">
+                  <AlertTriangle size={13} /> Failed to save
+                </span>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
