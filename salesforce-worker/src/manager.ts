@@ -148,8 +148,8 @@ export class SubscriptionManager {
     });
 
     // Log CometD meta events for debugging
-    fayeClient.on("transport:up", () => console.log(`[worker] CometD transport UP for ${instanceUrl}`));
-    fayeClient.on("transport:down", () => console.error(`[worker] CometD transport DOWN for ${instanceUrl}`));
+    fayeClient.on("transport:up", () => console.log(`[worker] CometD transport UP for ${creds.instance_url}`));
+    fayeClient.on("transport:down", () => console.error(`[worker] CometD transport DOWN for ${creds.instance_url}`));
 
     const handle = fayeClient.subscribe(channel, async (message: Record<string, unknown>) => {
       console.log(`[worker] RAW event received on ${channel}:`, JSON.stringify(message).slice(0, 300));
