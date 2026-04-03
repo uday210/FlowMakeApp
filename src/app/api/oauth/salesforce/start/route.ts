@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
   const codeChallenge = base64url(challengeBytes);
 
   const label = request.nextUrl.searchParams.get("label") ?? "";
-  const state = Buffer.from(JSON.stringify({ orgId: ctx.orgId, isSandbox, label })).toString("base64url");
+  const reconnectId = request.nextUrl.searchParams.get("reconnect_id") ?? "";
+  const state = Buffer.from(JSON.stringify({ orgId: ctx.orgId, isSandbox, label, reconnectId })).toString("base64url");
 
   const params = new URLSearchParams({
     client_id: clientId,

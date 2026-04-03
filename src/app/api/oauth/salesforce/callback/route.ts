@@ -21,11 +21,13 @@ export async function GET(request: NextRequest) {
   let orgId: string;
   let isSandbox = false;
   let label = "";
+  let reconnectId = "";
   try {
     const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
     orgId = decoded.orgId;
     isSandbox = decoded.isSandbox ?? false;
     label = decoded.label ?? "";
+    reconnectId = decoded.reconnectId ?? "";
   } catch {
     return go("/connections?error=invalid_state");
   }
@@ -81,12 +83,11 @@ export async function GET(request: NextRequest) {
     sandbox: isSandbox,
   };
 
-  await supabase.from("connections").insert({
-    org_id: orgId,
-    type: "salesforce",
-    name,
-    config,
-  });
+  if (reconnectId) {
+    await supabase.from("connections").update({ config }).eq("id", reconnectId).eq("org_id", orgId);
+  } else {
+    await supabase.from("connections").insert({ org_id: orgId, type: "salesforce", name, config });
+  }
 
   const res = go("/connections?success=salesforce_connected");
   res.cookies.set("salesforce_cv", "", { maxAge: 0, path: "/" });

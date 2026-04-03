@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
   const redirectUri = `${appUrl}/api/oauth/google/callback`;
 
   const label = request.nextUrl.searchParams.get("label") ?? "";
-  const state = Buffer.from(JSON.stringify({ orgId: ctx.orgId, label })).toString("base64url");
+  const reconnectId = request.nextUrl.searchParams.get("reconnect_id") ?? "";
+  const state = Buffer.from(JSON.stringify({ orgId: ctx.orgId, label, reconnectId })).toString("base64url");
 
   const params = new URLSearchParams({
     client_id: clientId,

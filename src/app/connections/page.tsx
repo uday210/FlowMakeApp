@@ -29,6 +29,8 @@ import {
   Lock,
   Activity,
   Layers,
+  RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 
 interface Connection {
@@ -297,6 +299,18 @@ function ConnectionsPageInner() {
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
   const [inUseModal, setInUseModal] = useState<{ connName: string; workflows: { id: string; name: string }[] } | null>(null);
+  const [statusMap, setStatusMap] = useState<Record<string, { status: string; message?: string; checking?: boolean }>>({});
+
+  const checkStatus = async (id: string) => {
+    setStatusMap(m => ({ ...m, [id]: { status: "checking", checking: true } }));
+    try {
+      const res = await fetch(`/api/connections/${id}/check`);
+      const data = await res.json();
+      setStatusMap(m => ({ ...m, [id]: { status: data.status, message: data.message, checking: false } }));
+    } catch {
+      setStatusMap(m => ({ ...m, [id]: { status: "error", message: "Could not reach service", checking: false } }));
+    }
+  };
 
   const selectedService = SERVICE_TYPES.find((s) => s.value === form.type) ?? SERVICE_TYPES[0];
   const filteredServices = serviceSearch
@@ -613,11 +627,47 @@ function ConnectionsPageInner() {
                             Added {new Date(conn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </p>
                         </div>
+
+                        {/* Status indicator */}
+                        {(() => {
+                          const s = statusMap[conn.id];
+                          if (!s) return null;
+                          const dotColor = s.status === "ok" ? "bg-green-400" : s.status === "expired" ? "bg-amber-400" : s.status === "error" ? "bg-red-400" : "bg-gray-300";
+                          const label = s.status === "ok" ? "Connected" : s.status === "expired" ? "Token expired" : s.status === "error" ? "Error" : s.status === "unchecked" ? "No check available" : "Checking…";
+                          return (
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <span className={`w-2 h-2 rounded-full ${dotColor} ${s.checking ? "animate-pulse" : ""}`} />
+                              <span className="text-xs text-gray-400">{label}</span>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Re-authenticate for expired OAuth */}
+                        {statusMap[conn.id]?.status === "expired" && ["salesforce", "google", "airtable"].includes(conn.type) && (
+                          <a
+                            href={`/api/oauth/${conn.type}/start?reconnect_id=${conn.id}&label=${encodeURIComponent(conn.name)}${conn.type === "salesforce" && conn.config?.sandbox ? "&sandbox=1" : ""}`}
+                            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors flex-shrink-0"
+                          >
+                            <RefreshCw size={11} /> Re-authenticate
+                          </a>
+                        )}
+
                         {savedId === conn.id && (
-                          <span className="flex items-center gap-1 text-xs text-green-600">
+                          <span className="flex items-center gap-1 text-xs text-green-600 flex-shrink-0">
                             <CheckCircle size={12} /> Saved
                           </span>
                         )}
+
+                        {/* Check status button */}
+                        <button
+                          onClick={() => checkStatus(conn.id)}
+                          disabled={statusMap[conn.id]?.checking}
+                          className="p-1.5 text-gray-300 hover:text-violet-500 hover:bg-violet-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                          title="Check connection status"
+                        >
+                          {statusMap[conn.id]?.checking ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                        </button>
+
                         <button
                           onClick={() => del(conn)}
                           className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"

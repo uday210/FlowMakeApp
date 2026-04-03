@@ -15,10 +15,12 @@ export async function GET(request: Request) {
 
   let orgId: string;
   let label = "";
+  let reconnectId = "";
   try {
     const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
     orgId = decoded.orgId;
     label = decoded.label ?? "";
+    reconnectId = decoded.reconnectId ?? "";
   } catch {
     return NextResponse.redirect(`${appUrl}/connections?error=invalid_state`);
   }
@@ -59,9 +61,11 @@ export async function GET(request: Request) {
     email,
   };
 
-  await supabase.from("connections").insert({
-    org_id: orgId, type: "google", name: displayName, config,
-  });
+  if (reconnectId) {
+    await supabase.from("connections").update({ config }).eq("id", reconnectId).eq("org_id", orgId);
+  } else {
+    await supabase.from("connections").insert({ org_id: orgId, type: "google", name: displayName, config });
+  }
 
   return NextResponse.redirect(`${appUrl}/connections?success=google_connected`);
 }
