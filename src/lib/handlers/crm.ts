@@ -161,30 +161,32 @@ export const handlers: Record<string, NodeHandler> = {
     const sfHeaders = { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" };
     const apiBase = `${instance_url}/services/data/v59.0`;
 
-    const cdcObject = (config.cdc_object as string)?.trim() || "AccountChangeEvent";
+    // CDC events (AccountChangeEvent etc.) are not queryable via REST SOQL.
+    // Instead, poll the underlying object for recently modified records.
+    // User supplies the base object name (e.g. "Account", not "AccountChangeEvent").
+    const baseObject = (config.cdc_object as string)?.trim().replace(/ChangeEvent$/i, "") || "Account";
     const filter = config.filter as string;
     const pollMins = Math.max(1, Number(config.poll_interval) || 5);
     const since = new Date(Date.now() - 2 * pollMins * 60 * 1000).toISOString().replace(/\.\d+Z$/, "Z");
 
-    let soql = `SELECT Id, CreatedDate, ChangeEventHeader FROM ${cdcObject} WHERE CreatedDate > ${since}`;
+    let soql = `SELECT Id, Name, LastModifiedDate, LastModifiedById FROM ${baseObject} WHERE LastModifiedDate > ${since}`;
     if (filter) soql += ` AND ${filter}`;
-    soql += " ORDER BY CreatedDate DESC LIMIT 50";
+    soql += " ORDER BY LastModifiedDate DESC LIMIT 50";
 
     const res = await fetch(`${apiBase}/query?q=${encodeURIComponent(soql)}`, { headers: sfHeaders });
     const data = await res.json();
     if (!res.ok) throw new Error(data[0]?.message || `Salesforce CDC query failed: ${res.status}`);
 
     if (!data.totalSize || data.totalSize === 0) {
-      return { _skip: true, cdc_object: cdcObject, total: 0, records: [] };
+      return { _skip: true, object: baseObject, total: 0, records: [] };
     }
 
     const firstRecord = data.records[0];
     return {
-      cdc_object: cdcObject,
+      object: baseObject,
+      change_type: "UPDATE",
       total: data.totalSize,
       records: data.records,
-      change_type: (firstRecord.ChangeEventHeader as Record<string, unknown>)?.changeType,
-      changed_fields: (firstRecord.ChangeEventHeader as Record<string, unknown>)?.changedFields,
       ...firstRecord,
     };
 
