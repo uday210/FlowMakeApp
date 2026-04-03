@@ -7,7 +7,7 @@ import {
   Plus, Search, Zap, PlayCircle, PauseCircle, Trash2, Loader2,
   Clock, Sparkles, AlertCircle, Star, Layers,
   Mail, MessageSquare, Database, Bot, Globe, FileText, BarChart3, Shield, RefreshCw,
-  Download, Upload,
+  Download, Upload, FileDown,
 } from "lucide-react";
 import { useRef } from "react";
 
@@ -446,7 +446,7 @@ function WorkflowsPageInner() {
                 onClick={() => importRef.current?.click()}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:border-violet-300 hover:text-violet-600 transition-all"
               >
-                <Upload size={14} /> Import
+                <FileDown size={14} /> Import
               </button>
               <button
                 onClick={handleCreate}

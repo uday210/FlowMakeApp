@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgContext } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -87,5 +88,11 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     .eq("org_id", ctx.orgId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    supabase: ctx.admin, orgId: ctx.orgId,
+    action: "connection.deleted", resourceType: "connection", resourceId: id,
+  });
+
   return NextResponse.json({ deleted: true });
 }

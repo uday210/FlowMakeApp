@@ -91,10 +91,8 @@ function ExecutionRow({ execution, onRerun }: { execution: Execution; onRerun: (
 
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 text-left transition-colors"
-      >
+      <div className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 transition-colors">
+        {/* Status icon */}
         {execution.status === "running" ? (
           <Loader2 size={13} className="animate-spin text-blue-500 flex-shrink-0" />
         ) : execution.status === "success" ? (
@@ -103,7 +101,11 @@ function ExecutionRow({ execution, onRerun }: { execution: Execution; onRerun: (
           <XCircle size={13} className="text-red-500 flex-shrink-0" />
         )}
 
-        <div className="flex-1 min-w-0">
+        {/* Main info — clickable to expand */}
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex-1 min-w-0 text-left"
+        >
           <div className="flex items-center gap-2">
             <span
               className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
@@ -128,13 +130,14 @@ function ExecutionRow({ execution, onRerun }: { execution: Execution; onRerun: (
           <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
             <Clock size={9} /> {timeAgo(execution.started_at)}
           </p>
-        </div>
+        </button>
 
+        {/* Re-run button */}
         <button
           onClick={handleRerun}
           disabled={rerunning}
           title="Re-run with same trigger data"
-          className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mr-1 disabled:opacity-50"
+          className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-violet-600 transition-colors flex-shrink-0 disabled:opacity-50"
         >
           {rerunning
             ? <Loader2 size={12} className="animate-spin" />
@@ -142,11 +145,14 @@ function ExecutionRow({ execution, onRerun }: { execution: Execution; onRerun: (
           }
         </button>
 
-        {open
-          ? <ChevronDown size={13} className="text-gray-400 flex-shrink-0" />
-          : <ChevronRight size={13} className="text-gray-400 flex-shrink-0" />
-        }
-      </button>
+        {/* Expand toggle */}
+        <button onClick={() => setOpen((v) => !v)} className="flex-shrink-0">
+          {open
+            ? <ChevronDown size={13} className="text-gray-400" />
+            : <ChevronRight size={13} className="text-gray-400" />
+          }
+        </button>
+      </div>
 
       {open && (
         <div className="px-3 pb-3 border-t border-gray-100 bg-gray-50/50 space-y-1.5 pt-2">

@@ -22,9 +22,11 @@ function actionIcon(action: string) {
 
 function actionLabel(action: string, meta: Record<string, unknown>) {
   switch (action) {
-    case "workflow.created": return `Created scenario "${meta.name ?? ""}"`;
-    case "workflow.deleted": return `Deleted scenario`;
-    case "execution.triggered": return `Execution ${meta.status === "success" ? "succeeded" : "failed"} for scenario`;
+    case "workflow.created":     return `Created scenario "${meta.name ?? ""}"`;
+    case "workflow.deleted":     return `Deleted scenario`;
+    case "execution.triggered":  return `Execution ${meta.status === "success" ? "succeeded" : "failed"}`;
+    case "connection.created":   return `Added connection "${meta.name ?? ""}" (${meta.type ?? ""})`;
+    case "connection.deleted":   return `Deleted connection`;
     default: return action;
   }
 }
@@ -52,7 +54,7 @@ export default function ActivityPage() {
 
   useEffect(() => { load(); }, []);
 
-  const actionTypes = ["all", "workflow.created", "workflow.deleted", "execution.triggered"];
+  const actionTypes = ["all", "workflow.created", "workflow.deleted", "execution.triggered", "connection.created", "connection.deleted"];
 
   const filtered = filter === "all" ? logs : logs.filter((l) => l.action === filter);
 

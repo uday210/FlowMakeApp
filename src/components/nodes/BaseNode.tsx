@@ -15,7 +15,7 @@ import {
   CheckSquare, Bell, ImageIcon, BotMessageSquare, Plug,
   DatabaseZap, Leaf, Zap, Radio, Wifi, Server, SearchCode,
   FileCode, Lock, KeyRound, FileText, Image, QrCode,
-  Wind, Mic, Binary, Terminal, FolderUp, Plus, MessageSquareReply,
+  Wind, Mic, Binary, Terminal, FolderUp, Plus, MessageSquareReply, StickyNote,
 } from "lucide-react";
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -30,7 +30,7 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; className?: str
   CheckSquare, Bell, ImageIcon, BotMessageSquare, Plug,
   DatabaseZap, Leaf, Zap, Radio, Wifi, Server, SearchCode,
   FileCode, Lock, KeyRound, FileText, Image, QrCode,
-  Wind, Mic, Binary, Terminal, FolderUp, Plus, MessageSquareReply,
+  Wind, Mic, Binary, Terminal, FolderUp, Plus, MessageSquareReply, StickyNote,
 };
 
 export default function BaseNode({ data, selected }: NodeProps) {
