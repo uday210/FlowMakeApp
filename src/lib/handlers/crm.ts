@@ -485,7 +485,8 @@ export const handlers: Record<string, NodeHandler> = {
   },
 
   "action_airtable": async ({ config }) => {
-    const token = config.token as string;
+    // Support both OAuth access_token and manual API token
+    const token = (config.access_token || config.token) as string;
     const baseId = config.base_id as string;
     const table = config.table as string;
     if (!token || !baseId || !table) throw new Error("Token, base ID, and table are required");

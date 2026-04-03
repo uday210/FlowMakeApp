@@ -76,7 +76,7 @@ export const handlers: Record<string, NodeHandler> = {
   },
 
   "trigger_airtable_record": async ({ config }) => {
-    const token = config.api_key as string;
+    const token = (config.access_token || config.api_key) as string;
     const baseId = config.base_id as string;
     const tableName = config.table_name as string;
     if (!token || !baseId || !tableName) throw new Error("API key, base ID, and table name required");
