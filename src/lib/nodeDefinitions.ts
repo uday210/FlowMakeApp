@@ -210,7 +210,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     connectionFields: SF_CONN_FIELDS,
     defaultConfig: { cdc_object: "Account" },
     configFields: [
-      { key: "cdc_object", label: "Object to Watch", type: "text", placeholder: "e.g. Account, Contact, Opportunity", required: true },
+      { key: "cdc_object", label: "Object to Watch", type: "remote_select", fetch_action: "salesforce_objects", placeholder: "e.g. Account, Contact, Opportunity", required: true },
     ],
   },
 

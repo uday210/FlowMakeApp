@@ -389,6 +389,23 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fetched, setFetched] = useState(false);
+  const [search, setSearch] = useState(value);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Keep search text in sync when value changes externally
+  React.useEffect(() => { setSearch(value); }, [value]);
+
+  // Close dropdown on outside click
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const fetchOptions = async () => {
     if (field.fetch_action === "salesforce_objects") {
@@ -414,6 +431,7 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
         if (!res.ok) throw new Error(data.error || "Failed to load objects");
         setOptions(data.objects ?? []);
         setFetched(true);
+        setOpen(true);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load");
       } finally {
@@ -427,6 +445,7 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
         if (!res.ok) throw new Error(data.error || "Failed to load API keys");
         setOptions([{ value: "", label: "No auth — open to anyone" }, ...(data.keys ?? [])]);
         setFetched(true);
+        setOpen(true);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load");
       } finally {
@@ -435,37 +454,65 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
     }
   };
 
+  const filtered = search.trim()
+    ? options.filter(o =>
+        o.label.toLowerCase().includes(search.toLowerCase()) ||
+        o.value.toLowerCase().includes(search.toLowerCase())
+      )
+    : options;
+
   return (
     <div className="space-y-1">
-      <div className="flex gap-1.5">
-        {fetched && options.length > 0 ? (
-          <select className={base} value={value} onChange={(e) => onChange(e.target.value)}>
-            {value && !options.find(o => o.value === value) && (
-              <option value={value}>{value}</option>
-            )}
-            {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        ) : (
+      <div className="flex gap-1.5" ref={containerRef}>
+        <div className="relative flex-1">
           <input
-            className={`${base} flex-1`}
+            className={`${base} w-full`}
             type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={field.placeholder ?? "e.g. Contact, Account, My_Object__c"}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              onChange(e.target.value);
+              if (fetched) setOpen(true);
+            }}
+            onFocus={() => { if (fetched && options.length > 0) setOpen(true); }}
+            placeholder={field.placeholder ?? "e.g. Account, Contact, My_Object__c"}
           />
-        )}
+          {open && filtered.length > 0 && (
+            <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {filtered.slice(0, 100).map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange(o.value);
+                    setSearch(o.value);
+                    setOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-blue-50 transition-colors ${value === o.value ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"}`}
+                >
+                  {o.label}
+                </button>
+              ))}
+              {filtered.length > 100 && (
+                <p className="px-3 py-1.5 text-[10px] text-gray-400">
+                  {filtered.length - 100} more — type to filter
+                </p>
+              )}
+            </div>
+          )}
+        </div>
         <button
           type="button"
           onClick={fetchOptions}
           disabled={loading}
           className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap"
-          title="Connect to Salesforce and load all available objects"
         >
           {loading ? "Loading…" : fetched ? "↺ Reload" : "Browse"}
         </button>
       </div>
       {error && <p className="text-[10px] text-red-500">{error}</p>}
-      {fetched && <p className="text-[10px] text-gray-400">{options.length} objects loaded — or type any API name</p>}
+      {fetched && <p className="text-[10px] text-gray-400">{options.length} objects — type to search or enter any name</p>}
     </div>
   );
 }
