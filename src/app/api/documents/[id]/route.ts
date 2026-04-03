@@ -27,9 +27,18 @@ export async function PUT(request: Request, { params }: Params) {
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
+  const patch: Record<string, unknown> = {
+    name: body.name,
+    page_count: body.page_count,
+    status: body.status,
+    is_template: body.is_template ?? false,
+    email_template_id: body.email_template_id ?? null,
+  };
+  // Only update ai_enabled when explicitly provided so other saves don't reset it
+  if (body.ai_enabled !== undefined) patch.ai_enabled = body.ai_enabled;
   const { data, error } = await ctx.admin
     .from("esign_documents")
-    .update({ name: body.name, page_count: body.page_count, status: body.status, is_template: body.is_template ?? false, email_template_id: body.email_template_id ?? null, ai_enabled: body.ai_enabled ?? false })
+    .update(patch)
     .eq("id", id)
     .eq("org_id", ctx.orgId)
     .select()
