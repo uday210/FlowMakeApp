@@ -63,6 +63,7 @@ const SERVICE_TYPES: ServiceType[] = [
   // ── Google (OAuth) ─────────────────────────────────────────────────────────
   { value: "google", label: "Google (OAuth)", icon: Globe, color: "bg-blue-100 text-blue-600", fields: [], oauthConnect: true },
   { value: "airtable", label: "Airtable (OAuth)", icon: Database, color: "bg-cyan-100 text-cyan-600", fields: [], oauthConnect: true },
+  { value: "salesforce", label: "Salesforce (OAuth)", icon: Cloud, color: "bg-blue-100 text-blue-600", fields: [], oauthConnect: true },
   // ── AI & ML ────────────────────────────────────────────────────────────────
   { value: "openai", label: "OpenAI", icon: Bot, color: "bg-green-100 text-green-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
   { value: "anthropic", label: "Anthropic / Claude", icon: Bot, color: "bg-amber-100 text-amber-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
@@ -94,26 +95,6 @@ const SERVICE_TYPES: ServiceType[] = [
   { value: "zoom", label: "Zoom", icon: MessageSquare, color: "bg-blue-100 text-blue-500", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
   { value: "vonage", label: "Vonage / Nexmo", icon: Phone, color: "bg-purple-100 text-purple-600", fields: [{ key: "api_key", label: "API Key", type: "text" }, { key: "api_secret", label: "API Secret", type: "password" }] },
   // ── CRM & Sales ────────────────────────────────────────────────────────────
-  {
-    value: "salesforce", label: "Salesforce", icon: Cloud, color: "bg-blue-100 text-blue-600",
-    fields: [
-      { key: "auth_flow", label: "Auth Flow", type: "select", options: [
-        { label: "Username + Password", value: "password" },
-        { label: "Client Credentials (no user)", value: "client_credentials" },
-      ]},
-      { key: "environment", label: "Environment", type: "select", options: [
-        { label: "Production (login.salesforce.com)", value: "production" },
-        { label: "Sandbox (test.salesforce.com)", value: "sandbox" },
-        { label: "Custom Domain", value: "custom" },
-      ]},
-      { key: "login_url", label: "Custom Login URL (if custom domain)", type: "text", placeholder: "https://your-domain.my.salesforce.com" },
-      { key: "client_id", label: "Consumer Key / Client ID", type: "text" },
-      { key: "client_secret", label: "Consumer Secret / Client Secret", type: "password" },
-      { key: "username", label: "Username (password flow only)", type: "text" },
-      { key: "password", label: "Password (password flow only)", type: "password" },
-      { key: "security_token", label: "Security Token (password flow only)", type: "password" },
-    ],
-  },
   { value: "hubspot", label: "HubSpot", icon: Activity, color: "bg-orange-100 text-orange-600", fields: [{ key: "api_key", label: "Private App Token", type: "password" }] },
   { value: "pipedrive", label: "Pipedrive", icon: Activity, color: "bg-orange-100 text-orange-500", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
   { value: "zoho_crm", label: "Zoho CRM", icon: Activity, color: "bg-red-100 text-red-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }] },
@@ -245,6 +226,18 @@ const OAUTH_PROVIDERS: Record<string, {
       </svg>
     ),
   },
+  salesforce: {
+    startUrl: "/api/oauth/salesforce/start",
+    label: "Connect via Salesforce OAuth",
+    description: "Authorize access to your Salesforce org. Use ?sandbox=1 for sandbox orgs.",
+    buttonLabel: "Sign in with Salesforce",
+    colors: "border-blue-100 bg-blue-50 text-blue-700",
+    logo: (
+      <svg width="16" height="16" viewBox="0 0 256 180" fill="none">
+        <path d="M106 20c10-11 24-18 40-18 21 0 39 11 49 28 8-4 17-6 27-6 35 0 63 28 63 63s-28 63-63 63c-4 0-9 0-13-1-9 14-25 23-43 23-7 0-14-2-20-5-9 18-28 30-50 30-24 0-44-14-54-35-4 1-8 1-12 1C22 163 0 141 0 114c0-20 11-37 28-46-4-7-6-15-6-24C22 20 42 0 67 0c16 0 30 7 39 20z" fill="#00A1E0"/>
+      </svg>
+    ),
+  },
 };
 
 function OAuthConnectPanel({ serviceType }: { serviceType: string }) {
@@ -318,6 +311,7 @@ function ConnectionsPageInner() {
     const successMessages: Record<string, string> = {
       google_connected: "Google account connected successfully!",
       airtable_connected: "Airtable account connected successfully!",
+      salesforce_connected: "Salesforce org connected successfully!",
     };
     if (success && successMessages[success]) {
       setSuccessMsg(successMessages[success]);
@@ -567,7 +561,7 @@ function ConnectionsPageInner() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-800">{conn.name}</p>
                           <p className="text-[11px] text-gray-400 mt-0.5">
-                            {conn.type === "google" && conn.config?.email
+                            {(conn.type === "google" || conn.type === "airtable" || conn.type === "salesforce") && conn.config?.email
                               ? <>Connected as <span className="text-blue-500">{conn.config.email}</span> · </>
                               : null}
                             Added {new Date(conn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
