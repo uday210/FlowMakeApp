@@ -46,7 +46,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { data: events, error } = await ctx.admin
     .from("web_analytics_events")
-    .select("type, path, referrer, country, region, city, device, browser, os, session_id, visitor_id, language, timezone, screen_width, screen_height, duration_ms, is_logged_in, created_at")
+    .select("type, path, referrer, country, region, city, device, browser, os, session_id, visitor_id, language, timezone, screen_width, screen_height, duration_ms, is_logged_in, properties, created_at")
     .eq("site_id", id)
     .gte("created_at", from)
     .order("created_at", { ascending: true });
@@ -96,6 +96,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     8
   );
 
+  // Custom events (button clicks, form submits, manual waTrack calls)
+  const trackableEvents = allEvents.filter(e =>
+    e.type === "custom" || e.type === "click" || e.type === "form_submit"
+  );
+  const customEventMap: Record<string, { count: number; pages: Record<string, number> }> = {};
+  for (const e of trackableEvents) {
+    const props = (e.properties ?? {}) as Record<string, unknown>;
+    const name = (props.name as string) || e.type;
+    if (!customEventMap[name]) customEventMap[name] = { count: 0, pages: {} };
+    customEventMap[name].count++;
+    const page = (props.page as string) || e.path || "/";
+    customEventMap[name].pages[page] = (customEventMap[name].pages[page] ?? 0) + 1;
+  }
+  const custom_events = Object.entries(customEventMap)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 30)
+    .map(([name, { count, pages }]) => ({
+      name,
+      count,
+      top_page: Object.entries(pages).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
+    }));
+
   return NextResponse.json({
     totals: {
       pageviews:       pageviews.length,
@@ -122,5 +144,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     timezones:    topN(allEvents.map(e => e.timezone), 8),
     resolutions,
     chart,
+    custom_events,
   });
 }

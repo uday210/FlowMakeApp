@@ -6,7 +6,7 @@ import {
   Globe, Plus, Trash2, X, Loader2, Copy, Check,
   BarChart2, Users, MousePointer, TrendingUp, ExternalLink,
   Monitor, Smartphone, Tablet, RefreshCw, ChevronDown, ChevronRight,
-  Clock, Languages, MapPin, Cpu, List,
+  Clock, Languages, Cpu, List, Zap,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -44,6 +44,7 @@ interface Stats {
   timezones: { value: string; count: number }[];
   resolutions: { value: string; count: number }[];
   chart: { date: string; views: number }[];
+  custom_events: { name: string; count: number; top_page: string | null }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -412,6 +413,92 @@ function SessionsView({ siteId }: { siteId: string }) {
   );
 }
 
+// ─── Custom Events view ───────────────────────────────────────────────────────
+
+function EventsView({ events, siteKey }: {
+  events: { name: string; count: number; top_page: string | null }[];
+  siteKey: string;
+}) {
+  const [origin, setOrigin] = useState("");
+  useEffect(() => { if (typeof window !== "undefined") setOrigin(window.location.origin); }, []);
+
+  const max = events[0]?.count ?? 1;
+
+  return (
+    <div className="space-y-5">
+      {events.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+          <Zap size={28} className="text-gray-200 mx-auto mb-3" />
+          <p className="text-sm font-medium text-gray-600 mb-1">No custom events yet</p>
+          <p className="text-xs text-gray-400 mb-5">
+            Button clicks and form submits are tracked automatically.<br />
+            Use <code className="bg-gray-100 px-1 rounded text-violet-600">window.waTrack()</code> for custom events.
+          </p>
+          <div className="bg-gray-900 rounded-xl p-4 text-left max-w-sm mx-auto">
+            <p className="text-[10px] text-gray-400 mb-2 uppercase tracking-wide">Manual tracking</p>
+            <pre className="text-[11px] text-green-400 font-mono whitespace-pre-wrap">{`// Track any event
+window.waTrack("signup_clicked", {
+  plan: "pro",
+  source: "hero"
+});`}</pre>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-4">
+            Script: <code className="font-mono text-violet-500">{origin}/api/tracker?s={siteKey}</code>
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <p className="text-xs font-semibold text-gray-700">Custom Events & Clicks</p>
+            <span className="text-[10px] text-gray-400">{events.length} event type{events.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {events.map((ev, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="w-6 h-6 rounded-md bg-violet-50 flex items-center justify-center flex-shrink-0">
+                  <Zap size={11} className="text-violet-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[11px] font-semibold text-gray-800 truncate">{ev.name}</span>
+                    <span className="text-[11px] font-bold text-gray-700 flex-shrink-0 ml-2">{fmt(ev.count)}</span>
+                  </div>
+                  <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-violet-400 rounded-full"
+                      style={{ width: `${(ev.count / max) * 100}%` }}
+                    />
+                  </div>
+                  {ev.top_page && (
+                    <p className="text-[10px] text-gray-400 mt-0.5 truncate">Top page: {ev.top_page}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Code snippet */}
+      <div className="bg-gray-900 rounded-xl p-4">
+        <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-3">How to track events</p>
+        <pre className="text-[11px] text-green-400 font-mono whitespace-pre-wrap">{`// Auto-tracked (no code needed):
+// • Button clicks (uses button text or data-track attribute)
+// • Form submissions
+// • Outbound link clicks
+
+// Manual tracking:
+window.waTrack("button_clicked", { label: "Get Started" });
+window.waTrack("plan_selected",  { plan: "pro" });
+window.waTrack("checkout_start", { amount: 49 });
+
+// Name a button explicitly:
+<button data-track="hero_cta">Get Started</button>`}</pre>
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard view for a single site ────────────────────────────────────────
 
 function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
@@ -419,7 +506,7 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
   const [showScript, setShowScript] = useState(false);
-  const [tab, setTab] = useState<"overview" | "sessions">("overview");
+  const [tab, setTab] = useState<"overview" | "sessions" | "events">("overview");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -480,6 +567,7 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
         {([
           { key: "overview", label: "Overview", icon: <BarChart2 size={11} /> },
           { key: "sessions", label: "Sessions",  icon: <List size={11} /> },
+          { key: "events",   label: "Events",    icon: <Zap size={11} /> },
         ] as const).map(({ key, label, icon }) => (
           <button
             key={key}
@@ -495,6 +583,12 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
 
       {tab === "sessions" ? (
         <SessionsView siteId={site.id} />
+      ) : tab === "events" ? (
+        loading ? (
+          <div className="flex items-center justify-center py-24"><Loader2 className="animate-spin text-gray-300" size={32} /></div>
+        ) : (
+          <EventsView events={stats?.custom_events ?? []} siteKey={site.script_key} />
+        )
       ) : loading ? (
         <div className="flex items-center justify-center py-24">
           <Loader2 className="animate-spin text-gray-300" size={32} />

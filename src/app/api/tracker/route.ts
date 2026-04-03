@@ -100,12 +100,31 @@ export async function GET(request: Request) {
   history.pushState=function(){sendDuration();_push.apply(this,arguments);resetTimer();send("pageview");};
   window.addEventListener("popstate",function(){sendDuration();resetTimer();send("pageview");});
 
-  // Outbound link clicks
+  // Click tracking: outbound links + buttons
   document.addEventListener("click",function(e){
-    var a=e.target.closest("a");
+    var el=e.target;
+    // Outbound links
+    var a=el.closest("a");
     if(a&&a.href&&a.hostname!==location.hostname){
-      send("click",{target:a.href,text:(a.innerText||"").slice(0,100)});
+      send("click",{element:"link",target:a.href,text:(a.innerText||"").slice(0,100),page:location.pathname});
+      return;
     }
+    // Button clicks
+    var btn=el.closest("button,[role='button']");
+    if(btn){
+      var text=(btn.innerText||btn.getAttribute("aria-label")||btn.getAttribute("title")||"").slice(0,100).trim();
+      var id=btn.id||null;
+      var name=btn.getAttribute("data-track")||text||id||null;
+      if(name){send("click",{element:"button",name:name,text:text,id:id,page:location.pathname});}
+    }
+  });
+
+  // Form submissions
+  document.addEventListener("submit",function(e){
+    var form=e.target;
+    var id=form.id||null;
+    var fname=form.getAttribute("name")||null;
+    send("form_submit",{name:fname||id||"form",form_id:id,page:location.pathname});
   });
 
   // Expose manual track function (supports isLoggedIn flag)
