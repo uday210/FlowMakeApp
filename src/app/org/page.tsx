@@ -1625,8 +1625,11 @@ function UsersPanel({ currentUserId }: { currentUserId: string }) {
 // ─── E-Sign AI Panel ──────────────────────────────────────────────────────────
 
 const ESIGN_AI_PROVIDERS = [
-  { value: "openai",    label: "OpenAI",    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"] },
+  { value: "openai",    label: "OpenAI",    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"] },
   { value: "anthropic", label: "Anthropic", models: ["claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-opus-4-6"] },
+  { value: "groq",      label: "Groq",      models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"] },
+  { value: "gemini",    label: "Google Gemini", models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"] },
+  { value: "mistral",   label: "Mistral",   models: ["mistral-large-latest", "mistral-small-latest", "open-mistral-7b"] },
 ];
 
 function EsignAIPanel() {
@@ -1712,12 +1715,12 @@ function EsignAIPanel() {
 
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Provider</label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {ESIGN_AI_PROVIDERS.map(p => (
                     <button
                       key={p.value}
                       onClick={() => handleProviderChange(p.value)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                      className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
                         provider === p.value
                           ? "bg-violet-600 text-white border-violet-600"
                           : "bg-white text-gray-500 border-gray-200 hover:border-violet-300"

@@ -28,3 +28,10 @@ ALTER TABLE esign_documents
 -- Add AI disclaimer field (run this if you already ran the previous migration)
 ALTER TABLE esign_documents
   ADD COLUMN IF NOT EXISTS ai_disclaimer TEXT;
+
+-- Track when signer opens their signing link
+ALTER TABLE esign_requests
+  ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMPTZ;
+
+-- Allow cancelling a pending signer request
+-- (status 'cancelled' added — enforce via app logic, not constraint change)

@@ -121,6 +121,8 @@ function AiChatWidget({ documentId, disclaimer }: { documentId: string; disclaim
             let chunk = "";
             if (provider === "anthropic") {
               chunk = json.delta?.text ?? "";
+            } else if (provider === "gemini") {
+              chunk = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
             } else {
               chunk = json.choices?.[0]?.delta?.content ?? "";
             }
@@ -256,6 +258,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
       .then(async (data: EsignRequest) => {
         setReq(data);
         if (data.status === "signed") { setDone(true); return; }
+        if (data.status === "cancelled") { setNotFound(true); return; }
         // waiting — don't load doc, just show the waiting screen
         if (data.status === "waiting") return;
 
@@ -318,6 +321,10 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
               setReadOnlyValues(prevValues);
             }
         }
+      })
+      .then(() => {
+        // Fire-and-forget: mark link as viewed (only sets viewed_at once)
+        fetch(`/api/esign/${token}/view`, { method: "POST" }).catch(() => {});
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));

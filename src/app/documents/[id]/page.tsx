@@ -7,6 +7,7 @@ import {
   ArrowLeft, Save, Send, Loader2, PenLine, Type, Calendar, AlignLeft,
   CheckCircle2, Clock, X, Download, Copy, Check, Link2, Users, UserPlus,
   Eye, FileText, RefreshCw, GitMerge, Layers2, ArrowDownUp, ChevronUp, ChevronDown,
+  Ban,
 } from "lucide-react";
 
 const PDFEditorCanvas = dynamic(() => import("@/components/PDFEditorCanvas"), { ssr: false });
@@ -43,6 +44,7 @@ interface SignerRequest {
   signer_name: string;
   status: string;
   signed_at: string | null;
+  viewed_at: string | null;
   signing_order: number;
   signing_url: string | null;
   session_id: string | null;
@@ -262,6 +264,12 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const handleUpdateField = useCallback((updated: EsignField) => {
     setFields(prev => prev.map(f => f.id === updated.id ? updated : f));
   }, []);
+
+  const handleCancelSigner = async (requestId: string) => {
+    if (!confirm("Cancel this signing request? The link will no longer work.")) return;
+    await fetch(`/api/esign/requests/${requestId}/cancel`, { method: "POST" });
+    setSignerRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: "cancelled" } : r));
+  };
 
   const handleDeleteField = (fieldId: string) => {
     setFields(prev => prev.filter(f => f.id !== fieldId));
@@ -964,18 +972,27 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                 const isSigned  = r.status === "signed";
                                 const isPending = r.status === "pending";
                                 return (
-                                  <div key={r.id} className={`px-4 py-3 ${isSigned ? "bg-white" : isPending ? "bg-white" : "bg-gray-50 opacity-70"}`}>
+                                  <div key={r.id} className={`px-4 py-3 ${isSigned ? "bg-white" : isPending ? "bg-white" : r.status === "cancelled" ? "bg-red-50/40 opacity-60" : "bg-gray-50 opacity-70"}`}>
                                     <div className="flex items-center gap-3">
-                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${isSigned ? "bg-green-500 text-white" : isPending ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-500"}`}>
-                                        {isSigned ? <Check size={13} /> : r.signing_order}
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${isSigned ? "bg-green-500 text-white" : isPending ? "bg-indigo-600 text-white" : r.status === "cancelled" ? "bg-red-200 text-red-500" : "bg-gray-200 text-gray-500"}`}>
+                                        {isSigned ? <Check size={13} /> : r.status === "cancelled" ? <Ban size={13} /> : r.signing_order}
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold text-gray-800">{r.signer_name || r.signer_email}</p>
                                         <p className="text-xs text-gray-400">{r.signer_email}</p>
                                       </div>
-                                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isSigned ? "bg-green-100 text-green-700" : isPending ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}>
-                                        {isSigned ? "Signed" : isPending ? "Pending" : "Waiting"}
+                                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isSigned ? "bg-green-100 text-green-700" : isPending ? "bg-indigo-100 text-indigo-700" : r.status === "cancelled" ? "bg-red-100 text-red-500" : "bg-gray-100 text-gray-500"}`}>
+                                        {isSigned ? "Signed" : isPending ? "Pending" : r.status === "cancelled" ? "Cancelled" : "Waiting"}
                                       </span>
+                                      {isPending && (
+                                        <button
+                                          onClick={() => handleCancelSigner(r.id)}
+                                          title="Cancel this signing request"
+                                          className="p-1 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
+                                        >
+                                          <Ban size={13} />
+                                        </button>
+                                      )}
                                       {/* Individual download — parallel: per-signer copy; sequential: accumulated PDF */}
                                       {isSigned && (
                                         <a
@@ -991,6 +1008,16 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                     {isSigned && r.signed_at && (
                                       <p className="text-xs text-green-600 flex items-center gap-1.5 pl-11 mt-1.5">
                                         <CheckCircle2 size={10} /> Signed {new Date(r.signed_at).toLocaleString()}
+                                      </p>
+                                    )}
+                                    {!isSigned && r.status !== "cancelled" && r.viewed_at && (
+                                      <p className="text-xs text-amber-500 flex items-center gap-1.5 pl-11 mt-1.5">
+                                        <Eye size={10} /> Opened {new Date(r.viewed_at).toLocaleString()}
+                                      </p>
+                                    )}
+                                    {!isSigned && r.status !== "cancelled" && !r.viewed_at && isPending && (
+                                      <p className="text-xs text-gray-300 flex items-center gap-1.5 pl-11 mt-1.5">
+                                        <Eye size={10} /> Not opened yet
                                       </p>
                                     )}
                                     {isPending && r.signing_url && (
