@@ -47,7 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     language: string | null;
     timezone: string | null;
     total_duration_ms: number;
-    events: { type: string; path: string | null; created_at: string; duration_ms?: number | null }[];
+    events: { type: string; path: string | null; created_at: string; duration_ms?: number | null; label?: string }[];
   }>();
 
   for (const e of events ?? []) {
