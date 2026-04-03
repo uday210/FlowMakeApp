@@ -20,6 +20,7 @@ const PUBLIC_PREFIXES = [
   "/api/esign/",
   "/api/v1/",
   "/api/oauth/",
+  "/api/auth/",
   "/api/approvals/",
   "/api/scheduler/",
   "/api/mcp/hosted/",
