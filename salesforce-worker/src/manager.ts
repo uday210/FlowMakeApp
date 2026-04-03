@@ -106,6 +106,22 @@ export class SubscriptionManager {
     // Get last replayId for this workflow+channel (so we resume from where we left off)
     const replayId = await this.getReplayId(wf.id, channel);
 
+    // Verify the token is still valid before subscribing
+    const verifyRes = await fetch(`${creds.instance_url}/services/data/v59.0/limits`, {
+      headers: { Authorization: `Bearer ${creds.access_token}` },
+    });
+    if (verifyRes.status === 401) {
+      console.log(`[worker] Token expired for connection ${connectionId} — refreshing`);
+      try {
+        creds.access_token = await refreshAccessToken(this.supabase, connectionId, creds.refresh_token, creds.instance_url);
+      } catch (err) {
+        console.error(`[worker] Token refresh failed for workflow ${wf.id}:`, err);
+        return;
+      }
+    } else {
+      console.log(`[worker] Token valid for ${creds.instance_url}`);
+    }
+
     // Get or create a jsforce connection for this Salesforce org
     const sfConn = this.getOrCreateSfConnection(
       creds.instance_url,
@@ -131,8 +147,18 @@ export class SubscriptionManager {
       },
     });
 
+    // Log CometD meta events for debugging
+    fayeClient.on("transport:up", () => console.log(`[worker] CometD transport UP for ${instanceUrl}`));
+    fayeClient.on("transport:down", () => console.error(`[worker] CometD transport DOWN for ${instanceUrl}`));
+
     const handle = fayeClient.subscribe(channel, async (message: Record<string, unknown>) => {
+      console.log(`[worker] RAW event received on ${channel}:`, JSON.stringify(message).slice(0, 300));
       await this.handleEvent(wf.id, channel, connectionId, creds, message);
+    });
+
+    // Log subscription errors
+    (handle as unknown as { errback: (fn: (err: unknown) => void) => void }).errback?.((err) => {
+      console.error(`[worker] Subscription error on ${channel}:`, err);
     });
 
     this.subscriptions.set(wf.id, {
