@@ -170,6 +170,12 @@ export default function ExecutionHistory({ workflowId, onClose }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-refresh every 5 seconds for streaming triggers (CDC, webhooks, etc.)
+  useEffect(() => {
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, [load]);
+
   return (
     <div className="absolute inset-y-0 right-0 w-96 bg-white border-l border-gray-200 shadow-xl z-20 flex flex-col">
       {/* Header */}
