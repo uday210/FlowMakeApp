@@ -22,7 +22,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { v4 as uuidv4 } from "uuid";
 import BaseNode from "./nodes/BaseNode";
-import StickyNoteNode from "./nodes/StickyNoteNode";
+
 import type { NodeData, NodeType } from "@/lib/types";
 import { NODE_DEF_MAP } from "@/lib/nodeDefinitions";
 
@@ -132,7 +132,7 @@ function MakeEdge({
   );
 }
 
-const NODE_TYPES = { workflowNode: BaseNode, stickyNote: StickyNoteNode };
+const NODE_TYPES = { workflowNode: BaseNode };
 const EDGE_TYPES = { makeEdge: MakeEdge };
 
 const DEFAULT_EDGE_OPTIONS: Partial<Edge> = {
@@ -268,7 +268,7 @@ export default function Canvas({
       const position = { x: e.clientX - bounds.left - 55, y: e.clientY - bounds.top - 55 };
       const newNode: Node = {
         id: uuidv4(),
-        type: nodeType === "sticky_note" ? "stickyNote" : "workflowNode",
+        type: "workflowNode",
         position,
         data: {
           label: def.label,

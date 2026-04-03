@@ -110,9 +110,9 @@ function LogRow({ log }: { log: AuditLog }) {
           <p className={`text-sm font-medium ${isError ? "text-red-600" : "text-gray-800"} truncate`}>
             {label}
           </p>
-          {log.meta.status === "failed" && log.meta.nodes_error && (
+          {log.meta.status === "failed" && Number(log.meta.nodes_error) > 0 && (
             <p className="text-[11px] text-red-400 mt-0.5">
-              {log.meta.nodes_error as number} node{(log.meta.nodes_error as number) > 1 ? "s" : ""} failed
+              {Number(log.meta.nodes_error)} node{Number(log.meta.nodes_error) > 1 ? "s" : ""} failed
             </p>
           )}
           {log.resource_id && !cfg && (

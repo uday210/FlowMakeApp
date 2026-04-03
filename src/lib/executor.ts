@@ -89,8 +89,6 @@ async function executeNodeOnce(
       // Salesforce streaming — worker delivers payload via /api/execute, pass straight through
       "trigger_salesforce_cdc",
       "trigger_salesforce_platform_event",
-      // Canvas annotation — never executed
-      "sticky_note",
     ]);
 
     if (passThroughTriggers.has(type)) {

@@ -23,7 +23,10 @@ import {
   Mail,
   BarChart2,
   ClipboardList,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 
 const USER_NAV = [
   { href: "/org", icon: Building2, label: "Organization" },
@@ -53,6 +56,7 @@ const ADMIN_NAV = [
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
   const [userInitial, setUserInitial] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -150,7 +154,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* User avatar + logout — always pinned bottom */}
+        {/* User avatar + logout + theme toggle — always pinned bottom */}
         <div className="flex-shrink-0 flex flex-col items-center gap-2 pb-4 pt-2 border-t border-white/10 w-full px-2">
           <div
             title={userEmail}
@@ -159,6 +163,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           >
             {userInitial || "?"}
           </div>
+          <button
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="text-white/40 hover:text-white transition-colors"
+          >
+            {resolvedTheme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
           <button
             onClick={handleLogout}
             title="Sign out"

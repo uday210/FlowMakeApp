@@ -78,7 +78,6 @@ const SUBCATEGORY_MAP: Record<string, string> = {
   action_merge:            "Flow Control",
   action_approval:         "Flow Control",
   action_notification:     "Flow Control",
-  sticky_note:             "Flow Control",
   // HTTP
   action_http:             "HTTP",
   // Email
