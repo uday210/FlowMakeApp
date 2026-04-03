@@ -396,6 +396,14 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
   // Keep search text in sync when value changes externally
   useEffect(() => { setSearch(value); }, [value]);
 
+  // Auto-fetch when a connection is already available (OAuth token or client_id present)
+  useEffect(() => {
+    if (!fetched && !loading && (config.access_token || config.client_id)) {
+      fetchOptions();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.access_token, config.client_id]);
+
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
