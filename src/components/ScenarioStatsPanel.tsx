@@ -67,7 +67,7 @@ function UsageChart({ executions }: { executions: Execution[] }) {
             <span className="text-xs text-gray-400 ml-1.5">errors</span>
           </div>
         </div>
-        <span className="text-[9px] text-gray-300 uppercase tracking-wider">30 days</span>
+        <span className="text-xs text-gray-300 uppercase tracking-wider">30 days</span>
       </div>
 
       <svg width={W} height={H} className="w-full overflow-visible" viewBox={`0 0 ${W} ${H}`}>
@@ -174,7 +174,7 @@ export default function ScenarioStatsPanel({ workflowId, isActive, collapsed = f
         </button>
         <div className="flex-1 flex items-center justify-center">
           <span
-            className="text-[9px] font-bold text-gray-300 uppercase tracking-widest select-none"
+            className="text-xs font-bold text-gray-300 uppercase tracking-widest select-none"
             style={{ writingMode: "vertical-rl" }}
           >
             Usage
@@ -192,9 +192,9 @@ export default function ScenarioStatsPanel({ workflowId, isActive, collapsed = f
         {/* ── Scenario Usage ── */}
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Scenario Usage</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Scenario Usage</p>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-[10px] text-gray-400 border border-gray-200 rounded-md px-2 py-0.5">
+              <div className="flex items-center gap-1 text-xs text-gray-400 border border-gray-200 rounded-md px-2 py-0.5">
                 <Calendar size={10} />
                 Last 30 days
               </div>
@@ -218,11 +218,11 @@ export default function ScenarioStatsPanel({ workflowId, isActive, collapsed = f
 
           <div className="grid grid-cols-2 gap-3 mt-3">
             <div className="bg-gray-50 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400 mb-1">Credits used</p>
+              <p className="text-xs text-gray-400 mb-1">Credits used</p>
               <p className="text-lg font-bold text-violet-600 leading-none">{creditsUsed}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400 mb-1">Data transfer</p>
+              <p className="text-xs text-gray-400 mb-1">Data transfer</p>
               <p className="text-lg font-bold text-gray-500 leading-none">0 <span className="text-xs font-normal">B</span></p>
             </div>
           </div>
@@ -230,7 +230,7 @@ export default function ScenarioStatsPanel({ workflowId, isActive, collapsed = f
 
         {/* ── Scenario Properties ── */}
         <div className="px-5 py-4 border-b border-gray-100">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Scenario Properties</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Scenario Properties</p>
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? "bg-green-400" : "bg-gray-300"}`} />
             {isActive ? (
@@ -243,7 +243,7 @@ export default function ScenarioStatsPanel({ workflowId, isActive, collapsed = f
 
         {/* ── Currently Running ── */}
         <div className="px-5 py-4 border-b border-gray-100">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Currently Running</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Currently Running</p>
           {running ? (
             <div className="flex items-center gap-2 text-xs text-blue-600">
               <Loader2 size={12} className="animate-spin" />
@@ -257,7 +257,7 @@ export default function ScenarioStatsPanel({ workflowId, isActive, collapsed = f
         {/* ── History ── */}
         <div className="px-5 py-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">History</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500">History</p>
             <button onClick={load} className="p-1 rounded hover:bg-gray-100 text-gray-400 transition-colors">
               <RefreshCw size={11} />
             </button>
@@ -284,14 +284,14 @@ export default function ScenarioStatsPanel({ workflowId, isActive, collapsed = f
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                         e.status === "success" ? "bg-green-50 text-green-600" :
                         e.status === "failed" ? "bg-red-50 text-red-500" :
                         "bg-blue-50 text-blue-500"
                       }`}>{e.status}</span>
-                      <span className="text-[10px] text-gray-400">{dur(e)}</span>
+                      <span className="text-xs text-gray-400">{dur(e)}</span>
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                       <Clock size={8} /> {timeAgo(e.started_at)}
                     </p>
                   </div>
@@ -301,7 +301,7 @@ export default function ScenarioStatsPanel({ workflowId, isActive, collapsed = f
           )}
 
           {executions.length > 5 && (
-            <p className="text-[10px] text-violet-500 mt-3 cursor-pointer hover:underline">
+            <p className="text-xs text-violet-500 mt-3 cursor-pointer hover:underline">
               View all {executions.length} runs in History tab →
             </p>
           )}

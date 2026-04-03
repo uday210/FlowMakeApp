@@ -22,7 +22,7 @@ function TypeBadge({ type }: { type: string }) {
     json: "bg-gray-100 text-gray-600",
   };
   return (
-    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${colors[type] ?? "bg-gray-100 text-gray-500"}`}>
+    <span className={`text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${colors[type] ?? "bg-gray-100 text-gray-500"}`}>
       {type}
     </span>
   );
@@ -51,11 +51,11 @@ function ColumnRow({
       <select
         value={col.type}
         onChange={e => onUpdate({ ...col, type: e.target.value as UserTableColumn["type"] })}
-        className="text-[10px] border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 outline-none focus:border-violet-400"
+        className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 outline-none focus:border-violet-400"
       >
         {COLUMN_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
       </select>
-      <label className="flex items-center gap-1 text-[10px] text-gray-400 cursor-pointer">
+      <label className="flex items-center gap-1 text-xs text-gray-400 cursor-pointer">
         <input
           type="checkbox"
           checked={col.required}
@@ -157,7 +157,7 @@ function TableModal({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-gray-600">Columns</label>
-              <span className="text-[10px] text-gray-400">{columns.length} column{columns.length !== 1 ? "s" : ""}</span>
+              <span className="text-xs text-gray-400">{columns.length} column{columns.length !== 1 ? "s" : ""}</span>
             </div>
 
             {columns.length === 0 ? (
@@ -186,7 +186,7 @@ function TableModal({
           </div>
 
           {/* Built-in columns note */}
-          <div className="bg-blue-50 rounded-xl px-4 py-3 text-[11px] text-blue-600 flex items-start gap-2">
+          <div className="bg-blue-50 rounded-xl px-4 py-3 text-xs text-blue-600 flex items-start gap-2">
             <AlertCircle size={12} className="flex-shrink-0 mt-0.5" />
             <span>Every row automatically gets an <strong>id</strong> (UUID) and <strong>created_at</strong> timestamp — no need to add them.</span>
           </div>
@@ -267,7 +267,7 @@ function AddRowModal({
               <label className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1.5">
                 <span className="font-mono">{col.name}</span>
                 <TypeBadge type={col.type} />
-                {col.required && <span className="text-red-400 text-[10px]">required</span>}
+                {col.required && <span className="text-red-400 text-xs">required</span>}
               </label>
               {col.type === "boolean" ? (
                 <select
@@ -433,21 +433,21 @@ function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">id</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">id</th>
                   {table.columns.map(col => (
-                    <th key={col.name} className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th key={col.name} className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                       {col.name}
                       <span className="ml-1.5 normal-case font-normal text-gray-300">{col.type}</span>
                     </th>
                   ))}
-                  <th className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">created_at</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">created_at</th>
                   <th className="w-10" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {rows.map(row => (
                   <tr key={row.id} className="hover:bg-gray-50/50 group">
-                    <td className="px-4 py-2.5 font-mono text-[10px] text-gray-300 whitespace-nowrap">
+                    <td className="px-4 py-2.5 font-mono text-xs text-gray-300 whitespace-nowrap">
                       {row.id.slice(0, 8)}…
                     </td>
                     {table.columns.map(col => {
@@ -458,7 +458,7 @@ function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }
                             {val === null || val === undefined ? (
                               <span className="text-gray-300 italic">—</span>
                             ) : typeof val === "object" ? (
-                              <span className="font-mono text-[10px] text-gray-500">{JSON.stringify(val)}</span>
+                              <span className="font-mono text-xs text-gray-500">{JSON.stringify(val)}</span>
                             ) : (
                               String(val)
                             )}
@@ -466,7 +466,7 @@ function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }
                         </td>
                       );
                     })}
-                    <td className="px-4 py-2.5 text-[10px] text-gray-400 whitespace-nowrap">
+                    <td className="px-4 py-2.5 text-xs text-gray-400 whitespace-nowrap">
                       {new Date(row.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </td>
                     <td className="px-4 py-2.5">
@@ -575,22 +575,22 @@ function TableCard({
       {/* Columns preview */}
       <div className="flex flex-wrap gap-1.5 mb-4 min-h-[24px]">
         {table.columns.slice(0, 5).map(col => (
-          <span key={col.name} className="flex items-center gap-1 text-[10px] bg-gray-50 border border-gray-100 rounded-lg px-2 py-0.5 text-gray-600 font-mono">
+          <span key={col.name} className="flex items-center gap-1 text-xs bg-gray-50 border border-gray-100 rounded-lg px-2 py-0.5 text-gray-600 font-mono">
             {col.name}
             <TypeBadge type={col.type} />
           </span>
         ))}
         {table.columns.length > 5 && (
-          <span className="text-[10px] text-gray-400">+{table.columns.length - 5} more</span>
+          <span className="text-xs text-gray-400">+{table.columns.length - 5} more</span>
         )}
         {table.columns.length === 0 && (
-          <span className="text-[10px] text-gray-300 italic">No columns defined</span>
+          <span className="text-xs text-gray-300 italic">No columns defined</span>
         )}
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-        <p className="text-[10px] text-gray-400">
+        <p className="text-xs text-gray-400">
           {table.columns.length} column{table.columns.length !== 1 ? "s" : ""}
         </p>
         <button
@@ -603,7 +603,7 @@ function TableCard({
 
       {/* Table ID snippet */}
       <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2 flex items-center gap-2">
-        <span className="text-[9px] text-gray-400 font-mono truncate flex-1 select-all">{table.id}</span>
+        <span className="text-xs text-gray-400 font-mono truncate flex-1 select-all">{table.id}</span>
         <button onClick={copyId} className="text-gray-300 hover:text-gray-500 flex-shrink-0">
           <Copy size={10} />
         </button>

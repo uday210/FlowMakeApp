@@ -270,10 +270,10 @@ function ServiceIcon({ type, size = 16 }: { type: string; size?: number }) {
 
 function ServiceBadge({ type }: { type: string }) {
   const svc = SERVICE_TYPES.find((s) => s.value === type);
-  if (!svc) return <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{type}</span>;
+  if (!svc) return <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{type}</span>;
   const Icon = svc.icon;
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${svc.color}`}>
+    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${svc.color}`}>
       <Icon size={10} /> {svc.label}
     </span>
   );
@@ -606,7 +606,7 @@ function ConnectionsPageInner() {
                               onClick={() => startRename(conn)}
                             >{conn.name}</p>
                           )}
-                          <p className="text-[11px] text-gray-400 mt-0.5">
+                          <p className="text-xs text-gray-400 mt-0.5">
                             {(conn.type === "google" || conn.type === "airtable" || conn.type === "salesforce") && conn.config?.email
                               ? <>Connected as <span className="text-blue-500">{conn.config.email}</span> · </>
                               : null}

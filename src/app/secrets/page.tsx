@@ -226,10 +226,10 @@ export default function SecretsPage() {
                     <p className="text-xs text-gray-400 font-mono tracking-widest mt-0.5">••••••••••••</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-gray-400 flex-shrink-0 font-mono bg-gray-50 px-2 py-0.5 rounded">
+                    <span className="text-xs text-gray-400 flex-shrink-0 font-mono bg-gray-50 px-2 py-0.5 rounded">
                       {`{{secret.${secret.name}}}`}
                     </span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">
+                    <span className="text-xs text-gray-400 flex-shrink-0">
                       {new Date(secret.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     </span>
                     <button

@@ -211,12 +211,12 @@ console.log(result);`;
 
         <div className="flex-1 overflow-y-auto px-6 pb-6">
           <div className="relative mt-2">
-            <pre className="text-[11px] font-mono bg-gray-950 text-gray-100 rounded-xl p-4 overflow-x-auto whitespace-pre leading-relaxed">
+            <pre className="text-xs font-mono bg-gray-950 text-gray-100 rounded-xl p-4 overflow-x-auto whitespace-pre leading-relaxed">
               {activeSnippet}
             </pre>
             <button
               onClick={() => copySnippet(activeSnippet, sdkTab)}
-              className="absolute top-3 right-3 flex items-center gap-1 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded-lg transition-colors"
+              className="absolute top-3 right-3 flex items-center gap-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded-lg transition-colors"
             >
               {copied === sdkTab ? <CheckCheck size={10} className="text-green-400" /> : <Copy size={10} />}
               {copied === sdkTab ? "Copied!" : "Copy"}
@@ -224,17 +224,17 @@ console.log(result);`;
           </div>
 
           <div className="mt-3 bg-violet-50 rounded-lg px-3 py-2">
-            <p className="text-[11px] text-violet-700">
+            <p className="text-xs text-violet-700">
               <strong>Endpoint:</strong>{" "}
               <code className="bg-violet-100 px-1 rounded font-mono">{mcpUrl}</code>
             </p>
             {server.auth_key && (
-              <p className="text-[11px] text-violet-600 mt-1">
+              <p className="text-xs text-violet-600 mt-1">
                 Replace <code className="bg-violet-100 px-1 rounded font-mono">YOUR_API_KEY</code> with your actual key from the server settings (eye icon → copy key).
               </p>
             )}
             {!server.auth_key && (
-              <p className="text-[11px] text-gray-400 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 No auth key set — this server is publicly accessible. Add one in server settings for security.
               </p>
             )}
@@ -304,7 +304,7 @@ function OpenApiImporterModal({
                 <span className="text-sm font-medium">Imported {result.tools.length} tool{result.tools.length !== 1 ? "s" : ""}</span>
               </div>
               {result.tools.length > 0 && (
-                <div className="text-[11px] text-gray-600 bg-gray-50 rounded-lg px-3 py-2 font-mono">
+                <div className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2 font-mono">
                   {result.tools.join(", ")}
                 </div>
               )}
@@ -406,12 +406,12 @@ function CreateServerModal({
 
         <div className="px-6 py-4 space-y-3">
           {tab === "hosted" && (
-            <p className="text-[11px] text-violet-600 bg-violet-50 rounded-lg px-3 py-2">
+            <p className="text-xs text-violet-600 bg-violet-50 rounded-lg px-3 py-2">
               Create your own MCP server. Add scenarios as tools — external AI tools like Cline can call them.
             </p>
           )}
           {tab === "external" && (
-            <p className="text-[11px] text-blue-600 bg-blue-50 rounded-lg px-3 py-2">
+            <p className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">
               Connect to an existing MCP server. We&apos;ll discover its tools automatically.
             </p>
           )}
@@ -537,7 +537,7 @@ function EditServerModal({
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
           <div>
             <h2 className="text-sm font-semibold text-gray-800">Edit Server</h2>
-            <p className="text-[11px] text-gray-400 mt-0.5">{isHosted ? "Hosted" : "External"} · {server.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{isHosted ? "Hosted" : "External"} · {server.name}</p>
           </div>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
         </div>
@@ -692,7 +692,7 @@ function AddToolPanel({
                   <option key={w.id} value={w.id}>{w.name}{!w.is_active ? " (inactive)" : ""}</option>
                 ))}
               </select>
-              <p className="text-[11px] text-gray-400 mt-1">When this tool is called, the linked scenario executes with the tool arguments as trigger data.</p>
+              <p className="text-xs text-gray-400 mt-1">When this tool is called, the linked scenario executes with the tool arguments as trigger data.</p>
             </div>
           </div>
 
@@ -701,12 +701,12 @@ function AddToolPanel({
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-gray-700">Input Parameters</label>
               <button onClick={addParam}
-                className="text-[11px] text-violet-600 hover:text-violet-700 flex items-center gap-1">
+                className="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1">
                 <Plus size={11} /> Add parameter
               </button>
             </div>
             {params.length === 0 && (
-              <p className="text-[11px] text-gray-400 py-2">No parameters defined — scenario will receive an empty object.</p>
+              <p className="text-xs text-gray-400 py-2">No parameters defined — scenario will receive an empty object.</p>
             )}
             <div className="space-y-2">
               {params.map((p, i) => (
@@ -723,7 +723,7 @@ function AddToolPanel({
                   </select>
                   <input value={p.description} onChange={(e) => updateParam(i, { description: e.target.value })}
                     placeholder="Description" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-violet-400" />
-                  <label className="flex items-center gap-1 text-[11px] text-gray-500 mt-1.5 flex-shrink-0">
+                  <label className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 flex-shrink-0">
                     <input type="checkbox" checked={p.required} onChange={(e) => updateParam(i, { required: e.target.checked })} className="rounded" />
                     req
                   </label>
@@ -755,17 +755,17 @@ function ExecutionRow({ exec }: { exec: ToolExecution }) {
   const isSuccess = exec.status === "success";
 
   return (
-    <div className={`rounded-xl border text-[11px] transition-colors ${isSuccess ? "border-gray-100 bg-gray-50" : "border-red-100 bg-red-50"}`}>
+    <div className={`rounded-xl border text-xs transition-colors ${isSuccess ? "border-gray-100 bg-gray-50" : "border-red-100 bg-red-50"}`}>
       <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left">
         {isSuccess
           ? <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
           : <XCircle size={13} className="text-red-400 flex-shrink-0" />}
         <span className="font-mono font-semibold text-gray-800 flex-shrink-0">{exec.tool_name}</span>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${isSuccess ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+        <span className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${isSuccess ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
           {exec.status}
         </span>
         {exec.transport && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-500 flex-shrink-0">{exec.transport}</span>
+          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-200 text-gray-500 flex-shrink-0">{exec.transport}</span>
         )}
         <span className="flex items-center gap-1 text-gray-400 flex-shrink-0">
           <Clock size={10} />{exec.duration_ms != null ? `${exec.duration_ms}ms` : "—"}
@@ -779,23 +779,23 @@ function ExecutionRow({ exec }: { exec: ToolExecution }) {
       {open && (
         <div className="border-t border-gray-100 px-3 pb-3 space-y-2 pt-2">
           <div>
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Input</p>
-            <pre className="text-[10px] bg-white border border-gray-100 rounded-lg p-2 overflow-x-auto text-gray-700 max-h-32">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Input</p>
+            <pre className="text-xs bg-white border border-gray-100 rounded-lg p-2 overflow-x-auto text-gray-700 max-h-32">
               {JSON.stringify(exec.input_data, null, 2)}
             </pre>
           </div>
           {isSuccess && exec.output_text && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Output</p>
-              <pre className="text-[10px] bg-white border border-gray-100 rounded-lg p-2 overflow-x-auto text-gray-700 max-h-40 whitespace-pre-wrap">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Output</p>
+              <pre className="text-xs bg-white border border-gray-100 rounded-lg p-2 overflow-x-auto text-gray-700 max-h-40 whitespace-pre-wrap">
                 {exec.output_text}
               </pre>
             </div>
           )}
           {!isSuccess && exec.error_message && (
             <div>
-              <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wide mb-1">Error</p>
-              <pre className="text-[10px] bg-white border border-red-100 rounded-lg p-2 overflow-x-auto text-red-600 max-h-32 whitespace-pre-wrap">
+              <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-1">Error</p>
+              <pre className="text-xs bg-white border border-red-100 rounded-lg p-2 overflow-x-auto text-red-600 max-h-32 whitespace-pre-wrap">
                 {exec.error_message}
               </pre>
             </div>
@@ -836,13 +836,13 @@ function AnalyticsTabContent({ serverId }: { serverId: string }) {
     <div className="mt-3 space-y-4">
       {/* Period toggle */}
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-gray-500 font-medium">Call Analytics</span>
+        <span className="text-xs text-gray-500 font-medium">Call Analytics</span>
         <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
           {([7, 30] as const).map((d) => (
             <button
               key={d}
               onClick={() => setDays(d)}
-              className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-colors ${days === d ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${days === d ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
             >
               {d}d
             </button>
@@ -855,22 +855,22 @@ function AnalyticsTabContent({ serverId }: { serverId: string }) {
       ) : error ? (
         <div className="py-6 text-center">
           <AlertCircle size={16} className="text-red-300 mx-auto mb-2" />
-          <p className="text-[11px] text-red-400">{error}</p>
+          <p className="text-xs text-red-400">{error}</p>
         </div>
       ) : data ? (
         <>
           {/* Stat cards */}
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-violet-50 rounded-xl px-3 py-2.5 text-center">
-              <p className="text-[10px] text-violet-500 font-medium uppercase tracking-wide">Total Calls</p>
+              <p className="text-xs text-violet-500 font-medium uppercase tracking-wide">Total Calls</p>
               <p className="text-lg font-bold text-violet-700 mt-0.5">{data.total_calls.toLocaleString()}</p>
             </div>
             <div className="bg-red-50 rounded-xl px-3 py-2.5 text-center">
-              <p className="text-[10px] text-red-400 font-medium uppercase tracking-wide">Error Rate</p>
+              <p className="text-xs text-red-400 font-medium uppercase tracking-wide">Error Rate</p>
               <p className="text-lg font-bold text-red-500 mt-0.5">{(data.error_rate * 100).toFixed(1)}%</p>
             </div>
             <div className="bg-indigo-50 rounded-xl px-3 py-2.5 text-center">
-              <p className="text-[10px] text-indigo-400 font-medium uppercase tracking-wide">Avg Duration</p>
+              <p className="text-xs text-indigo-400 font-medium uppercase tracking-wide">Avg Duration</p>
               <p className="text-lg font-bold text-indigo-600 mt-0.5">{Math.round(data.avg_duration_ms)}ms</p>
             </div>
           </div>
@@ -878,20 +878,20 @@ function AnalyticsTabContent({ serverId }: { serverId: string }) {
           {/* Calls by Tool */}
           {Object.keys(data.calls_by_tool).length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Calls by Tool</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Calls by Tool</p>
               <div className="space-y-1.5">
                 {Object.entries(data.calls_by_tool)
                   .sort(([, a], [, b]) => b - a)
                   .map(([toolName, count]) => (
                     <div key={toolName} className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono text-gray-600 w-28 flex-shrink-0 truncate">{toolName}</span>
+                      <span className="text-xs font-mono text-gray-600 w-28 flex-shrink-0 truncate">{toolName}</span>
                       <div className="flex-1 bg-gray-100 rounded-full h-2">
                         <div
                           className="bg-violet-400 rounded-full h-2 transition-all"
                           style={{ width: `${Math.max(2, (count / maxToolCalls) * 100)}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-gray-500 w-8 text-right flex-shrink-0">{count}</span>
+                      <span className="text-xs text-gray-500 w-8 text-right flex-shrink-0">{count}</span>
                     </div>
                   ))}
               </div>
@@ -901,11 +901,11 @@ function AnalyticsTabContent({ serverId }: { serverId: string }) {
           {/* Last N days trend */}
           {data.calls_by_day.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Last {days} Days Trend</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Last {days} Days Trend</p>
               <div className="space-y-1.5">
                 {data.calls_by_day.map((entry) => (
                   <div key={entry.date} className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-500 w-16 flex-shrink-0">
+                    <span className="text-xs text-gray-500 w-16 flex-shrink-0">
                       {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
                     <div className="flex-1 bg-gray-100 rounded-full h-2">
@@ -914,7 +914,7 @@ function AnalyticsTabContent({ serverId }: { serverId: string }) {
                         style={{ width: `${Math.max(entry.calls > 0 ? 2 : 0, (entry.calls / maxDayCalls) * 100)}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-gray-500 w-8 text-right flex-shrink-0">{entry.calls}</span>
+                    <span className="text-xs text-gray-500 w-8 text-right flex-shrink-0">{entry.calls}</span>
                   </div>
                 ))}
               </div>
@@ -995,7 +995,7 @@ function AlertsTabContent({ serverId }: { serverId: string }) {
           {alerts.length === 0 && !showForm && (
             <div className="py-4 text-center">
               <Bell size={18} className="text-gray-300 mx-auto mb-2" />
-              <p className="text-[11px] text-gray-400">No alerts configured. Add one to get notified on errors.</p>
+              <p className="text-xs text-gray-400">No alerts configured. Add one to get notified on errors.</p>
             </div>
           )}
 
@@ -1004,19 +1004,19 @@ function AlertsTabContent({ serverId }: { serverId: string }) {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <Bell size={11} className="text-amber-500" />
-                  <span className="text-[11px] font-medium text-gray-700">
+                  <span className="text-xs font-medium text-gray-700">
                     Error &gt; {(alert.error_threshold * 100).toFixed(0)}% in {alert.window_minutes}m window
                   </span>
                   {!alert.enabled && (
-                    <span className="text-[10px] bg-gray-200 text-gray-500 px-1.5 rounded">disabled</span>
+                    <span className="text-xs bg-gray-200 text-gray-500 px-1.5 rounded">disabled</span>
                   )}
                 </div>
                 <div className="flex items-center gap-3 pl-4">
                   {alert.slack_webhook && (
-                    <span className="text-[10px] text-gray-500">Slack: configured</span>
+                    <span className="text-xs text-gray-500">Slack: configured</span>
                   )}
                   {alert.email && (
-                    <span className="text-[10px] text-gray-500">Email: {alert.email}</span>
+                    <span className="text-xs text-gray-500">Email: {alert.email}</span>
                   )}
                 </div>
               </div>
@@ -1032,11 +1032,11 @@ function AlertsTabContent({ serverId }: { serverId: string }) {
 
           {showForm ? (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-3">
-              <p className="text-[11px] font-semibold text-gray-700">New Alert</p>
+              <p className="text-xs font-semibold text-gray-700">New Alert</p>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-medium text-gray-600 mb-1 block">Error Threshold %</label>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Error Threshold %</label>
                   <input
                     type="number" min={1} max={100}
                     value={form.error_threshold_pct}
@@ -1045,7 +1045,7 @@ function AlertsTabContent({ serverId }: { serverId: string }) {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-medium text-gray-600 mb-1 block">Window (minutes)</label>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Window (minutes)</label>
                   <select
                     value={form.window_minutes}
                     onChange={(e) => setForm({ ...form, window_minutes: Number(e.target.value) })}
@@ -1060,7 +1060,7 @@ function AlertsTabContent({ serverId }: { serverId: string }) {
               </div>
 
               <div>
-                <label className="text-[10px] font-medium text-gray-600 mb-1 block">Slack Webhook URL</label>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Slack Webhook URL</label>
                 <input
                   type="text"
                   value={form.slack_webhook}
@@ -1071,7 +1071,7 @@ function AlertsTabContent({ serverId }: { serverId: string }) {
               </div>
 
               <div>
-                <label className="text-[10px] font-medium text-gray-600 mb-1 block">Email</label>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Email</label>
                 <input
                   type="email"
                   value={form.email}
@@ -1088,18 +1088,18 @@ function AlertsTabContent({ serverId }: { serverId: string }) {
                 >
                   {form.enabled ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
                 </button>
-                <span className="text-[11px] text-gray-600">{form.enabled ? "Enabled" : "Disabled"}</span>
+                <span className="text-xs text-gray-600">{form.enabled ? "Enabled" : "Disabled"}</span>
               </div>
 
-              {error && <p className="text-[10px] text-red-500">{error}</p>}
+              {error && <p className="text-xs text-red-500">{error}</p>}
 
               <div className="flex gap-2">
                 <button onClick={saveAlert} disabled={saving}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white text-[11px] font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors">
+                  className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors">
                   {saving ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />} Save Alert
                 </button>
                 <button onClick={() => { setShowForm(false); setError(""); }}
-                  className="px-3 py-1.5 text-[11px] text-gray-500 hover:bg-gray-200 rounded-lg transition-colors">
+                  className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-200 rounded-lg transition-colors">
                   Cancel
                 </button>
               </div>
@@ -1107,7 +1107,7 @@ function AlertsTabContent({ serverId }: { serverId: string }) {
           ) : (
             <button
               onClick={() => setShowForm(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] text-violet-600 hover:bg-violet-50 rounded-lg border border-dashed border-violet-200 transition-colors"
+              className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-violet-600 hover:bg-violet-50 rounded-lg border border-dashed border-violet-200 transition-colors"
             >
               <Plus size={11} /> Add Alert
             </button>
@@ -1210,11 +1210,11 @@ function ToolPlaygroundModal({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-gray-900">Tool Playground</h2>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${serverType === "hosted" ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${serverType === "hosted" ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>
                   {serverType}
                 </span>
               </div>
-              <p className="text-[11px] text-gray-400 font-mono">{tool.name}</p>
+              <p className="text-xs text-gray-400 font-mono">{tool.name}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
@@ -1226,7 +1226,7 @@ function ToolPlaygroundModal({
           {/* Left: inputs */}
           <div className="flex-1 px-6 py-4 overflow-y-auto border-r border-gray-100">
             {tool.description && (
-              <p className="text-[11px] text-gray-500 mb-4 leading-relaxed">{tool.description}</p>
+              <p className="text-xs text-gray-500 mb-4 leading-relaxed">{tool.description}</p>
             )}
 
             <div className="flex items-center justify-between mb-3">
@@ -1234,7 +1234,7 @@ function ToolPlaygroundModal({
               {paramKeys.length > 0 && (
                 <button
                   onClick={() => setJsonMode(!jsonMode)}
-                  className="text-[10px] text-violet-600 hover:text-violet-700 px-2 py-0.5 rounded border border-violet-200 hover:bg-violet-50 transition-colors"
+                  className="text-xs text-violet-600 hover:text-violet-700 px-2 py-0.5 rounded border border-violet-200 hover:bg-violet-50 transition-colors"
                 >
                   {jsonMode ? "Form view" : "JSON view"}
                 </button>
@@ -1250,12 +1250,12 @@ function ToolPlaygroundModal({
                   placeholder='{"key": "value"}'
                   className={`w-full px-3 py-2.5 text-xs font-mono border rounded-xl focus:outline-none resize-none ${jsonError ? "border-red-300 focus:border-red-400" : "border-gray-200 focus:border-violet-400"}`}
                 />
-                {jsonError && <p className="text-[11px] text-red-500 mt-1">{jsonError}</p>}
+                {jsonError && <p className="text-xs text-red-500 mt-1">{jsonError}</p>}
               </div>
             ) : paramKeys.length === 0 ? (
               <div className="py-6 text-center rounded-xl border border-dashed border-gray-200 bg-gray-50">
-                <p className="text-[11px] text-gray-400">No arguments required</p>
-                <p className="text-[10px] text-gray-300 mt-0.5">This tool runs without any input</p>
+                <p className="text-xs text-gray-400">No arguments required</p>
+                <p className="text-xs text-gray-300 mt-0.5">This tool runs without any input</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1265,14 +1265,14 @@ function ToolPlaygroundModal({
                   return (
                     <div key={k} className="group">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <span className="text-[11px] font-semibold text-gray-700 font-mono">{k}</span>
+                        <span className="text-xs font-semibold text-gray-700 font-mono">{k}</span>
                         {prop.type && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">{prop.type}</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">{prop.type}</span>
                         )}
-                        {isRequired && <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-50 text-red-400 font-medium">required</span>}
+                        {isRequired && <span className="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-400 font-medium">required</span>}
                       </div>
                       {prop.description && (
-                        <p className="text-[10px] text-gray-400 mb-1">{prop.description}</p>
+                        <p className="text-xs text-gray-400 mb-1">{prop.description}</p>
                       )}
                       {prop.type === "boolean" ? (
                         <select
@@ -1306,22 +1306,22 @@ function ToolPlaygroundModal({
             {running ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl bg-gray-50 border border-gray-100">
                 <Loader2 size={20} className="animate-spin text-violet-400" />
-                <p className="text-[11px] text-gray-400">Executing…</p>
+                <p className="text-xs text-gray-400">Executing…</p>
               </div>
             ) : result ? (
               <div className="flex-1 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${result.error ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}>
+                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${result.error ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}>
                     {result.error ? <XCircle size={10} /> : <CheckCircle2 size={10} />}
                     {result.error ? "Error" : "Success"}
                   </span>
                   {result.duration_ms != null && (
-                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
                       <Clock size={10} />{result.duration_ms}ms
                     </span>
                   )}
                 </div>
-                <pre className={`flex-1 text-[11px] rounded-xl p-3 overflow-auto whitespace-pre-wrap min-h-32 ${result.error ? "bg-red-50 border border-red-100 text-red-700" : "bg-gray-900 text-green-300"}`}>
+                <pre className={`flex-1 text-xs rounded-xl p-3 overflow-auto whitespace-pre-wrap min-h-32 ${result.error ? "bg-red-50 border border-red-100 text-red-700" : "bg-gray-900 text-green-300"}`}>
                   {result.error ?? result.output}
                 </pre>
               </div>
@@ -1330,7 +1330,7 @@ function ToolPlaygroundModal({
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                   <Play size={16} className="text-gray-300 ml-0.5" />
                 </div>
-                <p className="text-[11px] text-gray-400 text-center">Hit Run to see<br />the tool output</p>
+                <p className="text-xs text-gray-400 text-center">Hit Run to see<br />the tool output</p>
               </div>
             )}
           </div>
@@ -1347,7 +1347,7 @@ function ToolPlaygroundModal({
             {running ? "Running…" : "Run Tool"}
           </button>
           {result && (
-            <button onClick={() => setResult(null)} className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
+            <button onClick={() => setResult(null)} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
               Clear output
             </button>
           )}
@@ -1521,12 +1521,12 @@ function ServerCard({
           <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 ${isHosted ? "bg-violet-200" : "bg-blue-200"}`}>
             {isHosted ? <Server size={11} className="text-violet-700" /> : <Plug size={11} className="text-blue-700" />}
           </div>
-          <span className={`text-[10px] font-bold uppercase tracking-widest ${isHosted ? "text-violet-600" : "text-blue-600"}`}>
+          <span className={`text-xs font-bold uppercase tracking-widest ${isHosted ? "text-violet-600" : "text-blue-600"}`}>
             {isHosted ? "My MCP Server" : "External MCP Server"}
           </span>
           <div className="flex-1" />
           <StatusDot status={server.status} />
-          <span className={`text-[10px] font-medium ${server.enabled ? "text-green-600" : "text-gray-400"}`}>
+          <span className={`text-xs font-medium ${server.enabled ? "text-green-600" : "text-gray-400"}`}>
             {server.enabled ? "enabled" : "disabled"}
           </span>
         </div>
@@ -1540,7 +1540,7 @@ function ServerCard({
                   <span className="text-sm font-semibold text-gray-800 truncate">{server.name}</span>
                 </div>
                 {server.description && (
-                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{server.description}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">{server.description}</p>
                 )}
               </div>
             </div>
@@ -1582,8 +1582,8 @@ function ServerCard({
               {(server.transport === "sse" || server.transport === "both") && (
                 <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1.5">
                   <Zap size={10} className="text-violet-400 flex-shrink-0" />
-                  <span className="text-[11px] text-gray-500 flex-shrink-0">SSE</span>
-                  <span className="text-[11px] font-mono text-gray-600 truncate flex-1">{sseUrl}</span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">SSE</span>
+                  <span className="text-xs font-mono text-gray-600 truncate flex-1">{sseUrl}</span>
                   <button onClick={() => copy(sseUrl, "sse-" + server.id)} className="text-gray-400 hover:text-violet-600 flex-shrink-0">
                     {copied === "sse-" + server.id ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
                   </button>
@@ -1592,8 +1592,8 @@ function ServerCard({
               {(server.transport === "http" || server.transport === "both") && (
                 <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1.5">
                   <ExternalLink size={10} className="text-blue-400 flex-shrink-0" />
-                  <span className="text-[11px] text-gray-500 flex-shrink-0">HTTP</span>
-                  <span className="text-[11px] font-mono text-gray-600 truncate flex-1">{httpUrl}</span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">HTTP</span>
+                  <span className="text-xs font-mono text-gray-600 truncate flex-1">{httpUrl}</span>
                   <button onClick={() => copy(httpUrl, "http-" + server.id)} className="text-gray-400 hover:text-blue-600 flex-shrink-0">
                     {copied === "http-" + server.id ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
                   </button>
@@ -1606,7 +1606,7 @@ function ServerCard({
           {!isHosted && server.url && (
             <div className="mt-3 flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1.5">
               <ExternalLink size={10} className="text-gray-400 flex-shrink-0" />
-              <span className="text-[11px] font-mono text-gray-600 truncate flex-1">{server.url}</span>
+              <span className="text-xs font-mono text-gray-600 truncate flex-1">{server.url}</span>
               <button onClick={() => copy(server.url!, "url-" + server.id)} className="text-gray-400 hover:text-violet-600 flex-shrink-0">
                 {copied === "url-" + server.id ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
               </button>
@@ -1621,7 +1621,7 @@ function ServerCard({
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-1.5">
                       <ShieldCheck size={11} className="text-green-600" />
-                      <span className="text-[11px] font-medium text-green-700">Auth key enabled</span>
+                      <span className="text-xs font-medium text-green-700">Auth key enabled</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <button onClick={() => setShowKey((v) => !v)} className="p-1 text-green-600 hover:text-green-700" title={showKey ? "Hide key" : "Show key"}>
@@ -1639,15 +1639,15 @@ function ServerCard({
                     </div>
                   </div>
                   {showKey && (
-                    <code className="text-[10px] font-mono text-green-800 bg-green-100 px-2 py-1 rounded block truncate">
+                    <code className="text-xs font-mono text-green-800 bg-green-100 px-2 py-1 rounded block truncate">
                       {server.auth_key}
                     </code>
                   )}
-                  <p className="text-[10px] text-green-600 mt-1">Add as <code className="bg-green-100 px-1 rounded">Authorization: Bearer &lt;key&gt;</code> header</p>
+                  <p className="text-xs text-green-600 mt-1">Add as <code className="bg-green-100 px-1 rounded">Authorization: Bearer &lt;key&gt;</code> header</p>
                 </div>
               ) : (
                 <button onClick={generateKey} disabled={savingKey}
-                  className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-violet-600 hover:bg-violet-50 px-3 py-1.5 rounded-lg border border-dashed border-gray-200 hover:border-violet-200 transition-colors w-full justify-center">
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-violet-600 hover:bg-violet-50 px-3 py-1.5 rounded-lg border border-dashed border-gray-200 hover:border-violet-200 transition-colors w-full justify-center">
                   {savingKey ? <Loader2 size={11} className="animate-spin" /> : <ShieldCheck size={11} />}
                   Add API key authentication
                 </button>
@@ -1658,13 +1658,13 @@ function ServerCard({
           {!isHosted && server.auth_key && (
             <div className="mt-1.5 flex items-center gap-2 bg-amber-50 rounded-lg px-3 py-1.5">
               <Key size={10} className="text-amber-500 flex-shrink-0" />
-              <span className="text-[11px] text-amber-700">Auth key configured</span>
+              <span className="text-xs text-amber-700">Auth key configured</span>
             </div>
           )}
 
           {/* Footer: tool count + actions */}
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-[11px] text-gray-400">
+            <span className="text-xs text-gray-400">
               {isHosted
                 ? `${tools.length > 0 ? tools.length : "No"} tool${tools.length !== 1 ? "s" : ""}`
                 : externalTools.length > 0
@@ -1674,7 +1674,7 @@ function ServerCard({
             <div className="flex items-center gap-1">
               {!isHosted && (
                 <button onClick={discover} disabled={discovering}
-                  className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 px-2 py-1 hover:bg-blue-50 rounded-lg transition-colors">
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 px-2 py-1 hover:bg-blue-50 rounded-lg transition-colors">
                   {discovering ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                   {discovering ? "Connecting…" : "Discover Tools"}
                 </button>
@@ -1682,11 +1682,11 @@ function ServerCard({
               {isHosted && (
                 <>
                   <button onClick={() => { setExpanded(true); setShowOpenApiImporter(true); }}
-                    className="flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-700 px-2 py-1 hover:bg-indigo-50 rounded-lg transition-colors">
+                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 px-2 py-1 hover:bg-indigo-50 rounded-lg transition-colors">
                     <Download size={11} /> Import OpenAPI
                   </button>
                   <button onClick={() => setShowAddTool(true)}
-                    className="flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-700 px-2 py-1 hover:bg-violet-50 rounded-lg transition-colors">
+                    className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 px-2 py-1 hover:bg-violet-50 rounded-lg transition-colors">
                     <Plus size={11} /> Add Tool
                   </button>
                 </>
@@ -1701,30 +1701,30 @@ function ServerCard({
             {/* Tab bar */}
             <div className="flex items-center gap-1 px-4 pt-3 pb-0 flex-wrap">
               <button onClick={() => setExpandedTab("tools")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "tools" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${expandedTab === "tools" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
                 <Wrench size={11} /> Tools {isHosted && tools.length > 0 && `(${tools.length})`}
               </button>
               <button onClick={() => setExpandedTab("history")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "history" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${expandedTab === "history" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
                 <History size={11} /> History {history.length > 0 && `(${history.length})`}
               </button>
               <button onClick={() => setExpandedTab("analytics")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "analytics" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${expandedTab === "analytics" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
                 <BarChart2 size={11} /> Analytics
               </button>
               <button onClick={() => setExpandedTab("alerts")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${expandedTab === "alerts" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${expandedTab === "alerts" ? "bg-violet-100 text-violet-700" : "text-gray-500 hover:bg-gray-100"}`}>
                 <Bell size={11} /> Alerts
               </button>
               {expandedTab === "history" && history.length > 0 && (
                 <button onClick={clearHistory} disabled={clearingHistory}
-                  className="ml-auto flex items-center gap-1 text-[11px] text-red-400 hover:text-red-500 px-2 py-1 hover:bg-red-50 rounded-lg transition-colors">
+                  className="ml-auto flex items-center gap-1 text-xs text-red-400 hover:text-red-500 px-2 py-1 hover:bg-red-50 rounded-lg transition-colors">
                   {clearingHistory ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />} Clear
                 </button>
               )}
               {expandedTab === "history" && (
                 <button onClick={loadHistory} disabled={loadingHistory}
-                  className={`${history.length > 0 ? "" : "ml-auto"} flex items-center gap-1 text-[11px] text-gray-400 hover:text-violet-600 px-2 py-1 hover:bg-violet-50 rounded-lg transition-colors`}>
+                  className={`${history.length > 0 ? "" : "ml-auto"} flex items-center gap-1 text-xs text-gray-400 hover:text-violet-600 px-2 py-1 hover:bg-violet-50 rounded-lg transition-colors`}>
                   {loadingHistory ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                 </button>
               )}
@@ -1740,9 +1740,9 @@ function ServerCard({
                     ) : tools.length === 0 ? (
                       <div className="py-6 text-center">
                         <Wrench size={20} className="text-gray-300 mx-auto mb-2" />
-                        <p className="text-[11px] text-gray-400">No tools yet. Add a scenario as a tool.</p>
+                        <p className="text-xs text-gray-400">No tools yet. Add a scenario as a tool.</p>
                         <button onClick={() => setShowAddTool(true)}
-                          className="mt-2 text-[11px] text-violet-600 hover:text-violet-700 flex items-center gap-1 mx-auto">
+                          className="mt-2 text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1 mx-auto">
                           <Plus size={11} /> Add first tool
                         </button>
                       </div>
@@ -1756,18 +1756,18 @@ function ServerCard({
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-gray-800 font-mono">{tool.name}</span>
-                                {!tool.enabled && <span className="text-[10px] text-gray-400 bg-gray-200 px-1.5 rounded">disabled</span>}
+                                {!tool.enabled && <span className="text-xs text-gray-400 bg-gray-200 px-1.5 rounded">disabled</span>}
                               </div>
-                              {tool.description && <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{tool.description}</p>}
+                              {tool.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{tool.description}</p>}
                               <div className="flex items-center gap-1 mt-1">
                                 <Link2 size={10} className="text-violet-400" />
-                                <span className="text-[10px] text-violet-600">{tool.workflow_id ? workflowName(tool.workflow_id) : "No scenario linked"}</span>
+                                <span className="text-xs text-violet-600">{tool.workflow_id ? workflowName(tool.workflow_id) : "No scenario linked"}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
                               <button
                                 onClick={() => setTestingTool({ name: tool.name, description: tool.description, inputSchema: tool.input_schema as Record<string, unknown> | undefined })}
-                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors">
+                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors">
                                 <Play size={10} /> Test
                               </button>
                               <button onClick={() => toggleTool(tool)} disabled={togglingTool === tool.id}
@@ -1782,7 +1782,7 @@ function ServerCard({
                           </div>
                         ))}
                         <button onClick={() => setShowAddTool(true)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] text-violet-600 hover:bg-violet-50 rounded-lg border border-dashed border-violet-200 transition-colors">
+                          className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-violet-600 hover:bg-violet-50 rounded-lg border border-dashed border-violet-200 transition-colors">
                           <Plus size={11} /> Add another tool
                         </button>
                       </div>
@@ -1794,7 +1794,7 @@ function ServerCard({
                     {externalTools.length === 0 ? (
                       <div className="py-4 text-center">
                         <AlertCircle size={16} className="text-gray-300 mx-auto mb-2" />
-                        <p className="text-[11px] text-gray-400">Click &quot;Discover Tools&quot; to load available tools.</p>
+                        <p className="text-xs text-gray-400">Click &quot;Discover Tools&quot; to load available tools.</p>
                       </div>
                     ) : externalTools.map((tool, i) => (
                       <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
@@ -1803,19 +1803,19 @@ function ServerCard({
                         </div>
                         <div className="flex-1 min-w-0">
                           <span className="text-xs font-semibold text-gray-800 font-mono">{tool.name}</span>
-                          {tool.description && <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{tool.description}</p>}
+                          {tool.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{tool.description}</p>}
                         </div>
                         <button
                           onClick={() => setTestingTool(tool)}
                           title="Test tool"
-                          className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors flex-shrink-0"
+                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors flex-shrink-0"
                         >
                           <Play size={10} /> Test
                         </button>
                       </div>
                     ))}
                     {server.last_discovered_at && (
-                      <p className="text-[10px] text-gray-400 text-right">Last discovered {new Date(server.last_discovered_at).toLocaleString()}</p>
+                      <p className="text-xs text-gray-400 text-right">Last discovered {new Date(server.last_discovered_at).toLocaleString()}</p>
                     )}
                   </div>
                 )
@@ -1828,7 +1828,7 @@ function ServerCard({
                 ) : history.length === 0 ? (
                   <div className="py-8 text-center">
                     <History size={20} className="text-gray-300 mx-auto mb-2" />
-                    <p className="text-[11px] text-gray-400">No executions yet. Tool calls will appear here.</p>
+                    <p className="text-xs text-gray-400">No executions yet. Tool calls will appear here.</p>
                   </div>
                 ) : (
                   <div className="mt-3 space-y-2">
@@ -2035,12 +2035,12 @@ export default function MCPToolboxesPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm font-bold text-gray-800">My MCP Servers</h3>
-                        <span className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-semibold">{hosted.length}</span>
+                        <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-semibold">{hosted.length}</span>
                       </div>
-                      <p className="text-[11px] text-gray-400">Servers you built — expose your scenarios as MCP tools for Claude, Cline and other AI agents</p>
+                      <p className="text-xs text-gray-400">Servers you built — expose your scenarios as MCP tools for Claude, Cline and other AI agents</p>
                     </div>
                     <button onClick={() => openCreate("hosted")}
-                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-[11px] font-semibold rounded-lg hover:bg-violet-700 transition-colors flex-shrink-0">
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition-colors flex-shrink-0">
                       <Plus size={11} /> New Server
                     </button>
                   </div>
@@ -2064,12 +2064,12 @@ export default function MCPToolboxesPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm font-bold text-gray-800">Connected External Servers</h3>
-                        <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold">{external.length}</span>
+                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold">{external.length}</span>
                       </div>
-                      <p className="text-[11px] text-gray-400">Third-party MCP servers connected to your workspace — discover and test their tools here</p>
+                      <p className="text-xs text-gray-400">Third-party MCP servers connected to your workspace — discover and test their tools here</p>
                     </div>
                     <button onClick={() => openCreate("external")}
-                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-[11px] font-semibold rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0">
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-xs font-semibold rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0">
                       <Plug size={11} /> Connect Server
                     </button>
                   </div>

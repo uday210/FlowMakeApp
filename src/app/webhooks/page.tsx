@@ -143,7 +143,7 @@ export default function WebhooksPage() {
                       </button>
                     </td>
                     <td className="px-5 py-4">
-                      <span className="text-[10px] font-bold px-2 py-1 bg-green-50 text-green-700 rounded-full">
+                      <span className="text-xs font-bold px-2 py-1 bg-green-50 text-green-700 rounded-full">
                         {wh.method}
                       </span>
                     </td>

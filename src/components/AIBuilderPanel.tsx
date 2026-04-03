@@ -323,10 +323,10 @@ export default function AIBuilderPanel({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold text-white">AI Scenario Builder</p>
-          <p className="text-[10px] text-violet-200">Powered by AG-UI Protocol</p>
+          <p className="text-xs text-violet-200">Powered by AG-UI Protocol</p>
         </div>
         {builtSinceLastSave && (
-          <div className="flex items-center gap-0.5 text-[9px] text-green-300 font-medium animate-fade-in">
+          <div className="flex items-center gap-0.5 text-xs text-green-300 font-medium animate-fade-in">
             <CheckCircle2 size={10} className="text-green-300" />
             Saved
           </div>
@@ -350,7 +350,7 @@ export default function AIBuilderPanel({
       {activeTools.length > 0 && (
         <div className="px-3 py-1.5 bg-violet-50 border-b border-violet-100 flex items-center gap-1.5 flex-shrink-0">
           <Zap size={10} className="text-violet-500 animate-pulse" />
-          <span className="text-[10px] text-violet-600 font-medium">Building on canvas…</span>
+          <span className="text-xs text-violet-600 font-medium">Building on canvas…</span>
         </div>
       )}
 
@@ -359,7 +359,7 @@ export default function AIBuilderPanel({
         {messages.map(msg => (
           <div key={msg.id}>
             {msg.role === "tool" ? (
-              <div className={`flex items-center gap-1.5 text-[10px] px-2.5 py-1.5 rounded-lg transition-all ${
+              <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-all ${
                 msg.isStreaming
                   ? "bg-violet-50 text-violet-600 border border-violet-100"
                   : "bg-gray-50 text-gray-500 border border-gray-100"
@@ -385,7 +385,7 @@ export default function AIBuilderPanel({
                 </div>
 
                 {/* Bubble */}
-                <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-[11px] leading-relaxed whitespace-pre-wrap ${
+                <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${
                   msg.role === "user"
                     ? "bg-violet-600 text-white rounded-br-sm"
                     : "bg-gray-100 text-gray-800 rounded-bl-sm"
@@ -420,11 +420,11 @@ export default function AIBuilderPanel({
             className="w-full text-xs px-3 pt-2.5 pb-1 bg-transparent outline-none resize-none text-gray-700 placeholder-gray-400 disabled:opacity-60"
           />
           <div className="flex items-center justify-between px-2 pb-2">
-            <span className="text-[9px] text-gray-400">Shift+Enter for new line</span>
+            <span className="text-xs text-gray-400">Shift+Enter for new line</span>
             <button
               onClick={() => sendMessage(input)}
               disabled={!input.trim() || running}
-              className="flex items-center gap-1 px-2.5 py-1 bg-violet-600 text-white text-[10px] font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-40 transition-all"
+              className="flex items-center gap-1 px-2.5 py-1 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-40 transition-all"
             >
               {running
                 ? <><Loader2 size={9} className="animate-spin" /> Building…</>
@@ -446,7 +446,7 @@ export default function AIBuilderPanel({
                 key={p}
                 onClick={() => sendMessage(p)}
                 disabled={running}
-                className="w-full text-left text-[10px] px-2.5 py-1.5 rounded-lg bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors border border-violet-100 disabled:opacity-50 truncate"
+                className="w-full text-left text-xs px-2.5 py-1.5 rounded-lg bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors border border-violet-100 disabled:opacity-50 truncate"
               >
                 ✦ {p}
               </button>

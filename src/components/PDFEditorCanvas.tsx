@@ -138,7 +138,7 @@ export default function PDFEditorCanvas({
     <div ref={containerRef} className="p-8 space-y-6" onClick={() => onSelectField(null)}>
       {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
         <div key={pageNum} className="mx-auto" style={{ width: containerWidth }}>
-          <div className="text-[10px] text-gray-400 mb-1 text-center">Page {pageNum}</div>
+          <div className="text-xs text-gray-400 mb-1 text-center">Page {pageNum}</div>
           <div
             className="relative shadow-lg rounded-sm overflow-hidden bg-white"
             style={{ cursor: activeTool ? "crosshair" : "default" }}
@@ -172,7 +172,7 @@ export default function PDFEditorCanvas({
                 >
                   <div className="flex items-center gap-1 px-1 h-full overflow-hidden pointer-events-none" style={{ color: signerColor }}>
                     <Icon size={10} className="flex-shrink-0" />
-                    <span className="text-[9px] font-semibold truncate leading-none">{field.label}</span>
+                    <span className="text-xs font-semibold truncate leading-none">{field.label}</span>
                     {field.signer_email && (
                       <span className="text-[8px] opacity-70 truncate ml-auto">{field.signer_email.split("@")[0]}</span>
                     )}

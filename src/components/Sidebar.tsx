@@ -278,7 +278,7 @@ function NodeCard({ def }: { def: NodeDefinition }) {
       </div>
       <div className="min-w-0">
         <p className="text-xs font-semibold text-gray-700 truncate leading-tight">{def.label}</p>
-        <p className="text-[9px] text-gray-400 truncate leading-tight mt-0.5">
+        <p className="text-xs text-gray-400 truncate leading-tight mt-0.5">
           {def.description.length > 38 ? def.description.slice(0, 36) + "…" : def.description}
         </p>
       </div>
@@ -302,12 +302,12 @@ function SubcategorySection({ name, defs }: { name: string; defs: NodeDefinition
           <ChevronRight size={10} className="text-gray-400 flex-shrink-0" />
         )}
         <span
-          className="text-[9px] font-bold uppercase tracking-wider"
+          className="text-xs font-bold uppercase tracking-wider"
           style={{ color }}
         >
           {name}
         </span>
-        <span className="text-[9px] text-gray-300 ml-auto">{defs.length}</span>
+        <span className="text-xs text-gray-300 ml-auto">{defs.length}</span>
       </button>
       {open && (
         <div className="space-y-1.5 mb-3 pl-0.5">
@@ -361,7 +361,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         </button>
         <div className="flex-1 flex items-center justify-center">
           <span
-            className="text-[9px] font-bold text-gray-300 uppercase tracking-widest select-none"
+            className="text-xs font-bold text-gray-300 uppercase tracking-widest select-none"
             style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
             Modules
@@ -376,7 +376,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     <aside className="w-56 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden flex-shrink-0">
       <div className="px-3 pt-3 pb-2.5 border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Modules</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Modules</p>
           <button
             onClick={onToggle}
             title="Collapse panel"
@@ -397,7 +397,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
       <div className="px-2 py-2 space-y-0.5 flex-1 overflow-y-auto">
         {filteredTriggers.length > 0 && (
           <div className="mb-1">
-            <p className="text-[9px] font-bold text-violet-500 uppercase tracking-widest mb-1 px-2.5 pt-1">
+            <p className="text-xs font-bold text-violet-500 uppercase tracking-widest mb-1 px-2.5 pt-1">
               Triggers
             </p>
             {filteredTriggers.map((def) => (

@@ -60,7 +60,7 @@ function JsonBlock({ value, label }: { value: unknown; label: string }) {
     <div className="mt-1.5">
       <button
         onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
-        className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-400 hover:text-gray-600 transition-colors group"
+        className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors group"
       >
         {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
         <span className={`uppercase tracking-wider ${label === "Input" ? "text-blue-400" : label === "Output" ? "text-green-500" : "text-red-400"}`}>
@@ -71,7 +71,7 @@ function JsonBlock({ value, label }: { value: unknown; label: string }) {
         )}
       </button>
       {open && (
-        <pre className="mt-1.5 text-[10px] leading-relaxed font-mono bg-gray-950 text-gray-100 rounded-lg px-4 py-3 overflow-x-auto max-h-64 overflow-y-auto border border-gray-800 whitespace-pre-wrap break-words">
+        <pre className="mt-1.5 text-xs leading-relaxed font-mono bg-gray-950 text-gray-100 rounded-lg px-4 py-3 overflow-x-auto max-h-64 overflow-y-auto border border-gray-800 whitespace-pre-wrap break-words">
           {formatted}
         </pre>
       )}
@@ -112,7 +112,7 @@ function NodeLogRow({ log }: { log: ExecutionLog }) {
         <span className="text-xs font-semibold text-gray-800 flex-1">{log.node_label}</span>
 
         {/* Status pill */}
-        <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+        <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
           log.status === "success" ? "bg-green-100 text-green-600" :
           log.status === "error" ? "bg-red-100 text-red-500" :
           log.status === "skipped" ? "bg-gray-100 text-gray-400" :
@@ -121,7 +121,7 @@ function NodeLogRow({ log }: { log: ExecutionLog }) {
 
         {/* Duration */}
         {log.duration_ms !== undefined && (
-          <span className="text-[10px] text-gray-400 font-mono ml-1">{log.duration_ms}ms</span>
+          <span className="text-xs text-gray-400 font-mono ml-1">{log.duration_ms}ms</span>
         )}
 
         {/* Expand chevron */}
@@ -136,8 +136,8 @@ function NodeLogRow({ log }: { log: ExecutionLog }) {
         <div className="px-4 pb-4 pt-0 border-t border-gray-100 space-y-1">
           {log.error && (
             <div className="mt-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-red-400 mb-1">Error</p>
-              <pre className="text-[10px] font-mono bg-red-950/80 text-red-200 rounded-lg px-4 py-3 overflow-x-auto whitespace-pre-wrap break-words">
+              <p className="text-xs font-bold uppercase tracking-wider text-red-400 mb-1">Error</p>
+              <pre className="text-xs font-mono bg-red-950/80 text-red-200 rounded-lg px-4 py-3 overflow-x-auto whitespace-pre-wrap break-words">
                 {log.error}
               </pre>
             </div>
@@ -229,7 +229,7 @@ function HistoryTab({ workflowId }: { workflowId: string }) {
                         {e.trigger_data && Object.keys(e.trigger_data).length > 0
                           ? "Triggered with data" : "Manual run"}
                       </p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">
+                      <p className="text-xs text-gray-400 mt-0.5">
                         {new Date(e.started_at).toLocaleString("en-US", {
                           month: "short", day: "numeric", year: "numeric",
                           hour: "2-digit", minute: "2-digit", second: "2-digit",
@@ -241,14 +241,14 @@ function HistoryTab({ workflowId }: { workflowId: string }) {
                   {/* Stats (right side) */}
                   <div className="flex items-center gap-4 flex-shrink-0">
                     <div className="text-center">
-                      <p className="text-[10px] text-gray-400">Nodes</p>
+                      <p className="text-xs text-gray-400">Nodes</p>
                       <p className="text-xs font-bold text-gray-600">{ops}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-[10px] text-gray-400">Duration</p>
+                      <p className="text-xs text-gray-400">Duration</p>
                       <p className="text-xs font-bold text-gray-600 font-mono">{duration(e)}</p>
                     </div>
-                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
                       e.status === "success" ? "bg-green-50 text-green-600 border-green-200" :
                       e.status === "failed" ? "bg-red-50 text-red-500 border-red-200" :
                       e.status === "running" ? "bg-blue-50 text-blue-500 border-blue-200" :
@@ -263,8 +263,8 @@ function HistoryTab({ workflowId }: { workflowId: string }) {
                     {/* Trigger data section */}
                     {e.trigger_data && Object.keys(e.trigger_data).length > 0 && (
                       <div className="px-5 py-3 bg-violet-50/40 border-b border-violet-100">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-2">Trigger Data</p>
-                        <pre className="text-[10px] font-mono text-violet-800 bg-white rounded-lg border border-violet-100 px-3 py-2 overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
+                        <p className="text-xs font-bold uppercase tracking-widest text-violet-400 mb-2">Trigger Data</p>
+                        <pre className="text-xs font-mono text-violet-800 bg-white rounded-lg border border-violet-100 px-3 py-2 overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
                           {JSON.stringify(e.trigger_data, null, 2)}
                         </pre>
                       </div>
@@ -273,7 +273,7 @@ function HistoryTab({ workflowId }: { workflowId: string }) {
                     {/* Node logs */}
                     {logs.length > 0 ? (
                       <div className="px-5 py-4 space-y-2">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
+                        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
                           Node Execution Log · {logs.length} node{logs.length !== 1 ? "s" : ""}
                         </p>
                         {logs.map((log, i) => (
@@ -578,12 +578,12 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
         />
 
         {saveStatus === "saved" && (
-          <span className="flex items-center gap-1 text-[10px] text-green-600 flex-shrink-0">
+          <span className="flex items-center gap-1 text-xs text-green-600 flex-shrink-0">
             <CheckCircle size={11} /> Saved
           </span>
         )}
         {saveStatus === "error" && (
-          <span className="flex items-center gap-1 text-[10px] text-red-500 flex-shrink-0">
+          <span className="flex items-center gap-1 text-xs text-red-500 flex-shrink-0">
             <AlertCircle size={11} /> Error
           </span>
         )}
@@ -718,7 +718,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
                   <button
                     onClick={handleSaveVersion}
                     disabled={savingVersion}
-                    className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-violet-600 border border-violet-200 rounded-md hover:bg-violet-50 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 border border-violet-200 rounded-md hover:bg-violet-50 transition-colors disabled:opacity-50"
                   >
                     {savingVersion ? <Loader2 size={9} className="animate-spin" /> : <GitBranch size={9} />}
                     Save now
@@ -745,11 +745,11 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="text-xs font-medium text-gray-800">v{version.version_number}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">{new Date(version.created_at).toLocaleString()}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{new Date(version.created_at).toLocaleString()}</p>
                           </div>
                           <button
                             onClick={() => handleRestoreVersion(version.id)}
-                            className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
                           >
                             <RotateCcw size={9} /> Restore
                           </button>

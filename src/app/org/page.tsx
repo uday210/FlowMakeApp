@@ -97,7 +97,7 @@ function StatCard({
           <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
           {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
           {trend && (
-            <div className={`flex items-center gap-1 mt-1.5 text-[10px] font-semibold ${
+            <div className={`flex items-center gap-1 mt-1.5 text-xs font-semibold ${
               trend.dir === "up" ? "text-green-500" : trend.dir === "down" ? "text-red-400" : "text-gray-400"
             }`}>
               {trend.dir === "up" ? <TrendingUp size={10} /> : trend.dir === "down" ? <TrendingUp size={10} className="rotate-180" /> : <Activity size={10} />}
@@ -295,7 +295,7 @@ export default function OrgDashboard() {
                   <AlertTriangle size={15} className="text-amber-400" />
                   <h2 className="text-sm font-semibold text-gray-800">Scenarios that require attention</h2>
                   {scenariosNeedingAttention.length > 0 && (
-                    <span className="text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">
                       {scenariosNeedingAttention.length}
                     </span>
                   )}
@@ -334,7 +334,7 @@ export default function OrgDashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">
+                        <span className="text-xs font-semibold bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">
                           Inactive
                         </span>
                         <ArrowRight size={13} className="text-gray-300 group-hover:text-violet-500 transition-colors" />
@@ -395,7 +395,7 @@ export default function OrgDashboard() {
               {/* Agent capability pills */}
               <div className="px-8 pb-6 flex flex-wrap gap-2">
                 {["Tool use", "Memory", "Multi-step reasoning", "Parallel execution", "Error recovery"].map(cap => (
-                  <span key={cap} className="text-[10px] font-semibold text-violet-200 bg-white/10 border border-white/15 px-3 py-1 rounded-full">
+                  <span key={cap} className="text-xs font-semibold text-violet-200 bg-white/10 border border-white/15 px-3 py-1 rounded-full">
                     {cap}
                   </span>
                 ))}
@@ -408,7 +408,7 @@ export default function OrgDashboard() {
                 <div className="flex items-center gap-2">
                   <Activity size={14} className="text-gray-400" />
                   <h2 className="text-sm font-semibold text-gray-800">All scenarios</h2>
-                  <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{totalScenarios}</span>
+                  <span className="text-xs font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{totalScenarios}</span>
                 </div>
                 <button
                   onClick={() => router.push("/workflows")}
@@ -442,12 +442,12 @@ export default function OrgDashboard() {
                         <span className="text-sm text-gray-700 font-medium">{w.name}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                           w.is_active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"
                         }`}>
                           {w.is_active ? "Active" : "Inactive"}
                         </span>
-                        <span className="text-[10px] text-gray-300">
+                        <span className="text-xs text-gray-300">
                           {new Date(w.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </span>
                         <ArrowRight size={12} className="text-gray-200 group-hover:text-violet-400 transition-colors" />
@@ -506,11 +506,11 @@ function PlanUsageStrip({ usageData, onManage }: { usageData: UsageData; onManag
         <div className="flex items-center gap-2.5">
           <CreditCard size={14} className="text-gray-400" />
           <span className="text-sm font-semibold text-gray-800">Plan Usage</span>
-          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full capitalize ${planColors[plan]}`}>
+          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full capitalize ${planColors[plan]}`}>
             {PLAN_LABELS[plan]}
           </span>
           {atLimit && (
-            <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
               <AlertTriangle size={9} /> Limit reached
             </span>
           )}
@@ -661,7 +661,7 @@ function SubscriptionPanel({
                         <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
                           <Icon size={13} className="text-gray-400" /> {label}
                         </div>
-                        {isAtLimit && <span className="text-[9px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded-full">LIMIT</span>}
+                        {isAtLimit && <span className="text-xs font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded-full">LIMIT</span>}
                       </div>
                       <div className="flex items-baseline gap-1.5 mb-2">
                         <span className={`text-xl font-bold ${isAtLimit ? "text-red-500" : "text-gray-900"}`}>{current}</span>
@@ -706,12 +706,12 @@ function SubscriptionPanel({
                 >
                   {isCurrent && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${colors.badge}`}>Current</span>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${colors.badge}`}>Current</span>
                     </div>
                   )}
                   {plan === "pro" && !isCurrent && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-violet-600 text-white">Popular</span>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-violet-600 text-white">Popular</span>
                     </div>
                   )}
 
@@ -1092,16 +1092,16 @@ function EmailConfigsPanel() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-gray-900">{c.name}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PROVIDER_COLORS[c.provider] ?? "bg-gray-200 text-gray-700"}`}>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${PROVIDER_COLORS[c.provider] ?? "bg-gray-200 text-gray-700"}`}>
                         {PROVIDER_LABELS[c.provider] ?? c.provider}
                       </span>
                       {c.is_active && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
+                        <span className="flex items-center gap-1 text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
                           <Check size={9} /> Active
                         </span>
                       )}
                       {c.verified && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                        <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                           <ShieldCheck size={9} /> Verified
                         </span>
                       )}
@@ -1360,7 +1360,7 @@ function EmailConfigsPanel() {
                       onChange={e => setForm(f => ({ ...f, mailgun_domain: e.target.value }))}
                       className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
                     />
-                    <p className="text-[10px] text-gray-400 mt-1">Leave empty to use the sending API (production). For sandbox testing, paste the numeric ID from your inbox URL.</p>
+                    <p className="text-xs text-gray-400 mt-1">Leave empty to use the sending API (production). For sandbox testing, paste the numeric ID from your inbox URL.</p>
                   </div>
                 </div>
               )}
@@ -1542,7 +1542,7 @@ function UsersPanel({ currentUserId }: { currentUserId: string }) {
           <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
             <Users size={14} className="text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-800">Members</h2>
-            <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{members.length}</span>
+            <span className="text-xs font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{members.length}</span>
           </div>
 
           {loading ? (
@@ -1563,7 +1563,7 @@ function UsersPanel({ currentUserId }: { currentUserId: string }) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">
                       {m.full_name || m.email}
-                      {m.id === currentUserId && <span className="ml-2 text-[10px] font-bold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-full">You</span>}
+                      {m.id === currentUserId && <span className="ml-2 text-xs font-bold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-full">You</span>}
                     </p>
                     <p className="text-xs text-gray-400 truncate">{m.email}</p>
                   </div>
@@ -1579,7 +1579,7 @@ function UsersPanel({ currentUserId }: { currentUserId: string }) {
                         <option value="admin">Admin</option>
                       </select>
                     ) : (
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${
                         m.role === "admin" ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-600"
                       }`}>
                         {m.role}
@@ -1629,19 +1629,19 @@ function OrgSidebar({
     <aside className="w-56 bg-white border-r border-gray-100 flex flex-col py-4 flex-shrink-0 overflow-y-auto">
       <div className="px-4 mb-4">
         <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-[9px] font-bold" style={{ background: "linear-gradient(135deg, #7c3aed, #ec4899)" }}>
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-xs font-bold" style={{ background: "linear-gradient(135deg, #7c3aed, #ec4899)" }}>
             {initials}
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold text-gray-800 truncate">{org?.name ?? "Loading…"}</p>
-            <p className="text-[9px] text-gray-400 capitalize">{org?.plan ?? "Free"} plan</p>
+            <p className="text-xs text-gray-400 capitalize">{org?.plan ?? "Free"} plan</p>
           </div>
         </div>
       </div>
 
       {ORG_NAV.map(({ section, items }) => (
         <div key={section} className="mb-4">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 px-5 mb-1.5">{section}</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 px-5 mb-1.5">{section}</p>
           {items.map(({ id, label, icon: Icon }) => (
             <button
               key={id}

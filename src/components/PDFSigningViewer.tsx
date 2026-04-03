@@ -175,12 +175,12 @@ export default function PDFSigningViewer({ fileUrl, fields, fieldValues, onField
                       ) : isSigned ? (
                         <div className="flex items-center gap-1" style={{ color }}>
                           <CheckCircle2 size={11} />
-                          <span className="text-[9px] font-semibold">Signed</span>
+                          <span className="text-xs font-semibold">Signed</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1" style={{ color }}>
                           <Icon size={11} />
-                          <span className="text-[10px] font-semibold">Click to sign</span>
+                          <span className="text-xs font-semibold">Click to sign</span>
                         </div>
                       )}
                     </button>

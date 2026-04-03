@@ -340,8 +340,8 @@ function WidgetModal({ datasets, onClose, onSave, initial }: {
               <div className="grid grid-cols-5 gap-1.5">
                 {AGG_OPTIONS.map(({ value, label, desc }) => (
                   <button key={value} onClick={() => setAgg(value)} className={`flex flex-col items-center gap-0.5 py-2 rounded-xl border text-center transition-all ${agg === value ? "bg-violet-600 text-white border-violet-600" : "border-gray-200 text-gray-600 hover:border-violet-300"}`}>
-                    <span className="text-[11px] font-bold">{label}</span>
-                    <span className={`text-[9px] ${agg === value ? "text-violet-200" : "text-gray-400"}`}>{desc}</span>
+                    <span className="text-xs font-bold">{label}</span>
+                    <span className={`text-xs ${agg === value ? "text-violet-200" : "text-gray-400"}`}>{desc}</span>
                   </button>
                 ))}
               </div>
@@ -470,7 +470,7 @@ function MergeModal({ datasets, onClose, onMerged }: {
               {JOIN_TYPES.map(({ value, label, desc }) => (
                 <button key={value} onClick={() => setJoinType(value)} className={`flex flex-col items-center gap-0.5 py-2.5 rounded-xl border text-center transition-all ${joinType === value ? "bg-emerald-600 text-white border-emerald-600" : "border-gray-200 text-gray-600 hover:border-emerald-300"}`}>
                   <span className="text-xs font-semibold">{label}</span>
-                  <span className={`text-[9px] leading-tight ${joinType === value ? "text-emerald-100" : "text-gray-400"}`}>{desc}</span>
+                  <span className={`text-xs leading-tight ${joinType === value ? "text-emerald-100" : "text-gray-400"}`}>{desc}</span>
                 </button>
               ))}
             </div>
@@ -627,7 +627,7 @@ function DbImportModal({ onClose, onImported }: { onClose: () => void; onImporte
               {selectedTableId && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {userTables.find((t) => t.id === selectedTableId)?.columns.map((c) => (
-                    <span key={c.name} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">{c.name}</span>
+                    <span key={c.name} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">{c.name}</span>
                   ))}
                 </div>
               )}
@@ -752,7 +752,7 @@ function DatasetExplorer({ dataset, onClose }: { dataset: Dataset; onClose: () =
               <Table2 size={12} className="text-blue-600" />
             </div>
             <span className="font-medium text-sm text-gray-900">{dataset.name}</span>
-            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${srcBadge(dataset.source_type)}`}>{srcLabel(dataset.source_type)}</span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${srcBadge(dataset.source_type)}`}>{srcLabel(dataset.source_type)}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -766,7 +766,7 @@ function DatasetExplorer({ dataset, onClose }: { dataset: Dataset; onClose: () =
       {detail && (
         <div className="flex gap-1.5 flex-wrap px-6 py-2.5 border-b bg-gray-50 flex-shrink-0">
           {detail.columns.map((col) => (
-            <span key={col} className="text-[11px] bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-md font-mono">{col}</span>
+            <span key={col} className="text-xs bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-md font-mono">{col}</span>
           ))}
         </div>
       )}
@@ -891,11 +891,11 @@ function SortableWidgetCard({ widget, datasets, data, onEdit, onDelete, onResize
 
       {/* Footer */}
       <div className="px-4 pb-3 flex items-center gap-1.5">
-        <span className="text-[10px] text-gray-400 truncate">{datasets.find((d) => d.id === widget.dataset_id)?.name ?? "—"}</span>
-        <span className="text-[10px] text-gray-300">·</span>
-        <span className="text-[10px] font-mono text-violet-500 font-semibold">{(widget.agg ?? "sum").toUpperCase()}({widget.y_col})</span>
-        <span className="text-[10px] text-gray-300">by</span>
-        <span className="text-[10px] text-gray-400">{widget.x_col}</span>
+        <span className="text-xs text-gray-400 truncate">{datasets.find((d) => d.id === widget.dataset_id)?.name ?? "—"}</span>
+        <span className="text-xs text-gray-300">·</span>
+        <span className="text-xs font-mono text-violet-500 font-semibold">{(widget.agg ?? "sum").toUpperCase()}({widget.y_col})</span>
+        <span className="text-xs text-gray-300">by</span>
+        <span className="text-xs text-gray-400">{widget.x_col}</span>
       </div>
     </div>
   );
@@ -1133,7 +1133,7 @@ function HomeOverview({
                   <p className="text-sm font-medium text-gray-800 truncate">{ds.name}</p>
                   <p className="text-xs text-gray-400">{fmtRows(ds.row_count)} rows · {ds.columns.length} cols</p>
                 </div>
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${srcBadge(ds.source_type)}`}>{srcLabel(ds.source_type)}</span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${srcBadge(ds.source_type)}`}>{srcLabel(ds.source_type)}</span>
                 <ChevronRight size={14} className="text-gray-300 group-hover:text-violet-400" />
               </button>
             ))}
@@ -1248,7 +1248,7 @@ export default function AnalyticsPage() {
               </div>
               <div>
                 <h1 className="text-sm font-bold text-gray-900">Analytics</h1>
-                <p className="text-[10px] text-gray-400">Data · Charts · Reports</p>
+                <p className="text-xs text-gray-400">Data · Charts · Reports</p>
               </div>
             </div>
           </div>
@@ -1263,7 +1263,7 @@ export default function AnalyticsPage() {
             {/* Datasets section */}
             <div>
               <div className="flex items-center justify-between px-3 mb-1">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Datasets</span>
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Datasets</span>
                 <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
                 <button onClick={() => fileInputRef.current?.click()} title="Upload file" className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600">
                   <Upload size={12} />
@@ -1292,7 +1292,7 @@ export default function AnalyticsPage() {
             {/* Dashboards section */}
             <div>
               <div className="flex items-center justify-between px-3 mb-1">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Dashboards</span>
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Dashboards</span>
               </div>
               {loadingDashboards ? (
                 <div className="px-3 py-2 flex items-center gap-2 text-xs text-gray-400"><Loader2 size={12} className="animate-spin" /> Loading…</div>

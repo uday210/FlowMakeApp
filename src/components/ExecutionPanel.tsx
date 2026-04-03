@@ -27,7 +27,7 @@ function LogEntry({ log }: { log: ExecutionLog }) {
           {log.node_label}
         </span>
         {log.duration_ms !== undefined && (
-          <span className="text-[10px] text-gray-400">{log.duration_ms}ms</span>
+          <span className="text-xs text-gray-400">{log.duration_ms}ms</span>
         )}
         {hasDetails && (
           expanded
@@ -39,16 +39,16 @@ function LogEntry({ log }: { log: ExecutionLog }) {
         <div className="px-3 pb-3 space-y-2 bg-gray-50">
           {log.error && (
             <div>
-              <p className="text-[10px] font-semibold text-red-500 uppercase mb-1">Error</p>
-              <pre className="text-[10px] text-red-600 bg-red-50 rounded p-2 overflow-x-auto whitespace-pre-wrap">
+              <p className="text-xs font-semibold text-red-500 uppercase mb-1">Error</p>
+              <pre className="text-xs text-red-600 bg-red-50 rounded p-2 overflow-x-auto whitespace-pre-wrap">
                 {log.error}
               </pre>
             </div>
           )}
           {Boolean(log.output) && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1">Output</p>
-              <pre className="text-[10px] text-gray-600 bg-white rounded p-2 border border-gray-100 overflow-x-auto whitespace-pre-wrap">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Output</p>
+              <pre className="text-xs text-gray-600 bg-white rounded p-2 border border-gray-100 overflow-x-auto whitespace-pre-wrap">
                 {JSON.stringify(log.output, null, 2)}
               </pre>
             </div>
@@ -72,24 +72,24 @@ export default function ExecutionPanel({ logs, status, onClose }: Props) {
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-gray-700">Execution Results</span>
           {status === "running" && (
-            <span className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
               <Loader2 size={10} className="animate-spin" /> Running
             </span>
           )}
           {status === "success" && (
-            <span className="text-[10px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+            <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
               Success
             </span>
           )}
           {status === "failed" && (
-            <span className="text-[10px] text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+            <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
               Failed
             </span>
           )}
         </div>
         <button
           onClick={onClose}
-          className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
         >
           Close
         </button>

@@ -325,7 +325,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
         {/* Left sidebar */}
         <div className="w-56 bg-white border-r border-gray-100 flex flex-col overflow-y-auto p-4 gap-4 flex-shrink-0">
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Description</label>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wide block mb-1">Description</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
               placeholder="What is this template for?"
               className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 resize-none" />
@@ -393,8 +393,8 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                           {mergeFields.map(f => (
                             <div key={f.key} className="px-4 py-3 flex items-center gap-3">
                               <code className="text-xs font-mono bg-violet-50 text-violet-700 px-2 py-1 rounded flex-1 truncate">{"{" + f.key + "}"}</code>
-                              {f.formatter && <span className="text-[10px] bg-blue-50 text-blue-600 font-mono px-1.5 py-0.5 rounded">| {f.formatter}</span>}
-                              <span className="text-[10px] text-gray-400 font-mono truncate max-w-[120px]">{f.path}</span>
+                              {f.formatter && <span className="text-xs bg-blue-50 text-blue-600 font-mono px-1.5 py-0.5 rounded">| {f.formatter}</span>}
+                              <span className="text-xs text-gray-400 font-mono truncate max-w-[120px]">{f.path}</span>
                             </div>
                           ))}
                         </div>
@@ -408,7 +408,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                             <div key={f.key} className="px-4 py-3 flex items-center gap-3">
                               <Image size={12} className="text-teal-400 flex-shrink-0" />
                               <code className="text-xs font-mono bg-teal-50 text-teal-700 px-2 py-1 rounded flex-1">{"{%" + f.path + "}"}</code>
-                              <span className="text-[10px] text-gray-400">base64 data URI or HTTPS URL</span>
+                              <span className="text-xs text-gray-400">base64 data URI or HTTPS URL</span>
                             </div>
                           ))}
                         </div>
@@ -422,7 +422,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                             <div key={f.key} className="px-4 py-3 flex items-center gap-3">
                               <RefreshCw size={12} className="text-violet-400 flex-shrink-0" />
                               <code className="text-xs font-mono bg-violet-50 text-violet-700 px-2 py-1 rounded flex-1">{"{#" + f.path + "}"} … {"{/" + f.path + "}"}</code>
-                              <span className="text-[10px] text-gray-400">iterates over <code className="font-mono">{f.path}</code></span>
+                              <span className="text-xs text-gray-400">iterates over <code className="font-mono">{f.path}</code></span>
                             </div>
                           ))}
                         </div>
@@ -436,7 +436,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                             <div key={f.key} className="px-4 py-3 flex items-center gap-3">
                               <ChevronDown size={12} className="text-amber-400 flex-shrink-0" />
                               <code className="text-xs font-mono bg-amber-50 text-amber-700 px-2 py-1 rounded">{"{#" + f.path + "}"}</code>
-                              <span className="text-[10px] text-gray-400">shown when truthy</span>
+                              <span className="text-xs text-gray-400">shown when truthy</span>
                             </div>
                           ))}
                         </div>
@@ -445,7 +445,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                   </>
                 )}
                 <div className="bg-gray-900 rounded-xl p-4 text-xs font-mono">
-                  <p className="text-gray-400 mb-2 font-sans font-semibold text-[10px] uppercase tracking-wide">Quick Reference</p>
+                  <p className="text-gray-400 mb-2 font-sans font-semibold text-xs uppercase tracking-wide">Quick Reference</p>
                   {[
                     ["{field_name}", "Simple merge field"],
                     ["{amount | currency}", "Format as $1,234.56"],
@@ -460,7 +460,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                     </div>
                   ))}
                   <button onClick={() => router.push("/help#doc-composer")}
-                    className="mt-3 text-[10px] text-violet-400 hover:text-violet-300 font-sans flex items-center gap-1">
+                    className="mt-3 text-xs text-violet-400 hover:text-violet-300 font-sans flex items-center gap-1">
                     Full reference guide <ChevronRight size={10} />
                   </button>
                 </div>
@@ -499,7 +499,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                           const displayVal = rawVal == null ? "" : String(rawVal);
                           return (
                             <div key={f.key}>
-                              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-0.5">
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-0.5">
                                 {f.path}
                                 {f.formatter && <span className="font-mono text-violet-500 normal-case font-normal tracking-normal">| {f.formatter}</span>}
                               </label>
@@ -521,7 +521,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                         {/* Image fields */}
                         {imageFields.map(f => (
                           <div key={f.key}>
-                            <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-0.5">
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-0.5">
                               <Image size={9} className="text-teal-400" /> {f.path}
                               <span className="font-mono text-teal-500 normal-case font-normal tracking-normal">image</span>
                             </label>
@@ -537,7 +537,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                         {/* Conditions as checkboxes */}
                         {condFields.length > 0 && (
                           <div className="border-t border-gray-100 pt-2 space-y-2">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Conditions</p>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Conditions</p>
                             {condFields.map(f => (
                               <label key={f.key} className="flex items-center gap-2 cursor-pointer">
                                 <input
@@ -554,13 +554,13 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                         {/* Loops as JSON textarea */}
                         {loopFields.length > 0 && (
                           <div className="border-t border-gray-100 pt-2 space-y-3">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Arrays / Loops</p>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Arrays / Loops</p>
                             {loopFields.map(f => {
                               const val = parsedData[f.path];
                               const jsonStr = JSON.stringify(Array.isArray(val) ? val : [], null, 2);
                               return (
                                 <div key={f.key}>
-                                  <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-0.5">
+                                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-0.5">
                                     {f.path} <span className="text-violet-500 font-mono normal-case font-normal tracking-normal">[]</span>
                                   </label>
                                   <textarea
@@ -586,7 +586,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                 ) : (
                   /* JSON mode */
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Merge Data (JSON)</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wide block mb-1">Merge Data (JSON)</label>
                     <textarea
                       value={sampleJson}
                       onChange={e => { setSampleJson(e.target.value); setSampleErr(""); schedulePreview(); }}
@@ -639,7 +639,7 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                   Save & Get URL
                 </button>
                 {previewWarnings.length > 0 && (
-                  <div className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-0.5">
+                  <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-0.5">
                     <p className="font-bold mb-1">Warnings:</p>
                     {previewWarnings.map((w, i) => <p key={i}>• {w}</p>)}
                   </div>
@@ -653,17 +653,17 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                 <Eye size={12} className="text-gray-400" />
                 <span className="text-xs font-semibold text-gray-500">Document Preview</span>
                 {previewing ? (
-                  <span className="ml-auto text-[10px] text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                  <span className="ml-auto text-xs text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
                     <Loader2 size={9} className="animate-spin" /> Rendering
                   </span>
                 ) : previewHtml ? (
                   <>
-                    <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold ${previewIsRaw ? "text-amber-600 bg-amber-50" : "text-green-600 bg-green-50"}`}>
+                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-semibold ${previewIsRaw ? "text-amber-600 bg-amber-50" : "text-green-600 bg-green-50"}`}>
                       {previewIsRaw ? "Template" : "Merged"}
                     </span>
                     {!previewIsRaw && (
                       <button onClick={() => { setPreviewHtml(""); setPreviewIsRaw(true); loadRawPreview(); }}
-                        className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors">
+                        className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors">
                         <RotateCcw size={9} /> Reset
                       </button>
                     )}

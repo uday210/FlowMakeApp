@@ -176,7 +176,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {sections.map((section) => (
             <div key={section.label}>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-white/30 px-2 mb-1">
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/30 px-2 mb-1">
                 {section.label}
               </p>
               <div className="space-y-0.5">
@@ -230,7 +230,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                 style={{ background: "var(--gradient-brand)" }}
               >
                 {userInitial || "?"}
@@ -245,7 +245,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-gray-200 z-20 py-1 overflow-hidden">
                   <div className="px-3 py-2.5 border-b border-gray-100">
                     <p className="text-xs font-semibold text-gray-800 truncate">{userName}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{userEmail}</p>
+                    <p className="text-xs text-gray-400 truncate">{userEmail}</p>
                   </div>
                   <button
                     onClick={handleLogout}

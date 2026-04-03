@@ -392,7 +392,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
               </div>
             </div>
             {readOnlyFields.length > 0 && (
-              <p className="text-[11px] text-gray-400 mt-3 border-t border-gray-100 pt-2">
+              <p className="text-xs text-gray-400 mt-3 border-t border-gray-100 pt-2">
                 Previous signatures are shown as read-only overlays on the document below.
               </p>
             )}

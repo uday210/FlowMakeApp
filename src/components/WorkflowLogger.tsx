@@ -39,7 +39,7 @@ function LogLine({ log, index }: { log: ExecutionLog & { _ts?: string }; index: 
   };
 
   return (
-    <div className={`border-b font-mono text-[11px] leading-none ${rowBg}`}>
+    <div className={`border-b font-mono text-xs leading-none ${rowBg}`}>
       <div
         className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-white/5 group"
         onClick={() => hasDetail && setExpanded((v) => !v)}
@@ -94,16 +94,16 @@ function LogLine({ log, index }: { log: ExecutionLog & { _ts?: string }; index: 
         <div className="px-12 pb-3 pt-1 space-y-2">
           {log.error && (
             <div>
-              <span className="text-[10px] text-red-400 uppercase font-bold tracking-wider">Error</span>
-              <pre className="mt-1 text-red-300 bg-red-950/40 rounded p-2 overflow-x-auto whitespace-pre-wrap text-[10px] border border-red-900/30">
+              <span className="text-xs text-red-400 uppercase font-bold tracking-wider">Error</span>
+              <pre className="mt-1 text-red-300 bg-red-950/40 rounded p-2 overflow-x-auto whitespace-pre-wrap text-xs border border-red-900/30">
                 {log.error}
               </pre>
             </div>
           )}
           {log.output !== undefined && log.output !== null && (
             <div>
-              <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Output</span>
-              <pre className="mt-1 text-gray-300 bg-black/40 rounded p-2 overflow-x-auto whitespace-pre-wrap text-[10px] border border-white/10">
+              <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">Output</span>
+              <pre className="mt-1 text-gray-300 bg-black/40 rounded p-2 overflow-x-auto whitespace-pre-wrap text-xs border border-white/10">
                 {JSON.stringify(log.output, null, 2)}
               </pre>
             </div>
@@ -253,24 +253,24 @@ export default function WorkflowLogger({ logs, status, onClose, executionId, onS
 
         {/* Status badge */}
         {status === "running" && (
-          <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">
+          <span className="flex items-center gap-1 text-xs text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">
             <Loader2 size={9} className="animate-spin" /> Running
           </span>
         )}
         {status === "success" && (
-          <span className="text-[10px] text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20">
+          <span className="text-xs text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20">
             ✓ Done — {totalDuration}ms
           </span>
         )}
         {status === "failed" && (
-          <span className="text-[10px] text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full border border-red-400/20">
+          <span className="text-xs text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full border border-red-400/20">
             ✗ Failed
           </span>
         )}
 
         {/* Stats */}
         {logs.length > 0 && (
-          <div className="flex items-center gap-2 text-[10px] ml-1">
+          <div className="flex items-center gap-2 text-xs ml-1">
             {successCount > 0 && <span className="text-green-400">{successCount} ok</span>}
             {errorCount > 0 && <span className="text-red-400">{errorCount} err</span>}
             {skippedCount > 0 && <span className="text-gray-500">{skippedCount} skip</span>}
@@ -283,7 +283,7 @@ export default function WorkflowLogger({ logs, status, onClose, executionId, onS
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${
+              className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
                 filter === f.key
                   ? "bg-white/15 text-white"
                   : "text-gray-500 hover:text-gray-300"
@@ -300,7 +300,7 @@ export default function WorkflowLogger({ logs, status, onClose, executionId, onS
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="filter nodes…"
-          className="ml-1 bg-white/5 border border-white/10 rounded-md px-2 py-0.5 text-[10px] text-gray-300 placeholder-gray-600 outline-none focus:border-white/20 w-28"
+          className="ml-1 bg-white/5 border border-white/10 rounded-md px-2 py-0.5 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-white/20 w-28"
         />
 
         <div className="flex items-center gap-1 ml-auto">
@@ -320,7 +320,7 @@ export default function WorkflowLogger({ logs, status, onClose, executionId, onS
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-[11px] text-gray-600 font-mono">
+            <p className="text-xs text-gray-600 font-mono">
               {logs.length === 0 ? "▶ Run the workflow to see logs here" : "No entries match the current filter"}
             </p>
           </div>
@@ -335,7 +335,7 @@ export default function WorkflowLogger({ logs, status, onClose, executionId, onS
         )}
 
         {status === "running" && (
-          <div className="px-3 py-1.5 flex items-center gap-2 font-mono text-[11px] text-gray-600 animate-pulse">
+          <div className="px-3 py-1.5 flex items-center gap-2 font-mono text-xs text-gray-600 animate-pulse">
             <span className="w-5 text-right select-none">&nbsp;</span>
             <span className="w-28">{timestamp()}</span>
             <Loader2 size={11} className="animate-spin text-blue-500" />

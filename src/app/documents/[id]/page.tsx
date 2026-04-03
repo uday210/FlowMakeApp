@@ -344,7 +344,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
           >
             Status
             {signerRequests.length > 0 && (
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showStatus ? "bg-indigo-100 text-indigo-600" : "bg-gray-200 text-gray-500"}`}>
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${showStatus ? "bg-indigo-100 text-indigo-600" : "bg-gray-200 text-gray-500"}`}>
                 {signerRequests.length}
               </span>
             )}
@@ -371,7 +371,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
         </button>
 
         {isTemplate ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-50 border border-violet-200 rounded-lg text-[11px] text-violet-700 font-medium">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-50 border border-violet-200 rounded-lg text-xs text-violet-700 font-medium">
             <span>◆ Template — send via API or a Scenario workflow</span>
           </div>
         ) : (
@@ -426,12 +426,12 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <Users size={12} className="text-gray-400" />
-                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Recipients</span>
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recipients</span>
                 </div>
                 {!isTemplate && signingMode !== "groups" && (
                   <button
                     onClick={() => { setAddingRecipient(true); setEditingIdx(null); }}
-                    className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5"
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5"
                   >
                     <UserPlus size={11} /> Add
                   </button>
@@ -444,7 +444,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                       className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-red-500 border border-gray-200 rounded disabled:opacity-30 text-xs font-bold"
                       title="Remove last signer slot"
                     >−</button>
-                    <span className="text-[10px] text-gray-400">{templateSlotCount}</span>
+                    <span className="text-xs text-gray-400">{templateSlotCount}</span>
                     <button
                       onClick={() => setTemplateSlotCount(c => c + 1)}
                       className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-indigo-600 border border-gray-200 rounded text-xs font-bold"
@@ -457,8 +457,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
               {/* Signing mode selector */}
               {!isTemplate && (
                 <div className="mb-3">
-                  <p className="text-[10px] text-gray-400 mb-1.5 font-medium">Signing mode</p>
-                  <div className="flex rounded-lg overflow-hidden border border-gray-200 text-[10px] font-semibold">
+                  <p className="text-xs text-gray-400 mb-1.5 font-medium">Signing mode</p>
+                  <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs font-semibold">
                     {(["sequential", "parallel", "groups"] as SigningMode[]).map((m) => {
                       const icons = { sequential: ArrowDownUp, parallel: GitMerge, groups: Layers2 };
                       const labels = { sequential: "Sequential", parallel: "Parallel", groups: "Groups" };
@@ -477,7 +477,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                       );
                     })}
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
+                  <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
                     {signingMode === "sequential" && "Each signer signs one after another in order."}
                     {signingMode === "parallel" && "Everyone gets the link at once. Use 'All Signers' fields."}
                     {signingMode === "groups" && "Each group signs together, then the next group unlocks."}
@@ -485,7 +485,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                   {signingMode === "groups" && (
                     <button
                       onClick={() => setGroupCount(c => c + 1)}
-                      className="mt-2 w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-semibold text-indigo-600 border border-dashed border-indigo-300 rounded-lg hover:bg-indigo-50 transition-colors"
+                      className="mt-2 w-full flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-indigo-600 border border-dashed border-indigo-300 rounded-lg hover:bg-indigo-50 transition-colors"
                     >
                       <span className="text-sm leading-none">+</span> New Group
                     </button>
@@ -500,20 +500,20 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                   className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all mb-2 ${activeSignerIdx === -1 ? "shadow-sm" : "hover:bg-gray-50"}`}
                   style={activeSignerIdx === -1 ? { backgroundColor: "#64748b18", border: "1px solid #64748b40" } : { border: "1px solid transparent" }}
                 >
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 bg-slate-500">∀</span>
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 bg-slate-500">∀</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-gray-800">All Signers</p>
-                    <p className="text-[10px] text-gray-400">Fields filled by every signer</p>
+                    <p className="text-xs text-gray-400">Fields filled by every signer</p>
                   </div>
-                  {activeSignerIdx === -1 && <span className="text-[9px] font-bold text-slate-500">active</span>}
+                  {activeSignerIdx === -1 && <span className="text-xs font-bold text-slate-500">active</span>}
                 </button>
               )}
 
               {displaySigners.length === 0 && !addingRecipient && signingMode !== "groups" && (
                 <div className="text-center py-3">
-                  <p className="text-[11px] text-gray-400 mb-2">No recipients yet</p>
+                  <p className="text-xs text-gray-400 mb-2">No recipients yet</p>
                   <button onClick={() => setAddingRecipient(true)}
-                    className="text-[11px] text-indigo-600 border border-dashed border-indigo-300 rounded-lg px-3 py-1.5 w-full hover:bg-indigo-50 transition-colors">
+                    className="text-xs text-indigo-600 border border-dashed border-indigo-300 rounded-lg px-3 py-1.5 w-full hover:bg-indigo-50 transition-colors">
                     + Add first recipient
                   </button>
                 </div>
@@ -533,14 +533,14 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                               <div key={g} className="mb-2 rounded-xl border border-gray-100 overflow-hidden">
                                 {/* Group header */}
                                 <div className="flex items-center gap-1.5 px-2 py-1.5 bg-indigo-50 border-b border-indigo-100">
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-600">
+                                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
                                     Group {g}
                                   </span>
-                                  <span className="text-[9px] text-indigo-400">· {groupSigners.length} signer{groupSigners.length !== 1 ? "s" : ""}</span>
+                                  <span className="text-xs text-indigo-400">· {groupSigners.length} signer{groupSigners.length !== 1 ? "s" : ""}</span>
                                   <div className="flex-1" />
                                   <button
                                     onClick={() => { setNewGroup(g); setAddingRecipient(true); setEditingIdx(null); }}
-                                    className="text-[9px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-indigo-100 transition-colors"
+                                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-indigo-100 transition-colors"
                                   >+ Add</button>
                                   <button
                                     onClick={() => {
@@ -549,14 +549,14 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                       // shrink groupCount if this was the last group
                                       if (g === groupCount) setGroupCount(c => Math.max(1, c - 1));
                                     }}
-                                    className="text-[9px] font-semibold text-red-400 hover:text-red-600 px-1 py-0.5 rounded hover:bg-red-50 transition-colors"
+                                    className="text-xs font-semibold text-red-400 hover:text-red-600 px-1 py-0.5 rounded hover:bg-red-50 transition-colors"
                                     title="Delete group and all its signers"
                                   >✕</button>
                                 </div>
                                 {/* Signers in group */}
                                 <div className="p-1 space-y-0.5">
                                   {groupSigners.length === 0 && !isAddingToThisGroup && (
-                                    <p className="text-[10px] text-gray-400 text-center py-2">No signers yet — click + Add</p>
+                                    <p className="text-xs text-gray-400 text-center py-2">No signers yet — click + Add</p>
                                   )}
                                   {groupSigners.map(({ s, i }) => {
                                     const color = SIGNER_COLORS[i % SIGNER_COLORS.length];
@@ -572,7 +572,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                               onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x))}
                                               className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
                                             <div className="flex items-center gap-1">
-                                              <span className="text-[10px] text-gray-500">Move to group:</span>
+                                              <span className="text-xs text-gray-500">Move to group:</span>
                                               <select value={s.group} onChange={e => setSignerGroup(i, Number(e.target.value))}
                                                 className="flex-1 text-xs border border-gray-200 rounded px-1 py-1 outline-none bg-white">
                                                 {existingGroups.map(gn => (
@@ -581,8 +581,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                               </select>
                                             </div>
                                             <div className="flex gap-1">
-                                              <button onClick={() => setEditingIdx(null)} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold">Done</button>
-                                              <button onClick={() => { setEditingIdx(null); removeRecipient(i); }} className="text-[11px] text-red-500 px-2">Remove</button>
+                                              <button onClick={() => setEditingIdx(null)} className="flex-1 text-xs bg-indigo-600 text-white rounded py-1 font-semibold">Done</button>
+                                              <button onClick={() => { setEditingIdx(null); removeRecipient(i); }} className="text-xs text-red-500 px-2">Remove</button>
                                             </div>
                                           </div>
                                         ) : (
@@ -591,16 +591,16 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                             style={isActive ? { backgroundColor: `${color}12`, border: `1px solid ${color}40` } : { border: "1px solid transparent" }}
                                             onClick={() => { setActiveSignerIdx(i); setActiveTool(null); }}
                                           >
-                                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0" style={{ backgroundColor: color }}>{i + 1}</span>
+                                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ backgroundColor: color }}>{i + 1}</span>
                                             <div className="flex-1 min-w-0">
                                               <p className="text-xs font-medium text-gray-800 truncate">{s.name || s.email.split("@")[0]}</p>
-                                              <p className="text-[10px] text-gray-400 truncate">{s.email}</p>
+                                              <p className="text-xs text-gray-400 truncate">{s.email}</p>
                                             </div>
-                                            {isActive && <span className="text-[9px] font-bold flex-shrink-0" style={{ color }}>active</span>}
+                                            {isActive && <span className="text-xs font-bold flex-shrink-0" style={{ color }}>active</span>}
                                             <button onClick={e => { e.stopPropagation(); setEditingIdx(i); }}
-                                              className="opacity-0 group-hover/signer:opacity-100 text-[10px] text-gray-400 hover:text-gray-600 transition-opacity">edit</button>
+                                              className="opacity-0 group-hover/signer:opacity-100 text-xs text-gray-400 hover:text-gray-600 transition-opacity">edit</button>
                                             <button onClick={e => { e.stopPropagation(); removeRecipient(i); if (activeSignerIdx === i) setActiveSignerIdx(0); }}
-                                              className="opacity-0 group-hover/signer:opacity-100 text-[10px] text-red-400 hover:text-red-600 transition-opacity ml-0.5">✕</button>
+                                              className="opacity-0 group-hover/signer:opacity-100 text-xs text-red-400 hover:text-red-600 transition-opacity ml-0.5">✕</button>
                                           </div>
                                         )}
                                       </div>
@@ -618,8 +618,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                         onKeyDown={e => { if (e.key === "Enter") addRecipient(); if (e.key === "Escape") { setAddingRecipient(false); setNewEmail(""); setNewName(""); } }}
                                         className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
                                       <div className="flex gap-1">
-                                        <button onClick={addRecipient} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold">Add</button>
-                                        <button onClick={() => { setAddingRecipient(false); setNewEmail(""); setNewName(""); }} className="text-[11px] text-gray-400 px-2">Cancel</button>
+                                        <button onClick={addRecipient} className="flex-1 text-xs bg-indigo-600 text-white rounded py-1 font-semibold">Add</button>
+                                        <button onClick={() => { setAddingRecipient(false); setNewEmail(""); setNewName(""); }} className="text-xs text-gray-400 px-2">Cancel</button>
                                       </div>
                                     </div>
                                   )}
@@ -644,8 +644,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                 onChange={e => setSigners(prev => prev.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x))}
                                 className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
                               <div className="flex gap-1">
-                                <button onClick={() => setEditingIdx(null)} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold">Done</button>
-                                <button onClick={() => { setEditingIdx(null); removeRecipient(i); }} className="text-[11px] text-red-500 hover:text-red-600 px-2">Remove</button>
+                                <button onClick={() => setEditingIdx(null)} className="flex-1 text-xs bg-indigo-600 text-white rounded py-1 font-semibold">Done</button>
+                                <button onClick={() => { setEditingIdx(null); removeRecipient(i); }} className="text-xs text-red-500 hover:text-red-600 px-2">Remove</button>
                               </div>
                             </div>
                           ) : (
@@ -653,17 +653,17 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                               className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all group ${isActive ? "shadow-sm" : "hover:bg-gray-50"}`}
                               style={isActive ? { backgroundColor: `${color}12`, border: `1px solid ${color}40` } : { border: "1px solid transparent" }}
                             >
-                              <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: color }}>
+                              <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ backgroundColor: color }}>
                                 {signingMode === "parallel" ? "=" : i + 1}
                               </span>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium text-gray-800 truncate">{s.name || s.email.split("@")[0]}</p>
-                                {!isTemplate && <p className="text-[10px] text-gray-400 truncate">{s.email}</p>}
+                                {!isTemplate && <p className="text-xs text-gray-400 truncate">{s.email}</p>}
                               </div>
-                              {isActive && <span className="text-[9px] font-bold ml-auto flex-shrink-0" style={{ color }}>active</span>}
+                              {isActive && <span className="text-xs font-bold ml-auto flex-shrink-0" style={{ color }}>active</span>}
                               {!isTemplate && !isActive && (
                                 <button onClick={e => { e.stopPropagation(); setEditingIdx(i); }}
-                                  className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-400 hover:text-gray-600 flex-shrink-0 transition-opacity">
+                                  className="opacity-0 group-hover:opacity-100 text-xs text-gray-400 hover:text-gray-600 flex-shrink-0 transition-opacity">
                                   edit
                                 </button>
                               )}
@@ -687,8 +687,8 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                     onKeyDown={e => { if (e.key === "Enter") addRecipient(); if (e.key === "Escape") { setAddingRecipient(false); setNewEmail(""); setNewName(""); } }}
                     className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-400 bg-white" />
                   <div className="flex gap-1">
-                    <button onClick={addRecipient} disabled={!newEmail.trim()} className="flex-1 text-[11px] bg-indigo-600 text-white rounded py-1 font-semibold disabled:opacity-40">Add</button>
-                    <button onClick={() => { setAddingRecipient(false); setNewEmail(""); setNewName(""); }} className="text-[11px] text-gray-500 hover:text-gray-700 px-2">Cancel</button>
+                    <button onClick={addRecipient} disabled={!newEmail.trim()} className="flex-1 text-xs bg-indigo-600 text-white rounded py-1 font-semibold disabled:opacity-40">Add</button>
+                    <button onClick={() => { setAddingRecipient(false); setNewEmail(""); setNewName(""); }} className="text-xs text-gray-500 hover:text-gray-700 px-2">Cancel</button>
                   </div>
                 </div>
               )}
@@ -697,9 +697,9 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
             {/* FIELD TYPES */}
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center gap-1.5 mb-3">
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Fields</span>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Fields</span>
                 {activeSigner && (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-1 truncate max-w-[120px]"
+                  <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full ml-1 truncate max-w-[120px]"
                     style={{ backgroundColor: `${activeColor}18`, color: activeColor }}>
                     {activeSigner.name || activeSigner.email.split("@")[0]}
                   </span>
@@ -707,7 +707,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
               </div>
 
               {displaySigners.length === 0 && activeSignerIdx !== -1 ? (
-                <p className="text-[11px] text-gray-400 text-center py-2">Add a recipient or select &quot;All Signers&quot; to place fields</p>
+                <p className="text-xs text-gray-400 text-center py-2">Add a recipient or select &quot;All Signers&quot; to place fields</p>
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -725,13 +725,13 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                           style={isActive ? { backgroundColor: ft.color, borderColor: ft.color } : {}}
                         >
                           <ft.icon size={16} />
-                          <span className="text-[10px] font-semibold leading-none">{ft.label}</span>
+                          <span className="text-xs font-semibold leading-none">{ft.label}</span>
                         </button>
                       );
                     })}
                   </div>
                   {!activeTool && (
-                    <p className="text-[10px] text-gray-400 text-center mt-2">Select a field type, then click the document</p>
+                    <p className="text-xs text-gray-400 text-center mt-2">Select a field type, then click the document</p>
                   )}
                 </>
               )}
@@ -740,14 +740,14 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
             {/* PLACED FIELDS */}
             <div className="p-4 flex-1 overflow-y-auto">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Placed Fields</span>
-                <span className="text-[10px] text-gray-400 bg-gray-100 rounded-full px-1.5 py-0.5">{fields.length}</span>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Placed Fields</span>
+                <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5 py-0.5">{fields.length}</span>
               </div>
 
               {fields.length === 0 ? (
                 <div className="text-center py-6">
-                  <p className="text-[11px] text-gray-400">No fields yet</p>
-                  <p className="text-[10px] text-gray-300 mt-1">1. Pick a recipient → 2. Pick a field → 3. Click the PDF</p>
+                  <p className="text-xs text-gray-400">No fields yet</p>
+                  <p className="text-xs text-gray-300 mt-1">1. Pick a recipient → 2. Pick a field → 3. Click the PDF</p>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -875,7 +875,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                             {/* Group header */}
                             <div className={`px-4 py-3 flex items-center justify-between gap-3 ${allSigned ? "bg-green-50" : "bg-gray-50"}`}>
                               <div className="flex items-center gap-2">
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${allSigned ? "bg-green-500" : "bg-indigo-500"}`}>
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${allSigned ? "bg-green-500" : "bg-indigo-500"}`}>
                                   {gi + 1}
                                 </div>
                                 <div>
@@ -884,20 +884,20 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                     {allSigned && <span className="ml-2 text-green-600">· All signed</span>}
                                     {!allSigned && someSigned && <span className="ml-2 text-amber-600">· {signedCount}/{reqs.length} signed</span>}
                                   </p>
-                                  <p className="text-[10px] text-gray-400">Sent {sentAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+                                  <p className="text-xs text-gray-400">Sent {sentAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</p>
                                 </div>
                               </div>
                               {/* Group download buttons */}
                               <div className="flex items-center gap-1.5 flex-wrap justify-end">
                                 {someSigned && !allSigned && (
                                   <a href={dlBase} target="_blank" rel="noreferrer"
-                                    className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100">
+                                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100">
                                     <Download size={10} /> Signed so far
                                   </a>
                                 )}
                                 {allSigned && (
                                   <a href={dlBase} target="_blank" rel="noreferrer"
-                                    className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700">
+                                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700">
                                     <Download size={10} /> Full Signed PDF
                                   </a>
                                 )}
@@ -934,7 +934,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                             ? `/api/documents/${id}/download?request_id=${r.id}`
                                             : `${dlBase}&until_order=${r.signing_order}`}
                                           target="_blank" rel="noreferrer"
-                                          className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100">
+                                          className="flex items-center gap-1 px-2 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100">
                                           <Download size={10} /> {isParallelSession ? "Copy" : "PDF"}
                                         </a>
                                       )}
@@ -946,14 +946,14 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                                     )}
                                     {isPending && r.signing_url && (
                                       <div className="ml-11 mt-2 bg-indigo-50 border border-indigo-200 rounded-lg p-2.5">
-                                        <p className="text-[11px] font-semibold text-indigo-700 mb-1.5 flex items-center gap-1">
+                                        <p className="text-xs font-semibold text-indigo-700 mb-1.5 flex items-center gap-1">
                                           <Link2 size={11} /> Signing link — share with recipient
                                         </p>
                                         <div className="flex items-center gap-2">
-                                          <code className="flex-1 text-[10px] text-indigo-600 bg-white border border-indigo-100 rounded px-2 py-1 truncate">{r.signing_url}</code>
+                                          <code className="flex-1 text-xs text-indigo-600 bg-white border border-indigo-100 rounded px-2 py-1 truncate">{r.signing_url}</code>
                                           <button
                                             onClick={() => { navigator.clipboard.writeText(r.signing_url!); setCopiedId(r.id); setTimeout(() => setCopiedId(null), 2000); }}
-                                            className={`flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-lg border flex-shrink-0 transition-colors ${copiedId === r.id ? "bg-green-50 text-green-700 border-green-200" : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"}`}
+                                            className={`flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg border flex-shrink-0 transition-colors ${copiedId === r.id ? "bg-green-50 text-green-700 border-green-200" : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"}`}
                                           >
                                             {copiedId === r.id ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
                                           </button>
@@ -1025,17 +1025,17 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
               {sendSuccess.map((s, i) => (
                 <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: SIGNER_COLORS[i % SIGNER_COLORS.length] }}>
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ backgroundColor: SIGNER_COLORS[i % SIGNER_COLORS.length] }}>
                       {s.order}
                     </span>
                     <span className="text-xs font-semibold text-gray-700 truncate">{s.email}</span>
                   </div>
                   {s.url && (
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 text-[10px] text-indigo-600 bg-white border border-gray-200 rounded px-2 py-1 truncate">{s.url}</code>
+                      <code className="flex-1 text-xs text-indigo-600 bg-white border border-gray-200 rounded px-2 py-1 truncate">{s.url}</code>
                       <button
                         onClick={() => { navigator.clipboard.writeText(s.url!); setCopiedId(`m-${i}`); setTimeout(() => setCopiedId(null), 2000); }}
-                        className={`flex-shrink-0 text-[11px] px-2 py-1 rounded-lg border font-semibold transition-colors ${copiedId === `m-${i}` ? "bg-green-50 text-green-700 border-green-200" : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"}`}
+                        className={`flex-shrink-0 text-xs px-2 py-1 rounded-lg border font-semibold transition-colors ${copiedId === `m-${i}` ? "bg-green-50 text-green-700 border-green-200" : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"}`}
                       >
                         {copiedId === `m-${i}` ? "Copied!" : "Copy"}
                       </button>

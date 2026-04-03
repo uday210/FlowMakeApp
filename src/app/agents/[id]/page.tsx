@@ -343,12 +343,12 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
               <span className="text-sm font-bold truncate">
                 {appearance.agentName || chatbot.name}
               </span>
-              <span className="flex items-center gap-1 text-[10px] bg-white/20 px-2 py-0.5 rounded-full">
+              <span className="flex items-center gap-1 text-xs bg-white/20 px-2 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 bg-green-300 rounded-full" />
                 Online
               </span>
             </div>
-            <p className="text-[11px] text-white/70 truncate">{chatbot.name}</p>
+            <p className="text-xs text-white/70 truncate">{chatbot.name}</p>
           </div>
         </div>
 
@@ -449,7 +449,7 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
               <button
                 key={i}
                 onClick={() => sendMessage(q)}
-                className="text-[10px] px-2.5 py-1 rounded-full border transition-all hover:shadow-sm"
+                className="text-xs px-2.5 py-1 rounded-full border transition-all hover:shadow-sm"
                 style={{
                   borderColor: primaryColor + "66",
                   color: primaryColor,
@@ -490,7 +490,7 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
         {/* Branding */}
         {appearance.showBranding && (
           <div className="text-center pb-2 bg-white flex-shrink-0">
-            <span className="text-[9px] text-gray-300">Powered by FlowMake</span>
+            <span className="text-xs text-gray-300">Powered by FlowMake</span>
           </div>
         )}
       </div>
@@ -598,7 +598,7 @@ function OverviewTab({
       {chatbot.agent_type !== "simple" && (
         <div>
           <label className="text-xs font-semibold text-gray-600 mb-1 block">System Prompt</label>
-          <p className="text-[11px] text-gray-400 mb-1.5">
+          <p className="text-xs text-gray-400 mb-1.5">
             The instructions that define your agent&apos;s personality and behavior.
           </p>
           <textarea
@@ -617,7 +617,7 @@ function OverviewTab({
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="flex items-center gap-1 text-[10px] font-semibold text-violet-600 hover:text-violet-800 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-800 disabled:opacity-50 transition-colors"
           >
             {uploading
               ? <><Loader2 size={10} className="animate-spin" /> Embedding...</>
@@ -632,7 +632,7 @@ function OverviewTab({
             onChange={handleFileUpload}
           />
         </div>
-        <p className="text-[11px] text-gray-400 mb-1.5">
+        <p className="text-xs text-gray-400 mb-1.5">
           Files are chunked &amp; embedded as vectors — only relevant chunks are retrieved per query.
           Supports .txt, .md, .csv, .json, .pdf
         </p>
@@ -641,7 +641,7 @@ function OverviewTab({
         {knowledgeFiles.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {knowledgeFiles.map(f => (
-              <span key={f.filename} className="flex items-center gap-1 text-[10px] bg-violet-50 text-violet-700 border border-violet-100 px-2 py-0.5 rounded-full">
+              <span key={f.filename} className="flex items-center gap-1 text-xs bg-violet-50 text-violet-700 border border-violet-100 px-2 py-0.5 rounded-full">
                 <File size={9} />
                 {f.filename}
                 <span className="text-violet-400 ml-0.5">({f.chunks} chunks)</span>
@@ -664,7 +664,7 @@ function OverviewTab({
           placeholder="Paste additional context here (always included in every prompt)..."
           className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
         />
-        <p className="text-[10px] text-gray-400 mt-1">
+        <p className="text-xs text-gray-400 mt-1">
           Text above is always appended to the prompt. Use uploaded files for large documents.
         </p>
       </div>}
@@ -780,7 +780,7 @@ function ModelTab({
           placeholder="Leave empty to use platform default"
           className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 font-mono"
         />
-        <p className="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1">
+        <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
           <Info size={10} />
           Fallback env var: <code className="font-mono">{providerInfo.envVar}</code>
         </p>
@@ -803,7 +803,7 @@ function ModelTab({
           onChange={e => onChange({ temperature: parseFloat(e.target.value) })}
           className="w-full accent-violet-600"
         />
-        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+        <div className="flex justify-between text-xs text-gray-400 mt-1">
           <span>Precise</span>
           <span>Creative</span>
         </div>
@@ -826,7 +826,7 @@ function ModelTab({
           onChange={e => onChange({ max_tokens: parseInt(e.target.value) })}
           className="w-full accent-violet-600"
         />
-        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+        <div className="flex justify-between text-xs text-gray-400 mt-1">
           <span>256</span>
           <span>4096</span>
         </div>
@@ -898,14 +898,14 @@ function ToolsTab({
     <div className="space-y-4">
       <div>
         <h3 className="text-xs font-semibold text-gray-900 mb-0.5">Connect Workflows</h3>
-        <p className="text-[11px] text-gray-400">
+        <p className="text-xs text-gray-400">
           Only workflows with an <span className="font-medium text-violet-600">Agent Invoke</span> trigger are shown here.
         </p>
       </div>
 
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-2">
         <Info size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
-        <p className="text-[11px] text-blue-600 leading-relaxed">
+        <p className="text-xs text-blue-600 leading-relaxed">
           When enabled, your agent will automatically invoke the workflow when relevant to the
           conversation.
         </p>
@@ -918,7 +918,7 @@ function ToolsTab({
       ) : workflows.length === 0 ? (
         <div className="text-center py-8 text-gray-400 px-2">
           <p className="text-xs font-medium text-gray-700">No agent-callable workflows found.</p>
-          <p className="text-[11px] mt-1 leading-relaxed">
+          <p className="text-xs mt-1 leading-relaxed">
             To expose a workflow as a tool, add an{" "}
             <span className="font-semibold text-violet-600">Agent Invoke</span> trigger node as the
             first step of your workflow.
@@ -947,13 +947,13 @@ function ToolsTab({
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-900 truncate">{wf.name}</p>
                     {wf.description && (
-                      <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">
+                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
                         {wf.description}
                       </p>
                     )}
                     {isEnabled && (
                       <div className="mt-2">
-                        <label className="text-[10px] text-gray-500 mb-1 block">
+                        <label className="text-xs text-gray-500 mb-1 block">
                           When to use this workflow:
                         </label>
                         <textarea
@@ -1061,7 +1061,7 @@ function BrandingTab({
                   onChange={e => setAppearance({ [key]: e.target.value })}
                   className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white"
                 />
-                <span className="text-[11px] font-mono text-gray-400 w-16">
+                <span className="text-xs font-mono text-gray-400 w-16">
                   {appearance[key]}
                 </span>
               </div>
@@ -1084,7 +1084,7 @@ function BrandingTab({
                 <button
                   key={pos}
                   onClick={() => setAppearance({ position: pos })}
-                  className={`py-1.5 px-2 text-[11px] font-medium rounded-lg border transition-all ${appearance.position === pos
+                  className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${appearance.position === pos
                       ? "border-violet-400 bg-violet-50 text-violet-700"
                       : "border-gray-200 text-gray-500 hover:border-gray-300"
                     }`}
@@ -1205,7 +1205,7 @@ function BrandingTab({
                 onChange={e => setAppearance({ launcherColor: e.target.value })}
                 className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white"
               />
-              <span className="text-[11px] font-mono text-gray-400 w-16">
+              <span className="text-xs font-mono text-gray-400 w-16">
                 {appearance.launcherColor ?? appearance.primaryColor}
               </span>
             </div>
@@ -1223,14 +1223,14 @@ function BrandingTab({
                 <button
                   key={value}
                   onClick={() => setAppearance({ launcherSize: value })}
-                  className={`py-1.5 px-2 text-[11px] font-medium rounded-lg border transition-all ${
+                  className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${
                     (appearance.launcherSize ?? "md") === value
                       ? "border-violet-400 bg-violet-50 text-violet-700"
                       : "border-gray-200 text-gray-500 hover:border-gray-300"
                   }`}
                 >
                   {label}
-                  <span className="block text-[10px] opacity-60">{px}</span>
+                  <span className="block text-xs opacity-60">{px}</span>
                 </button>
               ))}
             </div>
@@ -1247,7 +1247,7 @@ function BrandingTab({
               placeholder="e.g. Chat with us"
               className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400"
             />
-            <p className="text-[11px] text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               When set, shows a pill with your label next to the bubble.
             </p>
           </div>
@@ -1257,7 +1257,7 @@ function BrandingTab({
       {/* Launcher bubble preview */}
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-2 block">Launcher Button Preview</label>
-        <p className="text-[11px] text-gray-400 mb-3">How the chat bubble looks when collapsed on your website.</p>
+        <p className="text-xs text-gray-400 mb-3">How the chat bubble looks when collapsed on your website.</p>
         <div className="relative bg-gray-100 rounded-xl h-28 overflow-hidden">
           {/* Fake website content */}
           <div className="absolute inset-0 p-3 space-y-1.5">
@@ -1280,7 +1280,7 @@ function BrandingTab({
               >
                 {lLabel && appearance.position !== "bottom-left" && (
                   <div
-                    className="flex items-center px-2.5 py-1 rounded-full text-white text-[11px] font-semibold shadow-md"
+                    className="flex items-center px-2.5 py-1 rounded-full text-white text-xs font-semibold shadow-md"
                     style={{ backgroundColor: lColor }}
                   >
                     {lLabel}
@@ -1301,7 +1301,7 @@ function BrandingTab({
                 </div>
                 {lLabel && appearance.position === "bottom-left" && (
                   <div
-                    className="flex items-center px-2.5 py-1 rounded-full text-white text-[11px] font-semibold shadow-md"
+                    className="flex items-center px-2.5 py-1 rounded-full text-white text-xs font-semibold shadow-md"
                     style={{ backgroundColor: lColor }}
                   >
                     {lLabel}
@@ -1465,7 +1465,7 @@ function EmbedTab({ chatbot }: { chatbot: Chatbot }) {
           ))}
         </div>
         <div className="relative">
-          <pre className="bg-gray-900 text-gray-100 rounded-xl p-3 text-[11px] overflow-x-auto font-mono leading-relaxed">
+          <pre className="bg-gray-900 text-gray-100 rounded-xl p-3 text-xs overflow-x-auto font-mono leading-relaxed">
             {code}
           </pre>
           <button
@@ -1481,7 +1481,7 @@ function EmbedTab({ chatbot }: { chatbot: Chatbot }) {
       {/* Allowed Domains */}
       <div>
         <label className="text-xs font-semibold text-gray-600 mb-1 block">Allowed Domains</label>
-        <p className="text-[11px] text-gray-400 mb-1.5">
+        <p className="text-xs text-gray-400 mb-1.5">
           Comma-separated list of allowed domains (for security).
         </p>
         <input
@@ -1538,7 +1538,7 @@ function BehaviorTab({
     <div className="space-y-5">
       <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex gap-2">
         <Shield size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
-        <p className="text-[11px] text-amber-700 leading-relaxed">
+        <p className="text-xs text-amber-700 leading-relaxed">
           Behavior controls add deterministic rules on top of your model settings. They are injected into the system prompt automatically.
         </p>
       </div>
@@ -1547,7 +1547,7 @@ function BehaviorTab({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold text-gray-800">Lock temperature to 0</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Forces fully deterministic responses. Overrides the model temperature setting.</p>
+          <p className="text-xs text-gray-400 mt-0.5">Forces fully deterministic responses. Overrides the model temperature setting.</p>
         </div>
         <button
           onClick={() => set({ temperature_locked: !behavior.temperature_locked })}
@@ -1575,7 +1575,7 @@ function BehaviorTab({
           <option value="json">Always JSON</option>
         </select>
         {behavior.response_format === "json" && (
-          <p className="text-[10px] text-amber-600 mt-1">The agent will be instructed to respond with valid JSON only.</p>
+          <p className="text-xs text-amber-600 mt-1">The agent will be instructed to respond with valid JSON only.</p>
         )}
       </div>
 
@@ -1603,7 +1603,7 @@ function BehaviorTab({
           placeholder="0 = no limit"
           className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400"
         />
-        <p className="text-[10px] text-gray-400 mt-1">Set to 0 for no limit.</p>
+        <p className="text-xs text-gray-400 mt-1">Set to 0 for no limit.</p>
       </div>
 
       {/* Guardrails */}
@@ -1611,11 +1611,11 @@ function BehaviorTab({
         <label className="text-xs font-semibold text-gray-600 mb-1 block">
           <AlertTriangle size={11} className="inline mr-1" />Guardrails
         </label>
-        <p className="text-[11px] text-gray-400 mb-2">Rules the agent must always follow (e.g. "Never discuss competitors", "Always recommend contacting support").</p>
+        <p className="text-xs text-gray-400 mb-2">Rules the agent must always follow (e.g. "Never discuss competitors", "Always recommend contacting support").</p>
         <div className="space-y-1.5 mb-2">
           {(behavior.guardrails ?? []).map((g, i) => (
             <div key={i} className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5">
-              <span className="text-[11px] text-red-700 flex-1">{g}</span>
+              <span className="text-xs text-red-700 flex-1">{g}</span>
               <button
                 onClick={() => set({ guardrails: behavior.guardrails.filter((_, j) => j !== i) })}
                 className="text-red-300 hover:text-red-600 flex-shrink-0"
@@ -1683,14 +1683,14 @@ function MCPTab({
     <div className="space-y-4">
       <div>
         <h3 className="text-xs font-semibold text-gray-900 mb-0.5">External MCP Tools</h3>
-        <p className="text-[11px] text-gray-400">
+        <p className="text-xs text-gray-400">
           Connect MCP (Model Context Protocol) servers to extend your agent with external tools like search, code execution, or custom APIs.
         </p>
       </div>
 
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-2">
         <Server size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
-        <p className="text-[11px] text-blue-700 leading-relaxed">
+        <p className="text-xs text-blue-700 leading-relaxed">
           The agent will call MCP tools as needed during conversations. Each tool call is executed server-side.
         </p>
       </div>
@@ -1699,7 +1699,7 @@ function MCPTab({
         <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
           <Server size={24} className="text-gray-300 mx-auto mb-2" />
           <p className="text-xs font-medium text-gray-500">No MCP tools configured</p>
-          <p className="text-[11px] text-gray-400 mt-1">Add an MCP server to extend your agent&apos;s capabilities.</p>
+          <p className="text-xs text-gray-400 mt-1">Add an MCP server to extend your agent&apos;s capabilities.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -1711,8 +1711,8 @@ function MCPTab({
                 </button>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-gray-900">{tool.name}</p>
-                  <p className="text-[10px] text-gray-400 font-mono truncate">{tool.server_url}</p>
-                  {tool.description && <p className="text-[11px] text-gray-500 mt-0.5">{tool.description}</p>}
+                  <p className="text-xs text-gray-400 font-mono truncate">{tool.server_url}</p>
+                  {tool.description && <p className="text-xs text-gray-500 mt-0.5">{tool.description}</p>}
                 </div>
                 <button onClick={() => removeTool(tool.id)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
                   <Trash2 size={12} />
@@ -1796,7 +1796,7 @@ function HistoryTab({ agentId }: { agentId: string }) {
       <div className="flex flex-col items-center justify-center py-12 text-center px-4">
         <MessageSquare size={28} className="text-gray-300 mb-3" />
         <p className="text-xs font-semibold text-gray-600">No conversations yet</p>
-        <p className="text-[11px] text-gray-400 mt-1">
+        <p className="text-xs text-gray-400 mt-1">
           Conversations from the preview and embed will appear here.
         </p>
       </div>
@@ -1805,7 +1805,7 @@ function HistoryTab({ agentId }: { agentId: string }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mb-3">
+      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-3">
         {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
       </p>
       {conversations.map(conv => {
@@ -1824,15 +1824,15 @@ function HistoryTab({ agentId }: { agentId: string }) {
             >
               <MessageSquare size={13} className="text-violet-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-gray-800 truncate">
+                <p className="text-xs font-medium text-gray-800 truncate">
                   {firstUserMsg?.content ?? "No messages"}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-gray-400">{dateStr} · {timeStr}</span>
-                  <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                  <span className="text-xs text-gray-400">{dateStr} · {timeStr}</span>
+                  <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
                     {userCount} msg{userCount !== 1 ? "s" : ""}
                   </span>
-                  <span className="text-[10px] bg-violet-50 text-violet-500 px-1.5 py-0.5 rounded-full capitalize">
+                  <span className="text-xs bg-violet-50 text-violet-500 px-1.5 py-0.5 rounded-full capitalize">
                     {conv.source}
                   </span>
                 </div>
@@ -1848,33 +1848,33 @@ function HistoryTab({ agentId }: { agentId: string }) {
                 {/* Session metadata */}
                 {conv.metadata && Object.keys(conv.metadata).length > 0 && (
                   <div className="bg-white border border-gray-100 rounded-lg p-2 space-y-1">
-                    <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Session Details</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Session Details</p>
                     {conv.metadata.screen && (
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
                         <Monitor size={9} className="text-gray-400" />
                         <span>Screen: {conv.metadata.screen}</span>
                       </div>
                     )}
                     {conv.metadata.timezone && (
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
                         <Globe size={9} className="text-gray-400" />
                         <span>Timezone: {conv.metadata.timezone}</span>
                       </div>
                     )}
                     {conv.metadata.language && (
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
                         <Globe size={9} className="text-gray-400" />
                         <span>Language: {conv.metadata.language}</span>
                       </div>
                     )}
                     {conv.metadata.referrer && (
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
                         <ExternalLink size={9} className="text-gray-400" />
                         <span className="truncate">From: {conv.metadata.referrer}</span>
                       </div>
                     )}
                     {conv.metadata.user_agent && (
-                      <div className="flex items-start gap-1.5 text-[10px] text-gray-500">
+                      <div className="flex items-start gap-1.5 text-xs text-gray-500">
                         <Monitor size={9} className="text-gray-400 mt-0.5 flex-shrink-0" />
                         <span className="line-clamp-2">{conv.metadata.user_agent}</span>
                       </div>
@@ -1892,7 +1892,7 @@ function HistoryTab({ agentId }: { agentId: string }) {
                         </div>
                       )}
                       <div
-                        className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-[11px] leading-relaxed ${msg.role === "user"
+                        className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-xs leading-relaxed ${msg.role === "user"
                             ? "bg-violet-600 text-white rounded-br-sm"
                             : "bg-white border border-gray-200 text-gray-700 rounded-bl-sm"
                           }`}
@@ -1971,7 +1971,7 @@ function SimpleBotIntentsTab({
       <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 space-y-3">
         <h3 className="text-xs font-semibold text-emerald-800">Bot Messages</h3>
         <div>
-          <label className="text-[11px] font-semibold text-gray-600 mb-1 block">Greeting Message</label>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">Greeting Message</label>
           <textarea
             value={appearance.greetingMessage ?? ""}
             onChange={e => setAppearance({ greetingMessage: e.target.value })}
@@ -1981,14 +1981,14 @@ function SimpleBotIntentsTab({
           />
         </div>
         <div>
-          <label className="text-[11px] font-semibold text-gray-600 mb-1 block">Fallback Message</label>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">Fallback Message</label>
           <input
             value={(appearance as Appearance & { fallbackMessage?: string }).fallbackMessage ?? ""}
             onChange={e => setAppearance({ ...(appearance as object), fallbackMessage: e.target.value } as Partial<Appearance>)}
             placeholder="Sorry, I didn't understand that."
             className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 bg-white"
           />
-          <p className="text-[10px] text-gray-400 mt-1">Shown when no intent matches the user input.</p>
+          <p className="text-xs text-gray-400 mt-1">Shown when no intent matches the user input.</p>
         </div>
       </div>
 
@@ -1997,12 +1997,12 @@ function SimpleBotIntentsTab({
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-xs font-semibold text-gray-900">Intents</h3>
-            <p className="text-[11px] text-gray-400">Keyword-matched responses — no AI needed.</p>
+            <p className="text-xs text-gray-400">Keyword-matched responses — no AI needed.</p>
           </div>
           {!adding && (
             <button
               onClick={() => setAdding(true)}
-              className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 transition-colors"
+              className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-800 transition-colors"
             >
               <Plus size={12} /> Add Intent
             </button>
@@ -2050,8 +2050,8 @@ function SimpleBotIntentsTab({
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-800">{intent.name}</p>
-                      <p className="text-[10px] text-emerald-600 font-mono mt-0.5 truncate">{intent.triggers}</p>
-                      <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{intent.response}</p>
+                      <p className="text-xs text-emerald-600 font-mono mt-0.5 truncate">{intent.triggers}</p>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{intent.response}</p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button onClick={() => startEdit(intent)} className="p-1 text-gray-400 hover:text-gray-700 transition-colors">
@@ -2305,18 +2305,18 @@ export default function AgentEditorPage({
         <div className="flex items-center gap-2 flex-1">
           <span className="text-sm font-semibold text-gray-900 truncate">{chatbot.name}</span>
           {chatbot.agent_type === "simple" ? (
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 bg-emerald-100 text-emerald-700">
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 bg-emerald-100 text-emerald-700">
               <MessageSquare size={9} />
               Simple Bot
             </span>
           ) : (
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 bg-violet-100 text-violet-700">
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 bg-violet-100 text-violet-700">
               <BrainCircuit size={9} />
               Full Agent
             </span>
           )}
           <span
-            className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${chatbot.is_active
+            className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${chatbot.is_active
                 ? "bg-green-100 text-green-700"
                 : "bg-gray-100 text-gray-500"
               }`}
@@ -2375,7 +2375,7 @@ export default function AgentEditorPage({
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-all border-b-2 ${activeTab === tab.id
+                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id
                           ? activeColor
                           : "border-transparent text-gray-400 hover:text-gray-600"
                         }`}

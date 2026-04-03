@@ -298,7 +298,7 @@ function CreateUserModal({
 function UsageBar({ current, limit, label }: { current: number; limit: number | null; label: string }) {
   if (limit === null) {
     return (
-      <div className="flex items-center gap-1 text-[10px] text-gray-500">
+      <div className="flex items-center gap-1 text-xs text-gray-500">
         <span className="text-gray-400">{label}:</span>
         <span className="font-medium text-emerald-600">{current}</span>
         <Infinity size={9} className="text-emerald-500" />
@@ -308,7 +308,7 @@ function UsageBar({ current, limit, label }: { current: number; limit: number | 
   const pct = Math.min((current / limit) * 100, 100);
   const color = pct >= 90 ? "bg-red-400" : pct >= 70 ? "bg-amber-400" : "bg-violet-400";
   return (
-    <div className="flex items-center gap-1.5 text-[10px]">
+    <div className="flex items-center gap-1.5 text-xs">
       <span className="text-gray-400 w-14 truncate">{label}</span>
       <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
@@ -408,7 +408,7 @@ function OrgRow({ org, orgs, onUpdate, onDelete, onUserCreated }: {
         </td>
         <td className="px-3 py-3">
           <InlineEdit value={org.name} onSave={name => onUpdate(org.id, { name })} />
-          <p className="text-[10px] text-gray-400 font-mono mt-0.5">{org.slug}</p>
+          <p className="text-xs text-gray-400 font-mono mt-0.5">{org.slug}</p>
         </td>
         <td className="px-3 py-3">
           <button
@@ -432,7 +432,7 @@ function OrgRow({ org, orgs, onUpdate, onDelete, onUserCreated }: {
             <UsageBar current={org.workflow_count} limit={limits.scenarios} label="Scenarios" />
             <UsageBar current={org.agent_count} limit={limits.agents} label="Agents" />
             <UsageBar current={org.table_count} limit={limits.tables} label="Tables" />
-            <div className="text-[10px] text-gray-400 flex items-center gap-1"><Users size={9} /> {org.member_count} member{org.member_count !== 1 ? "s" : ""}</div>
+            <div className="text-xs text-gray-400 flex items-center gap-1"><Users size={9} /> {org.member_count} member{org.member_count !== 1 ? "s" : ""}</div>
           </div>
         </td>
         <td className="px-3 py-3 text-xs text-gray-400 whitespace-nowrap">
@@ -441,7 +441,7 @@ function OrgRow({ org, orgs, onUpdate, onDelete, onUserCreated }: {
         <td className="px-3 py-3">
           {confirmDelete ? (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-red-500 font-medium">Sure?</span>
+              <span className="text-xs text-red-500 font-medium">Sure?</span>
               <button onClick={() => onDelete(org.id)} className="text-red-500 hover:text-red-700 p-0.5"><Check size={13} /></button>
               <button onClick={() => setConfirmDelete(false)} className="text-gray-400 p-0.5"><X size={13} /></button>
             </div>
@@ -467,7 +467,7 @@ function OrgRow({ org, orgs, onUpdate, onDelete, onUserCreated }: {
                     </p>
                     <button
                       onClick={() => setAddMember(true)}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-800 transition-colors"
+                      className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors"
                     >
                       <Plus size={11} /> Add Member
                     </button>
@@ -478,7 +478,7 @@ function OrgRow({ org, orgs, onUpdate, onDelete, onUserCreated }: {
                     ) : detail.members.map(m => (
                       <div key={m.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100">
                         <span className="text-xs text-gray-700">{m.full_name || "(no name)"}</span>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${m.role === "admin" ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-500"}`}>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${m.role === "admin" ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-500"}`}>
                           {m.role ?? "member"}
                         </span>
                       </div>
@@ -495,7 +495,7 @@ function OrgRow({ org, orgs, onUpdate, onDelete, onUserCreated }: {
                     ) : detail.workflows.slice(0, 8).map(wf => (
                       <div key={wf.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100">
                         <span className="text-xs text-gray-700 truncate flex-1">{wf.name}</span>
-                        <span className={`ml-2 text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${wf.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
+                        <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${wf.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
                           {wf.is_active ? "on" : "off"}
                         </span>
                       </div>
@@ -624,11 +624,11 @@ function SuperAdminsTab({ users, orgs, onUserCreated }: { users: UserProfile[]; 
             <tr key={u.id} className="hover:bg-gray-50">
               <td className="px-5 py-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-[11px] font-bold text-amber-700">
+                  <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700">
                     {(u.full_name || u.email || "?")[0].toUpperCase()}
                   </div>
                   <span className="text-xs font-semibold text-gray-900">{u.full_name || "(no name)"}</span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">superadmin</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">superadmin</span>
                 </div>
               </td>
               <td className="px-5 py-3 text-xs text-gray-500 flex items-center gap-1.5 mt-1">
@@ -1044,7 +1044,7 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <p className="text-xl font-bold text-gray-900">{value}</p>
-                    <p className="text-[11px] text-gray-500">{label}</p>
+                    <p className="text-xs text-gray-500">{label}</p>
                   </div>
                 </div>
               </div>
@@ -1143,7 +1143,7 @@ export default function AdminPage() {
                       <tr key={u.id} className={`hover:bg-gray-50 ${!u.org_active ? "opacity-60" : ""}`}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[11px] font-bold text-violet-700 flex-shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-xs font-bold text-violet-700 flex-shrink-0">
                               {(u.full_name || u.email || "?")[0].toUpperCase()}
                             </div>
                             <span className="font-medium text-gray-900 text-xs">{u.full_name || "(no name)"}</span>
@@ -1154,14 +1154,14 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-3 text-xs">
                           {u.org_name ? (
-                            <span className="flex items-center gap-1.5">{u.org_name}{!u.org_active && <span className="flex items-center gap-0.5 text-[10px] text-red-500 font-medium"><UserX size={10} />disabled</span>}</span>
+                            <span className="flex items-center gap-1.5">{u.org_name}{!u.org_active && <span className="flex items-center gap-0.5 text-xs text-red-500 font-medium"><UserX size={10} />disabled</span>}</span>
                           ) : <span className="text-gray-400 italic">No org</span>}
                         </td>
                         <td className="px-4 py-3">
-                          {u.org_id ? <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${PLAN_COLORS[orgPlan]}`}>{PLAN_LABELS[orgPlan]}</span> : "—"}
+                          {u.org_id ? <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${PLAN_COLORS[orgPlan]}`}>{PLAN_LABELS[orgPlan]}</span> : "—"}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${u.role === "admin" ? "bg-violet-100 text-violet-700" : u.role === "superadmin" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${u.role === "admin" ? "bg-violet-100 text-violet-700" : u.role === "superadmin" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
                             {u.role ?? "member"}
                           </span>
                         </td>

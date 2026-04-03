@@ -289,7 +289,7 @@ function CronBuilder({ value, onChange }: { value: string; onChange: (cron: stri
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Run</label>
+        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Run</label>
         <select className={`${sel} w-full`} value={freq} onChange={(e) => setFreq(e.target.value as Frequency)}>
           <option value="every_minute">Every minute</option>
           <option value="every_n_minutes">Every N minutes</option>
@@ -303,7 +303,7 @@ function CronBuilder({ value, onChange }: { value: string; onChange: (cron: stri
       </div>
       {freq === "every_n_minutes" && (
         <div>
-          <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Every</label>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Every</label>
           <div className="flex items-center gap-2">
             <input type="number" min={1} max={59} className={`${sel} w-20`} value={interval} onChange={(e) => setInterval(e.target.value)} />
             <span className="text-xs text-gray-500">minutes</span>
@@ -312,7 +312,7 @@ function CronBuilder({ value, onChange }: { value: string; onChange: (cron: stri
       )}
       {freq === "every_n_hours" && (
         <div>
-          <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Every</label>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Every</label>
           <div className="flex items-center gap-2">
             <input type="number" min={1} max={23} className={`${sel} w-20`} value={interval} onChange={(e) => setInterval(e.target.value)} />
             <span className="text-xs text-gray-500">hours</span>
@@ -321,7 +321,7 @@ function CronBuilder({ value, onChange }: { value: string; onChange: (cron: stri
       )}
       {freq === "hourly" && (
         <div>
-          <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">At minute</label>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">At minute</label>
           <select className={`${sel} w-full`} value={minute} onChange={(e) => setMinute(e.target.value)}>
             {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
@@ -329,7 +329,7 @@ function CronBuilder({ value, onChange }: { value: string; onChange: (cron: stri
       )}
       {(freq === "daily" || freq === "weekly" || freq === "monthly") && (
         <div>
-          <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">At time</label>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">At time</label>
           <div className="flex items-center gap-1.5">
             <select className={`${sel} flex-1`} value={hour} onChange={(e) => setHour(e.target.value)}>
               {HOURS.map((h) => <option key={h} value={h}>{h}</option>)}
@@ -343,11 +343,11 @@ function CronBuilder({ value, onChange }: { value: string; onChange: (cron: stri
       )}
       {freq === "weekly" && (
         <div>
-          <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">On day</label>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">On day</label>
           <div className="grid grid-cols-7 gap-1">
             {DAYS.map((d, i) => (
               <button key={d} type="button" onClick={() => setDayOfWeek(String(i))}
-                className={`text-[10px] py-1 rounded-lg font-medium transition-colors ${dayOfWeek === String(i) ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}>
+                className={`text-xs py-1 rounded-lg font-medium transition-colors ${dayOfWeek === String(i) ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}>
                 {d.slice(0, 2)}
               </button>
             ))}
@@ -356,7 +356,7 @@ function CronBuilder({ value, onChange }: { value: string; onChange: (cron: stri
       )}
       {freq === "monthly" && (
         <div>
-          <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">On day of month</label>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">On day of month</label>
           <select className={`${sel} w-full`} value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)}>
             {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
@@ -364,12 +364,12 @@ function CronBuilder({ value, onChange }: { value: string; onChange: (cron: stri
       )}
       {freq === "custom" && (
         <div>
-          <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Cron expression</label>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Cron expression</label>
           <input className={`${sel} w-full font-mono`} placeholder="0 9 * * 1" value={custom} onChange={(e) => setCustom(e.target.value)} />
         </div>
       )}
       <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Cron expression</p>
+        <p className="text-xs text-gray-400 uppercase font-semibold mb-0.5">Cron expression</p>
         <p className="text-xs font-mono text-blue-600 font-semibold">{cron}</p>
       </div>
     </div>
@@ -503,7 +503,7 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
                 </button>
               ))}
               {filtered.length > 100 && (
-                <p className="px-3 py-1.5 text-[10px] text-gray-400">
+                <p className="px-3 py-1.5 text-xs text-gray-400">
                   {filtered.length - 100} more — type to filter
                 </p>
               )}
@@ -514,13 +514,13 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
           type="button"
           onClick={fetchOptions}
           disabled={loading}
-          className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap"
+          className="flex-shrink-0 px-2.5 py-1.5 text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap"
         >
           {loading ? "Loading…" : fetched ? "↺ Reload" : "Browse"}
         </button>
       </div>
-      {error && <p className="text-[10px] text-red-500">{error}</p>}
-      {fetched && <p className="text-[10px] text-gray-400">{options.length} objects — type to search or enter any name</p>}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      {fetched && <p className="text-xs text-gray-400">{options.length} objects — type to search or enter any name</p>}
     </div>
   );
 }
@@ -627,7 +627,7 @@ function FieldInput({
     <div className="absolute z-50 left-0 top-full mt-0.5 w-full min-w-[260px] max-h-64 overflow-y-auto bg-white border border-violet-200 rounded-lg shadow-xl text-xs">
       {Object.entries(grouped).map(([group, items]) => (
         <div key={group}>
-          <div className="px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-violet-600 bg-violet-50 sticky top-0 border-b border-violet-100 flex items-center gap-1.5">
+          <div className="px-2.5 py-1.5 text-xs font-bold uppercase tracking-wide text-violet-600 bg-violet-50 sticky top-0 border-b border-violet-100 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
             {group}
           </div>
@@ -642,18 +642,18 @@ function FieldInput({
                 className={`w-full text-left px-3 py-2 flex flex-col gap-0.5 hover:bg-violet-50 transition-colors border-b border-gray-50 last:border-0 ${idx === selectedIdx ? "bg-violet-50" : ""}`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] text-violet-700 font-semibold">{`{{${s.value}}}`}</span>
+                  <span className="font-mono text-xs text-violet-700 font-semibold">{`{{${s.value}}}`}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">{nodePart}</span>
-                  {fieldPart && <span className="text-[9px] text-gray-400">{fieldPart}</span>}
+                  <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">{nodePart}</span>
+                  {fieldPart && <span className="text-xs text-gray-400">{fieldPart}</span>}
                 </div>
               </button>
             );
           })}
         </div>
       ))}
-      <div className="px-3 py-1.5 border-t border-gray-100 text-[9px] text-gray-400">
+      <div className="px-3 py-1.5 border-t border-gray-100 text-xs text-gray-400">
         ↑↓ navigate · Enter / Tab to insert · Esc to close
       </div>
     </div>
@@ -797,7 +797,7 @@ function FormFieldBuilder({ value, onChange }: { value: string; onChange: (v: st
     <div className="space-y-2">
       {fields.length === 0 && (
         <div className="text-center py-4 border-2 border-dashed border-gray-200 rounded-xl">
-          <p className="text-[11px] text-gray-400">No fields yet. Add your first field below.</p>
+          <p className="text-xs text-gray-400">No fields yet. Add your first field below.</p>
         </div>
       )}
 
@@ -811,9 +811,9 @@ function FormFieldBuilder({ value, onChange }: { value: string; onChange: (v: st
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-gray-700 truncate">{field.label || <span className="text-gray-300 italic">Untitled</span>}</p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{FIELD_TYPES.find(t => t.value === field.type)?.label ?? field.type}</span>
-                  {field.required && <span className="text-[9px] text-red-400 font-semibold">required</span>}
-                  {field.name && <span className="text-[9px] font-mono text-gray-300">{field.name}</span>}
+                  <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{FIELD_TYPES.find(t => t.value === field.type)?.label ?? field.type}</span>
+                  {field.required && <span className="text-xs text-red-400 font-semibold">required</span>}
+                  {field.name && <span className="text-xs font-mono text-gray-300">{field.name}</span>}
                 </div>
               </div>
               <button onClick={() => setExpandedIdx(isOpen ? null : idx)} className="p-1 text-gray-400 hover:text-gray-700 transition-colors">
@@ -829,29 +829,29 @@ function FormFieldBuilder({ value, onChange }: { value: string; onChange: (v: st
               <div className="px-3 pb-3 space-y-2.5 border-t border-violet-100">
                 <div className="grid grid-cols-2 gap-2 pt-2.5">
                   <div>
-                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Label</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Label</label>
                     <input className={sel} value={field.label} onChange={e => update(idx, { label: e.target.value })} placeholder="First Name" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Field name</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Field name</label>
                     <input className={`${sel} font-mono`} value={field.name} onChange={e => update(idx, { name: e.target.value })} placeholder="first_name" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Type</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Type</label>
                     <select className={sel} value={field.type} onChange={e => update(idx, { type: e.target.value as FormFieldDef["type"] })}>
                       {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Placeholder</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Placeholder</label>
                     <input className={sel} value={field.placeholder} onChange={e => update(idx, { placeholder: e.target.value })} placeholder="e.g. John" />
                   </div>
                 </div>
                 {field.type === "select" && (
                   <div>
-                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Options <span className="font-normal normal-case">(comma-separated)</span></label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Options <span className="font-normal normal-case">(comma-separated)</span></label>
                     <input className={sel} value={field.options} onChange={e => update(idx, { options: e.target.value })} placeholder="Option A, Option B, Option C" />
                   </div>
                 )}
@@ -994,13 +994,13 @@ function UserTableConfig({
     <div className="space-y-4">
       {/* Table selector */}
       <div>
-        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Table</label>
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Table</label>
         {loadingTables ? (
           <div className="text-xs text-gray-400 py-2">Loading tables…</div>
         ) : tables.length === 0 ? (
           <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
             <AlertCircle size={13} className="text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-700">No tables found. <a href="/tables" target="_blank" className="underline font-semibold">Create one →</a></p>
+            <p className="text-xs text-amber-700">No tables found. <a href="/tables" target="_blank" className="underline font-semibold">Create one →</a></p>
           </div>
         ) : (
           <select
@@ -1015,20 +1015,20 @@ function UserTableConfig({
           </select>
         )}
         {selectedTable && (
-          <p className="text-[9px] text-gray-400 font-mono mt-1 truncate">{selectedTable.id}</p>
+          <p className="text-xs text-gray-400 font-mono mt-1 truncate">{selectedTable.id}</p>
         )}
       </div>
 
       {/* Action selector */}
       <div>
-        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Action</label>
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Action</label>
         <div className="grid grid-cols-5 gap-1">
           {TABLE_ACTIONS.map(a => (
             <button
               key={a.value}
               type="button"
               onClick={() => onChange({ action: a.value })}
-              className={`flex flex-col items-center gap-0.5 py-2 rounded-xl border text-[9px] font-bold transition-all ${
+              className={`flex flex-col items-center gap-0.5 py-2 rounded-xl border text-xs font-bold transition-all ${
                 action === a.value
                   ? "border-teal-400 bg-teal-50 text-teal-700"
                   : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
@@ -1044,7 +1044,7 @@ function UserTableConfig({
       {/* Column data mapping (insert / update) */}
       {needsData && selectedTable && columns.length > 0 && (
         <div>
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
             {action === "insert" ? "Data to insert" : "Values to set"}
           </label>
           <div className="space-y-2">
@@ -1053,7 +1053,7 @@ function UserTableConfig({
                 <div className="flex-shrink-0 w-24">
                   <div className="flex items-center gap-1">
                     <Table2 size={10} className="text-gray-300" />
-                    <span className="text-[10px] font-mono text-gray-600 truncate">{m.column}</span>
+                    <span className="text-xs font-mono text-gray-600 truncate">{m.column}</span>
                     {columns[i]?.required && <span className="text-red-400 text-[8px]">*</span>}
                   </div>
                   <span className="text-[8px] text-gray-300 ml-3">{columns[i]?.type}</span>
@@ -1072,7 +1072,7 @@ function UserTableConfig({
             ))}
           </div>
           {columns.length === 0 && (
-            <p className="text-[11px] text-gray-400">Select a table to see its columns.</p>
+            <p className="text-xs text-gray-400">Select a table to see its columns.</p>
           )}
         </div>
       )}
@@ -1081,13 +1081,13 @@ function UserTableConfig({
       {needsFilter && (
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
               {action === "update" ? "Identify row to update (filter)" : action === "delete" ? "Identify row to delete (filter)" : "Filter rows"}
             </label>
             <button
               type="button"
               onClick={() => setFilters(f => [...f, { column: "", operator: "=", value: "" }])}
-              className="text-[10px] text-teal-600 font-semibold hover:text-teal-800 flex items-center gap-0.5"
+              className="text-xs text-teal-600 font-semibold hover:text-teal-800 flex items-center gap-0.5"
             >
               <Plus size={11} /> Add
             </button>
@@ -1096,7 +1096,7 @@ function UserTableConfig({
           {(action === "update" || action === "delete") && (
             <div className="flex items-start gap-1.5 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 mb-2">
               <AlertCircle size={11} className="text-blue-400 flex-shrink-0 mt-0.5" />
-              <p className="text-[10px] text-blue-600">
+              <p className="text-xs text-blue-600">
                 {action === "update" ? "All rows matching the filter will be updated." : "All rows matching the filter will be permanently deleted."}
               </p>
             </div>
@@ -1106,7 +1106,7 @@ function UserTableConfig({
             {filters.map((f, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <select
-                  className="text-[10px] rounded-lg border border-gray-200 px-1.5 py-1.5 bg-white focus:outline-none text-gray-700 flex-1 min-w-0"
+                  className="text-xs rounded-lg border border-gray-200 px-1.5 py-1.5 bg-white focus:outline-none text-gray-700 flex-1 min-w-0"
                   value={f.column}
                   onChange={e => setFilters(rows => rows.map((r, j) => j === i ? { ...r, column: e.target.value } : r))}
                 >
@@ -1114,7 +1114,7 @@ function UserTableConfig({
                   {columns.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                 </select>
                 <select
-                  className="text-[10px] rounded-lg border border-gray-200 px-1 py-1.5 bg-white focus:outline-none text-gray-700 flex-shrink-0"
+                  className="text-xs rounded-lg border border-gray-200 px-1 py-1.5 bg-white focus:outline-none text-gray-700 flex-shrink-0"
                   value={f.operator}
                   onChange={e => setFilters(rows => rows.map((r, j) => j === i ? { ...r, operator: e.target.value } : r))}
                 >
@@ -1139,7 +1139,7 @@ function UserTableConfig({
               </div>
             ))}
             {filters.length === 0 && (
-              <p className="text-[11px] text-gray-400 italic">{action === "query" ? "No filter — returns all rows." : "No filter set. All rows will be affected!"}</p>
+              <p className="text-xs text-gray-400 italic">{action === "query" ? "No filter — returns all rows." : "No filter set. All rows will be affected!"}</p>
             )}
           </div>
         </div>
@@ -1148,7 +1148,7 @@ function UserTableConfig({
       {/* Limit (query only) */}
       {needsLimit && (
         <div>
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Max rows to return</label>
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Max rows to return</label>
           <input
             type="number"
             min={1}
@@ -1207,7 +1207,7 @@ function VariableInput({
         ref={inputRef}
         value={value}
         placeholder={placeholder}
-        className="text-[11px] rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 text-gray-700 w-full font-mono"
+        className="text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 text-gray-700 w-full font-mono"
         onChange={e => { onChange(e.target.value); detectContext(e.target.value, e.target.selectionStart ?? 0); }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={e => {
@@ -1219,7 +1219,7 @@ function VariableInput({
         }}
       />
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 left-0 top-full mt-0.5 w-64 max-h-52 overflow-y-auto bg-white border border-teal-200 rounded-lg shadow-xl text-[10px]">
+        <div className="absolute z-50 left-0 top-full mt-0.5 w-64 max-h-52 overflow-y-auto bg-white border border-teal-200 rounded-lg shadow-xl text-xs">
           {filtered.map((s, i) => {
             const [nodePart, fieldPart] = s.label.split(" → ");
             return (
@@ -1267,20 +1267,20 @@ function NodeHelpPanel({ type }: { type: string }) {
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-3 py-2 bg-blue-50 hover:bg-blue-100 transition-colors"
       >
-        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-600">
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-600">
           <HelpCircle size={11} /> How to use this node
         </span>
         <ChevronRight size={11} className={`text-blue-400 transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
       {open && (
         <div className="px-3 py-3 space-y-3 bg-white">
-          <p className="text-[11px] text-gray-600 leading-relaxed">{guide.summary}</p>
+          <p className="text-xs text-gray-600 leading-relaxed">{guide.summary}</p>
 
           <div>
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Setup</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Setup</p>
             <ol className="space-y-1">
               {guide.steps.map((step, i) => (
-                <li key={i} className="flex gap-2 text-[11px] text-gray-600">
+                <li key={i} className="flex gap-2 text-xs text-gray-600">
                   <span className="text-blue-400 font-semibold flex-shrink-0">{i + 1}.</span>
                   {step}
                 </li>
@@ -1290,10 +1290,10 @@ function NodeHelpPanel({ type }: { type: string }) {
 
           {guide.tips && guide.tips.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Tips</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Tips</p>
               <ul className="space-y-1">
                 {guide.tips.map((tip, i) => (
-                  <li key={i} className="flex gap-1.5 text-[11px] text-gray-500">
+                  <li key={i} className="flex gap-1.5 text-xs text-gray-500">
                     <span className="text-amber-400 flex-shrink-0">•</span>
                     {tip}
                   </li>
@@ -1304,14 +1304,14 @@ function NodeHelpPanel({ type }: { type: string }) {
 
           {guide.outputFields && guide.outputFields.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Output Fields</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Output Fields</p>
               <div className="space-y-1">
                 {guide.outputFields.map(f => (
                   <div key={f.field} className="flex gap-2 items-start">
-                    <code className="text-[10px] bg-gray-100 text-violet-700 px-1.5 py-0.5 rounded font-mono flex-shrink-0">
+                    <code className="text-xs bg-gray-100 text-violet-700 px-1.5 py-0.5 rounded font-mono flex-shrink-0">
                       {"{{"}{f.field}{"}}"}
                     </code>
-                    <span className="text-[11px] text-gray-500">{f.description}</span>
+                    <span className="text-xs text-gray-500">{f.description}</span>
                   </div>
                 ))}
               </div>
@@ -1437,7 +1437,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Label */}
         <div>
-          <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Node Label</label>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Node Label</label>
           <input
             className="mt-1 w-full text-xs rounded-lg border border-gray-200 px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white text-gray-700"
             value={label}
@@ -1448,17 +1448,17 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
         {/* Webhook / Form URL */}
         {(webhookUrl || formUrl) && (
           <div>
-            <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
               {formUrl ? "Form URL" : "Webhook URL"}
             </label>
             <div className="mt-1 flex items-center gap-1.5">
-              <input readOnly className="flex-1 text-[10px] rounded-lg border border-gray-200 px-2.5 py-2 bg-gray-50 text-gray-500 truncate" value={copyUrl ?? ""} />
+              <input readOnly className="flex-1 text-xs rounded-lg border border-gray-200 px-2.5 py-2 bg-gray-50 text-gray-500 truncate" value={copyUrl ?? ""} />
               <button onClick={copyWebhook} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0">
                 {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
               </button>
             </div>
             {formUrl && (
-              <a href={formUrl} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline mt-1 inline-block">
+              <a href={formUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline mt-1 inline-block">
                 Open form ↗
               </a>
             )}
@@ -1468,7 +1468,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
         {/* Connection picker */}
         {hasConnection && (
           <div>
-            <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Connection</label>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Connection</label>
             <div className="mt-1 flex gap-1.5">
               <select
                 className="flex-1 text-xs rounded-lg border border-gray-200 px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white text-gray-700"
@@ -1487,7 +1487,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
               </a>
             </div>
             {connections.length === 0 && (
-              <p className="text-[10px] text-gray-400 mt-1">No {def.connectionType} connections yet. Click + to add one.</p>
+              <p className="text-xs text-gray-400 mt-1">No {def.connectionType} connections yet. Click + to add one.</p>
             )}
           </div>
         )}
@@ -1495,7 +1495,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
         {/* Schedule builder */}
         {isSchedule && (
           <div>
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Schedule</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Schedule</p>
             <CronBuilder
               value={config.cron || "0 9 * * *"}
               onChange={(cron) => setConfig((prev) => ({ ...prev, cron }))}
@@ -1506,7 +1506,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
         {/* E-Sign document picker */}
         {nodeData.type === "action_esign_request" && (
           <div className="space-y-2">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Document</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Document</p>
             <select
               value={config.document_id || ""}
               onChange={(e) => setConfig((prev) => ({ ...prev, document_id: e.target.value }))}
@@ -1518,7 +1518,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
               ))}
             </select>
             {config.document_id && (
-              <p className="text-[10px] text-indigo-500">Fields placed on this document will be sent to the signer.</p>
+              <p className="text-xs text-indigo-500">Fields placed on this document will be sent to the signer.</p>
             )}
           </div>
         )}
@@ -1526,7 +1526,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
         {/* Form Field Builder for trigger_form */}
         {nodeData.type === "trigger_form" && (
           <div>
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Form Fields</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Form Fields</p>
             <FormFieldBuilder
               key={node?.id}
               value={config.fields ?? "[]"}
@@ -1554,9 +1554,9 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
           ).length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Configuration</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Configuration</p>
               {suggestions.length > 0 && (
-                <span className="text-[9px] text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded">
+                <span className="text-xs text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded">
                   Type {"{{"}  for suggestions
                 </span>
               )}
@@ -1569,7 +1569,7 @@ export default function NodeConfigPanel({ node, workflowId, onClose, onUpdate, a
               )
               .map((field) => (
                 <div key={field.key}>
-                  <label className="text-[10px] font-medium text-gray-600 flex items-center gap-1">
+                  <label className="text-xs font-medium text-gray-600 flex items-center gap-1">
                     {field.label}
                     {field.required && <span className="text-red-400">*</span>}
                   </label>

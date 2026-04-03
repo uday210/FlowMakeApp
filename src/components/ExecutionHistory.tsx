@@ -26,7 +26,7 @@ function LogRow({ log }: { log: ExecutionLog }) {
   const hasDetail = Boolean(log.output ?? log.error ?? log.input);
 
   return (
-    <div className="border border-gray-100 rounded-lg overflow-hidden text-[11px]">
+    <div className="border border-gray-100 rounded-lg overflow-hidden text-xs">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left"
@@ -55,16 +55,16 @@ function LogRow({ log }: { log: ExecutionLog }) {
         <div className="px-3 pb-3 space-y-2 bg-gray-50 border-t border-gray-100">
           {log.error && (
             <div>
-              <p className="text-[10px] font-semibold text-red-500 uppercase mt-2 mb-1">Error</p>
-              <pre className="text-[10px] text-red-600 bg-red-50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
+              <p className="text-xs font-semibold text-red-500 uppercase mt-2 mb-1">Error</p>
+              <pre className="text-xs text-red-600 bg-red-50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
                 {log.error}
               </pre>
             </div>
           )}
           {log.output !== undefined && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase mt-2 mb-1">Output</p>
-              <pre className="text-[10px] text-gray-600 bg-white rounded p-2 border border-gray-100 overflow-x-auto whitespace-pre-wrap break-all">
+              <p className="text-xs font-semibold text-gray-400 uppercase mt-2 mb-1">Output</p>
+              <pre className="text-xs text-gray-600 bg-white rounded p-2 border border-gray-100 overflow-x-auto whitespace-pre-wrap break-all">
                 {JSON.stringify(log.output, null, 2)}
               </pre>
             </div>
@@ -100,7 +100,7 @@ function ExecutionRow({ execution }: { execution: Execution }) {
         >
           <div className="flex items-center gap-2">
             <span
-              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+              className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                 execution.status === "success"
                   ? "bg-green-50 text-green-600"
                   : execution.status === "failed"
@@ -110,16 +110,16 @@ function ExecutionRow({ execution }: { execution: Execution }) {
             >
               {execution.status}
             </span>
-            <span className="text-[10px] text-gray-400">
+            <span className="text-xs text-gray-400">
               {successCount}/{logs.length} nodes · {duration(execution)}
             </span>
             {errorCount > 0 && (
-              <span className="text-[10px] text-red-400 flex items-center gap-0.5">
+              <span className="text-xs text-red-400 flex items-center gap-0.5">
                 <AlertCircle size={9} /> {errorCount} error{errorCount > 1 ? "s" : ""}
               </span>
             )}
           </div>
-          <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+          <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
             <Clock size={9} /> {timeAgo(execution.started_at)}
           </p>
         </button>
@@ -136,7 +136,7 @@ function ExecutionRow({ execution }: { execution: Execution }) {
       {open && (
         <div className="px-3 pb-3 border-t border-gray-100 bg-gray-50/50 space-y-1.5 pt-2">
           {logs.length === 0 ? (
-            <p className="text-[10px] text-gray-400 text-center py-2">No logs recorded.</p>
+            <p className="text-xs text-gray-400 text-center py-2">No logs recorded.</p>
           ) : (
             logs.map((log, i) => <LogRow key={i} log={log} />)
           )}
@@ -144,8 +144,8 @@ function ExecutionRow({ execution }: { execution: Execution }) {
           {/* Trigger data */}
           {execution.trigger_data && Object.keys(execution.trigger_data).length > 0 && (
             <div className="mt-2">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1">Trigger Input</p>
-              <pre className="text-[10px] text-gray-500 bg-white rounded p-2 border border-gray-100 overflow-x-auto whitespace-pre-wrap break-all">
+              <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Trigger Input</p>
+              <pre className="text-xs text-gray-500 bg-white rounded p-2 border border-gray-100 overflow-x-auto whitespace-pre-wrap break-all">
                 {JSON.stringify(execution.trigger_data, null, 2)}
               </pre>
             </div>
@@ -201,7 +201,7 @@ export default function ExecutionHistory({ workflowId, onClose }: Props) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
         <div>
           <h2 className="text-sm font-semibold text-gray-800">Execution History</h2>
-          <p className="text-[10px] text-gray-400 mt-0.5">Last 50 runs</p>
+          <p className="text-xs text-gray-400 mt-0.5">Last 50 runs</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -226,7 +226,7 @@ export default function ExecutionHistory({ workflowId, onClose }: Props) {
           <button
             key={opt.value}
             onClick={() => setStatusFilter(opt.value)}
-            className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
+            className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${
               statusFilter === opt.value
                 ? "bg-gray-800 text-white"
                 : "bg-gray-100 text-gray-500 hover:bg-gray-200"
@@ -247,7 +247,7 @@ export default function ExecutionHistory({ workflowId, onClose }: Props) {
           <div className="text-center py-12">
             <Clock size={28} className="text-gray-200 mx-auto mb-2" />
             <p className="text-xs text-gray-400">No executions yet.</p>
-            <p className="text-[10px] text-gray-300 mt-1">Run the workflow to see logs here.</p>
+            <p className="text-xs text-gray-300 mt-1">Run the workflow to see logs here.</p>
           </div>
         ) : (
           filtered.map((e) => <ExecutionRow key={e.id} execution={e} />)

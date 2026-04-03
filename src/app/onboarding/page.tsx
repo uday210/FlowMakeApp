@@ -73,7 +73,7 @@ export default function OnboardingPage() {
                 />
               </div>
               {orgName && (
-                <p className="text-[11px] text-white/30 mt-1.5">Slug: <span className="font-mono text-white/50">{slugify(orgName)}</span></p>
+                <p className="text-xs text-white/30 mt-1.5">Slug: <span className="font-mono text-white/50">{slugify(orgName)}</span></p>
               )}
             </div>
 

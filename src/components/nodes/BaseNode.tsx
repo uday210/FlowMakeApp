@@ -112,14 +112,14 @@ export default function BaseNode({ data, selected }: NodeProps) {
 
       {/* Labels below circle */}
       <div className="mt-2 text-center w-full px-1">
-        <p className="text-[11px] font-semibold text-gray-800 leading-tight truncate">
+        <p className="text-xs font-semibold text-gray-800 leading-tight truncate">
           {nodeData.label}
         </p>
-        <p className="text-[9px] text-gray-400 leading-tight mt-0.5 line-clamp-2">
+        <p className="text-xs text-gray-400 leading-tight mt-0.5 line-clamp-2">
           {def.description.length > 40 ? def.description.slice(0, 38) + "…" : def.description}
         </p>
         {nodeData.error && (
-          <p className="text-[9px] text-red-500 mt-0.5 truncate">{nodeData.error}</p>
+          <p className="text-xs text-red-500 mt-0.5 truncate">{nodeData.error}</p>
         )}
       </div>
 

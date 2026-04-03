@@ -277,11 +277,11 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold truncate">{chatbot.appearance?.agentName || chatbot.name}</span>
-            <span className="flex items-center gap-1 text-[10px] bg-white/20 px-2 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-xs bg-white/20 px-2 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 bg-green-300 rounded-full inline-block" /> Online
             </span>
           </div>
-          <p className="text-[11px] text-white/70 truncate">{chatbot.name}</p>
+          <p className="text-xs text-white/70 truncate">{chatbot.name}</p>
         </div>
         <button
           onClick={() => { if (typeof window !== "undefined" && window.parent !== window) window.parent.postMessage("fm-minimize", "*"); }}
@@ -332,7 +332,7 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
                   }
                 </div>
               )}
-              <span className="text-[10px] text-gray-400 px-1">{formatTime(msg.timestamp)}</span>
+              <span className="text-xs text-gray-400 px-1">{formatTime(msg.timestamp)}</span>
             </div>
           </div>
         ))}
@@ -439,7 +439,7 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
       {/* Branding */}
       {chatbot.appearance?.showBranding && (
         <div className="text-center pb-2 flex-shrink-0">
-          <span className="text-[10px] text-gray-300">Powered by FlowMake</span>
+          <span className="text-xs text-gray-300">Powered by FlowMake</span>
         </div>
       )}
     </div>

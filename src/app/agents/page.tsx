@@ -367,7 +367,7 @@ function NewAgentTypePicker({ onClose, onFull, onSimple }: {
             </p>
             <div className="flex flex-wrap gap-1">
               {["System Prompt", "AI Model", "Knowledge Base", "Workflows"].map(f => (
-                <span key={f} className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-medium">{f}</span>
+                <span key={f} className="text-xs bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-medium">{f}</span>
               ))}
             </div>
             <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-violet-600 group-hover:gap-2 transition-all">
@@ -386,7 +386,7 @@ function NewAgentTypePicker({ onClose, onFull, onSimple }: {
             </p>
             <div className="flex flex-wrap gap-1">
               {["Intents", "Keywords", "Fixed Replies", "Fallback"].map(f => (
-                <span key={f} className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-medium">{f}</span>
+                <span key={f} className="text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-medium">{f}</span>
               ))}
             </div>
             <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-emerald-600 group-hover:gap-2 transition-all">
@@ -546,7 +546,7 @@ function SimpleBotModal({ onClose, onCreate }: {
             <div className="flex items-center justify-between mb-2">
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Intents</label>
-                <p className="text-[11px] text-gray-400 mt-0.5">When the user says any keyword → send the response</p>
+                <p className="text-xs text-gray-400 mt-0.5">When the user says any keyword → send the response</p>
               </div>
               <button onClick={addIntent} className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
                 <Plus size={12} /> Add Intent
@@ -557,23 +557,23 @@ function SimpleBotModal({ onClose, onCreate }: {
               {intents.map((intent, idx) => (
                 <div key={intent.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Intent {idx + 1}</span>
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Intent {idx + 1}</span>
                     {intents.length > 1 && (
                       <button onClick={() => removeIntent(intent.id)} className="p-1 text-gray-300 hover:text-red-400 rounded-lg"><Trash2 size={12} /></button>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] text-gray-500 mb-1 block">Intent name</label>
+                      <label className="text-xs text-gray-500 mb-1 block">Intent name</label>
                       <input value={intent.name} onChange={e => updateIntent(intent.id, "name", e.target.value)} placeholder="e.g. Book Appointment" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
                     </div>
                     <div>
-                      <label className="text-[11px] text-gray-500 mb-1 block">Trigger keywords <span className="text-gray-400">(comma-separated)</span></label>
+                      <label className="text-xs text-gray-500 mb-1 block">Trigger keywords <span className="text-gray-400">(comma-separated)</span></label>
                       <input value={intent.triggers} onChange={e => updateIntent(intent.id, "triggers", e.target.value)} placeholder="book, appointment, schedule, meeting" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] text-gray-500 mb-1 block">Response</label>
+                    <label className="text-xs text-gray-500 mb-1 block">Response</label>
                     <textarea value={intent.response} onChange={e => updateIntent(intent.id, "response", e.target.value)} placeholder="To book an appointment, please visit our calendar at..." rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-white" />
                   </div>
                 </div>
@@ -622,7 +622,7 @@ function TemplateCard({
         </div>
         <div className="min-w-0">
           <span
-            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+            className="text-xs font-semibold px-2 py-0.5 rounded-full"
             style={{ backgroundColor: color + "1a", color }}
           >
             {template.category}
@@ -726,7 +726,7 @@ function EmbedModal({ agent, onClose }: { agent: Chatbot; onClose: () => void })
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-          <p className="text-[11px] text-gray-400 mt-3">
+          <p className="text-xs text-gray-400 mt-3">
             Paste this code anywhere in your website&apos;s HTML. The chatbot will be publicly
             accessible — no login required.
           </p>
@@ -775,7 +775,7 @@ function AgentCard({
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-gray-900 truncate leading-tight">{agent.name}</h3>
             {agent.description && (
-              <p className="text-[11px] text-gray-400 truncate mt-0.5 leading-tight">{agent.description}</p>
+              <p className="text-xs text-gray-400 truncate mt-0.5 leading-tight">{agent.description}</p>
             )}
           </div>
         </div>
@@ -795,35 +795,35 @@ function AgentCard({
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
         {/* Agent type badge */}
         {isSimple ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
             <MessageSquare size={9} /> Simple Bot
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
             <BrainCircuit size={9} /> Full Agent
           </span>
         )}
         {!isSimple && (
           <span
-            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full text-white"
             style={{ backgroundColor: providerInfo.bg }}
           >
             {providerInfo.icon} {providerInfo.text}
           </span>
         )}
         {!isSimple && (
-          <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-2 py-0.5 rounded-full font-mono">
+          <span className="text-xs bg-gray-100 text-gray-500 font-medium px-2 py-0.5 rounded-full font-mono">
             {shortModel}
           </span>
         )}
         {connectedCount > 0 && (
-          <span className="text-[10px] bg-amber-50 text-amber-600 font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span className="text-xs bg-amber-50 text-amber-600 font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
             <Zap size={9} />
             {connectedCount} flow{connectedCount !== 1 ? "s" : ""}
           </span>
         )}
         {agent.starter_questions?.length > 0 && (
-          <span className="text-[10px] bg-blue-50 text-blue-500 font-semibold px-2 py-0.5 rounded-full">
+          <span className="text-xs bg-blue-50 text-blue-500 font-semibold px-2 py-0.5 rounded-full">
             {agent.starter_questions.length} starters
           </span>
         )}
@@ -836,17 +836,17 @@ function AgentCard({
             {(agent.intents ?? []).slice(0, 3).map((intent, i) => (
               <div key={i} className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
-                <span className="text-[11px] text-gray-500 leading-tight">
+                <span className="text-xs text-gray-500 leading-tight">
                   <span className="font-medium text-gray-700">{intent.name || "Unnamed"}</span>
                   {intent.triggers && <span className="text-gray-400"> — {intent.triggers.split(",").slice(0,2).map(t=>t.trim()).join(", ")}</span>}
                 </span>
               </div>
             ))}
-            {(agent.intents ?? []).length === 0 && <p className="text-[11px] text-gray-400 italic">No intents configured</p>}
-            {(agent.intents ?? []).length > 3 && <p className="text-[11px] text-gray-400">+{(agent.intents ?? []).length - 3} more intents</p>}
+            {(agent.intents ?? []).length === 0 && <p className="text-xs text-gray-400 italic">No intents configured</p>}
+            {(agent.intents ?? []).length > 3 && <p className="text-xs text-gray-400">+{(agent.intents ?? []).length - 3} more intents</p>}
           </div>
         ) : (
-          <p className="text-[11px] text-gray-400 line-clamp-3 leading-relaxed">
+          <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed">
             {agent.system_prompt || <span className="italic">No system prompt set</span>}
           </p>
         )}
@@ -1100,7 +1100,7 @@ export default function AgentsPage() {
               <button
                 key={p}
                 onClick={() => setAiPrompt(p)}
-                className="text-[11px] bg-white/15 hover:bg-white/25 text-violet-100 px-3 py-1 rounded-full transition-all border border-white/10"
+                className="text-xs bg-white/15 hover:bg-white/25 text-violet-100 px-3 py-1 rounded-full transition-all border border-white/10"
               >
                 {p}
               </button>

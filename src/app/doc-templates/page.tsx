@@ -243,7 +243,7 @@ export default function DocTemplatesPage() {
                     <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center flex-shrink-0">
                       <FileText size={18} className="text-violet-600" />
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${catColor(t.category)}`}>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${catColor(t.category)}`}>
                       {t.category}
                     </span>
                   </div>
@@ -253,7 +253,7 @@ export default function DocTemplatesPage() {
                     <p className="text-xs text-gray-400 mb-3 line-clamp-2">{t.description}</p>
                   )}
 
-                  <div className="flex items-center gap-3 text-[10px] text-gray-400 mb-4">
+                  <div className="flex items-center gap-3 text-xs text-gray-400 mb-4">
                     <span className="flex items-center gap-1">
                       <Tag size={9} /> {fieldCount(t)} field{fieldCount(t) !== 1 ? "s" : ""}
                     </span>
@@ -271,7 +271,7 @@ export default function DocTemplatesPage() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-gray-300">{t.file_name} · {formatBytes(t.file_size)}</span>
+                    <span className="text-xs text-gray-300">{t.file_name} · {formatBytes(t.file_size)}</span>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={e => { e.stopPropagation(); handleDelete(t.id); }}

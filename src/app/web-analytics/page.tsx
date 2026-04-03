@@ -83,9 +83,9 @@ function StatCard({ label, value, sub, icon }: {
         {icon}
       </div>
       <div>
-        <p className="text-[11px] text-gray-500 font-medium">{label}</p>
+        <p className="text-xs text-gray-500 font-medium">{label}</p>
         <p className="text-xl font-bold text-gray-900 mt-0.5">{value}</p>
-        {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
+        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -100,17 +100,17 @@ function TopList({ title, items }: {
     <div className="bg-white rounded-xl border border-gray-200 p-4">
       <p className="text-xs font-semibold text-gray-700 mb-3">{title}</p>
       {items.length === 0 ? (
-        <p className="text-[11px] text-gray-400 text-center py-4">No data yet</p>
+        <p className="text-xs text-gray-400 text-center py-4">No data yet</p>
       ) : (
         <div className="space-y-2">
           {items.map((item, i) => (
             <div key={i} className="flex items-center gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[11px] text-gray-700 truncate flex-1 mr-2" title={item.value}>
+                  <span className="text-xs text-gray-700 truncate flex-1 mr-2" title={item.value}>
                     {item.value || "(direct)"}
                   </span>
-                  <span className="text-[11px] font-semibold text-gray-600 flex-shrink-0">{fmt(item.count)}</span>
+                  <span className="text-xs font-semibold text-gray-600 flex-shrink-0">{fmt(item.count)}</span>
                 </div>
                 <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
                   <div
@@ -191,7 +191,7 @@ function AddSiteModal({ onClose, onAdded }: { onClose: () => void; onAdded: (sit
               placeholder="example.com"
               className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
-            <p className="text-[10px] text-gray-400 mt-1">Without https:// — e.g. example.com</p>
+            <p className="text-xs text-gray-400 mt-1">Without https:// — e.g. example.com</p>
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
@@ -223,10 +223,10 @@ function ScriptSnippet({ site }: { site: Site }) {
   return (
     <div className="bg-gray-900 rounded-xl p-4 mt-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Paste in your &lt;head&gt;</p>
+        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Paste in your &lt;head&gt;</p>
         <CopyButton text={snippet} />
       </div>
-      <pre className="text-[11px] text-green-400 whitespace-pre-wrap break-all font-mono">{snippet}</pre>
+      <pre className="text-xs text-green-400 whitespace-pre-wrap break-all font-mono">{snippet}</pre>
     </div>
   );
 }
@@ -284,35 +284,35 @@ function SessionRow({ session }: { session: Session }) {
         {/* Main info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-semibold text-gray-700">
+            <span className="text-xs font-semibold text-gray-700">
               {pageviews.length} page{pageviews.length !== 1 ? "s" : ""}
             </span>
             {session.total_duration_ms > 0 && (
-              <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
+              <span className="text-xs text-gray-500 flex items-center gap-0.5">
                 <Clock size={9} /> {fmtDuration(session.total_duration_ms)}
               </span>
             )}
             {session.country && (
-              <span className="text-[10px] text-gray-400">{session.city ? `${session.city}, ` : ""}{session.country}</span>
+              <span className="text-xs text-gray-400">{session.city ? `${session.city}, ` : ""}{session.country}</span>
             )}
             {session.browser && (
-              <span className="text-[10px] text-gray-400">{session.browser}{session.os ? ` · ${session.os}` : ""}</span>
+              <span className="text-xs text-gray-400">{session.browser}{session.os ? ` · ${session.os}` : ""}</span>
             )}
           </div>
           <div className="flex items-center gap-1 mt-0.5 overflow-hidden">
             {pageviews.slice(0, 4).map((e, i) => (
-              <span key={i} className="text-[10px] text-gray-400 truncate max-w-[120px]">
+              <span key={i} className="text-xs text-gray-400 truncate max-w-[120px]">
                 {i > 0 && <span className="mx-0.5 text-gray-300">→</span>}
                 {e.path || "/"}
               </span>
             ))}
-            {pageviews.length > 4 && <span className="text-[10px] text-gray-400">+{pageviews.length - 4} more</span>}
+            {pageviews.length > 4 && <span className="text-xs text-gray-400">+{pageviews.length - 4} more</span>}
           </div>
         </div>
 
         {/* Time + chevron */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-[10px] text-gray-400">{timeAgo(session.started_at)}</span>
+          <span className="text-xs text-gray-400">{timeAgo(session.started_at)}</span>
           {open ? <ChevronDown size={13} className="text-gray-400" /> : <ChevronRight size={13} className="text-gray-400" />}
         </div>
       </button>
@@ -321,18 +321,18 @@ function SessionRow({ session }: { session: Session }) {
         <div className="px-4 pb-4 border-t border-gray-100 bg-gray-50/50">
           <div className="mt-3 space-y-1">
             {session.events.map((e, i) => (
-              <div key={i} className="flex items-center gap-2.5 text-[11px]">
-                <span className="text-[9px] text-gray-400 w-14 flex-shrink-0 font-mono">
+              <div key={i} className="flex items-center gap-2.5 text-xs">
+                <span className="text-xs text-gray-400 w-14 flex-shrink-0 font-mono">
                   {new Date(e.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                 </span>
-                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${EVENT_TYPE_COLORS[e.type] ?? "bg-gray-100 text-gray-500"}`}>
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${EVENT_TYPE_COLORS[e.type] ?? "bg-gray-100 text-gray-500"}`}>
                   {e.type}
                 </span>
                 <span className="text-gray-600 truncate flex-1">
                   {e.label ? e.label : (e.path || "/")}
                 </span>
                 {e.duration_ms && e.duration_ms > 0 && (
-                  <span className="text-[10px] text-gray-400 flex-shrink-0">{fmtDuration(e.duration_ms)}</span>
+                  <span className="text-xs text-gray-400 flex-shrink-0">{fmtDuration(e.duration_ms)}</span>
                 )}
               </div>
             ))}
@@ -344,7 +344,7 @@ function SessionRow({ session }: { session: Session }) {
               session.language   && { label: "Language", value: session.language },
               session.timezone   && { label: "Timezone", value: session.timezone },
             ].filter(Boolean).map((item, i) => (
-              <div key={i} className="text-[10px]">
+              <div key={i} className="text-xs">
                 <span className="text-gray-400">{(item as {label:string;value:string}).label}: </span>
                 <span className="text-gray-600 font-medium">{(item as {label:string;value:string}).value}</span>
               </div>
@@ -437,14 +437,14 @@ function EventsView({ events, siteKey }: {
             Use <code className="bg-gray-100 px-1 rounded text-violet-600">window.waTrack()</code> for custom events.
           </p>
           <div className="bg-gray-900 rounded-xl p-4 text-left max-w-sm mx-auto">
-            <p className="text-[10px] text-gray-400 mb-2 uppercase tracking-wide">Manual tracking</p>
-            <pre className="text-[11px] text-green-400 font-mono whitespace-pre-wrap">{`// Track any event
+            <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Manual tracking</p>
+            <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">{`// Track any event
 window.waTrack("signup_clicked", {
   plan: "pro",
   source: "hero"
 });`}</pre>
           </div>
-          <p className="text-[10px] text-gray-400 mt-4">
+          <p className="text-xs text-gray-400 mt-4">
             Script: <code className="font-mono text-violet-500">{origin}/api/tracker?s={siteKey}</code>
           </p>
         </div>
@@ -452,7 +452,7 @@ window.waTrack("signup_clicked", {
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <p className="text-xs font-semibold text-gray-700">Custom Events & Clicks</p>
-            <span className="text-[10px] text-gray-400">{events.length} event type{events.length !== 1 ? "s" : ""}</span>
+            <span className="text-xs text-gray-400">{events.length} event type{events.length !== 1 ? "s" : ""}</span>
           </div>
           <div className="divide-y divide-gray-50">
             {events.map((ev, i) => (
@@ -462,8 +462,8 @@ window.waTrack("signup_clicked", {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[11px] font-semibold text-gray-800 truncate">{ev.name}</span>
-                    <span className="text-[11px] font-bold text-gray-700 flex-shrink-0 ml-2">{fmt(ev.count)}</span>
+                    <span className="text-xs font-semibold text-gray-800 truncate">{ev.name}</span>
+                    <span className="text-xs font-bold text-gray-700 flex-shrink-0 ml-2">{fmt(ev.count)}</span>
                   </div>
                   <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
                     <div
@@ -472,7 +472,7 @@ window.waTrack("signup_clicked", {
                     />
                   </div>
                   {ev.top_page && (
-                    <p className="text-[10px] text-gray-400 mt-0.5 truncate">Top page: {ev.top_page}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">Top page: {ev.top_page}</p>
                   )}
                 </div>
               </div>
@@ -483,8 +483,8 @@ window.waTrack("signup_clicked", {
 
       {/* Code snippet */}
       <div className="bg-gray-900 rounded-xl p-4">
-        <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-3">How to track events</p>
-        <pre className="text-[11px] text-green-400 font-mono whitespace-pre-wrap">{`// Auto-tracked (no code needed):
+        <p className="text-xs text-gray-400 uppercase tracking-wide mb-3">How to track events</p>
+        <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">{`// Auto-tracked (no code needed):
 // • Button clicks (uses button text or data-track attribute)
 // • Form submissions
 // • Outbound link clicks
@@ -556,7 +556,7 @@ function CreateFunnelModal({ siteId, onClose, onCreated }: { siteId: string; onC
             <div className="space-y-2">
               {steps.map((step, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-[10px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                  <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
                   <select value={step.type} onChange={e => setStep(i, { type: e.target.value as "page" | "event" })}
                     className="text-xs px-2 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 flex-shrink-0">
                     <option value="page">Page</option>
@@ -623,7 +623,7 @@ function FunnelDetail({ funnel, siteId, onDelete }: { funnel: Funnel; siteId: st
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div>
           <p className="text-sm font-semibold text-gray-800">{funnel.name}</p>
-          {data && <p className="text-[10px] text-gray-400 mt-0.5">{data.total_entered} entered · {data.conversion_rate}% converted · last {days}d</p>}
+          {data && <p className="text-xs text-gray-400 mt-0.5">{data.total_entered} entered · {data.conversion_rate}% converted · last {days}d</p>}
         </div>
         <div className="flex items-center gap-2">
           <select value={days} onChange={e => { setDays(Number(e.target.value)); load(Number(e.target.value)); }}
@@ -650,21 +650,21 @@ function FunnelDetail({ funnel, siteId, onDelete }: { funnel: Funnel; siteId: st
             return (
               <div key={i}>
                 <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-[10px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</div>
+                  <div className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span className={`text-[9px] px-1 py-0.5 rounded font-medium flex-shrink-0 ${step.type === "page" ? "bg-blue-50 text-blue-500" : "bg-green-50 text-green-600"}`}>
+                        <span className={`text-xs px-1 py-0.5 rounded font-medium flex-shrink-0 ${step.type === "page" ? "bg-blue-50 text-blue-500" : "bg-green-50 text-green-600"}`}>
                           {step.type}
                         </span>
-                        <span className="text-[11px] font-medium text-gray-700 truncate">{step.label}</span>
+                        <span className="text-xs font-medium text-gray-700 truncate">{step.label}</span>
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0 ml-2">
                         {i > 0 && step.drop_pct > 0 && (
-                          <span className="text-[10px] text-red-400">-{step.drop_pct}%</span>
+                          <span className="text-xs text-red-400">-{step.drop_pct}%</span>
                         )}
-                        <span className="text-[11px] font-bold text-gray-800">{fmt(step.sessions)}</span>
-                        <span className="text-[10px] text-gray-400 w-8 text-right">{pct}%</span>
+                        <span className="text-xs font-bold text-gray-800">{fmt(step.sessions)}</span>
+                        <span className="text-xs text-gray-400 w-8 text-right">{pct}%</span>
                       </div>
                     </div>
                     <div className="h-6 bg-gray-100 rounded-lg overflow-hidden">
@@ -778,7 +778,7 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
           <div>
             <h2 className="text-base font-bold text-gray-900">{site.name}</h2>
             <a href={`https://${site.domain}`} target="_blank" rel="noopener noreferrer"
-              className="text-[11px] text-violet-600 hover:underline flex items-center gap-0.5">
+              className="text-xs text-violet-600 hover:underline flex items-center gap-0.5">
               {site.domain} <ExternalLink size={10} />
             </a>
           </div>
@@ -919,14 +919,14 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Monitor size={12} /> Devices</p>
               {stats.devices.length === 0 ? (
-                <p className="text-[11px] text-gray-400 text-center py-4">No data yet</p>
+                <p className="text-xs text-gray-400 text-center py-4">No data yet</p>
               ) : (
                 <div className="space-y-2.5">
                   {stats.devices.map((d, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <span className="text-gray-400">{deviceIcon(d.value)}</span>
-                      <span className="text-[11px] text-gray-700 flex-1 capitalize">{d.value}</span>
-                      <span className="text-[11px] font-semibold text-gray-600">{fmt(d.count)}</span>
+                      <span className="text-xs text-gray-700 flex-1 capitalize">{d.value}</span>
+                      <span className="text-xs font-semibold text-gray-600">{fmt(d.count)}</span>
                     </div>
                   ))}
                 </div>
@@ -941,13 +941,13 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Languages size={12} /> Languages</p>
               {stats.languages.length === 0 ? (
-                <p className="text-[11px] text-gray-400 text-center py-4">No data yet</p>
+                <p className="text-xs text-gray-400 text-center py-4">No data yet</p>
               ) : (
                 <div className="space-y-2">
                   {stats.languages.map((l, i) => (
                     <div key={i} className="flex items-center justify-between">
-                      <span className="text-[11px] text-gray-700">{l.value}</span>
-                      <span className="text-[11px] font-semibold text-gray-600">{fmt(l.count)}</span>
+                      <span className="text-xs text-gray-700">{l.value}</span>
+                      <span className="text-xs font-semibold text-gray-600">{fmt(l.count)}</span>
                     </div>
                   ))}
                 </div>
@@ -956,13 +956,13 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Clock size={12} /> Timezones</p>
               {stats.timezones.length === 0 ? (
-                <p className="text-[11px] text-gray-400 text-center py-4">No data yet</p>
+                <p className="text-xs text-gray-400 text-center py-4">No data yet</p>
               ) : (
                 <div className="space-y-2">
                   {stats.timezones.map((t, i) => (
                     <div key={i} className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-gray-700 truncate flex-1">{t.value}</span>
-                      <span className="text-[11px] font-semibold text-gray-600 flex-shrink-0">{fmt(t.count)}</span>
+                      <span className="text-xs text-gray-700 truncate flex-1">{t.value}</span>
+                      <span className="text-xs font-semibold text-gray-600 flex-shrink-0">{fmt(t.count)}</span>
                     </div>
                   ))}
                 </div>
@@ -971,13 +971,13 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Cpu size={12} /> Screen Resolutions</p>
               {stats.resolutions.length === 0 ? (
-                <p className="text-[11px] text-gray-400 text-center py-4">No data yet</p>
+                <p className="text-xs text-gray-400 text-center py-4">No data yet</p>
               ) : (
                 <div className="space-y-2">
                   {stats.resolutions.map((r, i) => (
                     <div key={i} className="flex items-center justify-between">
-                      <span className="text-[11px] text-gray-700 font-mono">{r.value}</span>
-                      <span className="text-[11px] font-semibold text-gray-600">{fmt(r.count)}</span>
+                      <span className="text-xs text-gray-700 font-mono">{r.value}</span>
+                      <span className="text-xs font-semibold text-gray-600">{fmt(r.count)}</span>
                     </div>
                   ))}
                 </div>
@@ -1022,7 +1022,7 @@ function SiteCard({ site, onSelect, onDelete }: {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{site.name}</p>
-            <p className="text-[11px] text-gray-500 truncate">{site.domain}</p>
+            <p className="text-xs text-gray-500 truncate">{site.domain}</p>
           </div>
         </div>
         <button
@@ -1034,10 +1034,10 @@ function SiteCard({ site, onSelect, onDelete }: {
         </button>
       </div>
       <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-        <span className="text-[10px] text-gray-400">
+        <span className="text-xs text-gray-400">
           Added {new Date(site.created_at).toLocaleDateString()}
         </span>
-        <span className="text-[10px] text-violet-600 font-medium group-hover:underline">
+        <span className="text-xs text-violet-600 font-medium group-hover:underline">
           View analytics →
         </span>
       </div>

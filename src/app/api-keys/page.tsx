@@ -176,11 +176,11 @@ export default function ApiKeysPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-gray-800">{k.name}</p>
-                    {!k.is_active && <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">Disabled</span>}
+                    {!k.is_active && <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">Disabled</span>}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5">
                     <code className="text-xs text-gray-400 font-mono">{k.key_prefix}••••••••••••••••</code>
-                    <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
                       <Clock size={10} />
                       {k.last_used_at ? `Last used ${new Date(k.last_used_at).toLocaleDateString()}` : "Never used"}
                     </span>
@@ -213,7 +213,7 @@ export default function ApiKeysPage() {
           <div className="space-y-3 text-xs text-gray-600">
             <div>
               <p className="font-medium text-gray-700 mb-1">1. Send a document for signing (dynamic signers)</p>
-              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-[11px] overflow-x-auto text-gray-700">{`POST /api/v1/esign/send
+              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-xs overflow-x-auto text-gray-700">{`POST /api/v1/esign/send
 Authorization: Bearer sk_live_your_key
 
 {
@@ -228,7 +228,7 @@ Authorization: Bearer sk_live_your_key
             </div>
             <div>
               <p className="font-medium text-gray-700 mb-1">2. For template documents (role-based fields)</p>
-              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-[11px] overflow-x-auto text-gray-700">{`// Fields in document assigned to "Signer 1", "Signer 2"
+              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-xs overflow-x-auto text-gray-700">{`// Fields in document assigned to "Signer 1", "Signer 2"
 {
   "document_id": "template-doc-id",
   "signers": [
@@ -239,7 +239,7 @@ Authorization: Bearer sk_live_your_key
             </div>
             <div>
               <p className="font-medium text-gray-700 mb-1">3. For per-individual documents (each person signs own copy)</p>
-              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-[11px] overflow-x-auto text-gray-700">{`// Call once per person — each gets their own session
+              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-xs overflow-x-auto text-gray-700">{`// Call once per person — each gets their own session
 POST /api/v1/esign/send
 { "document_id": "onboarding-form-id",
   "signers": [{ "email": "newemployee@co.com", "name": "John" }] }
@@ -247,12 +247,12 @@ POST /api/v1/esign/send
             </div>
             <div>
               <p className="font-medium text-gray-700 mb-1">4. Check signing status</p>
-              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-[11px] overflow-x-auto text-gray-700">{`GET /api/v1/esign/sessions/{session_id}
+              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-xs overflow-x-auto text-gray-700">{`GET /api/v1/esign/sessions/{session_id}
 Authorization: Bearer sk_live_your_key`}</pre>
             </div>
             <div>
               <p className="font-medium text-gray-700 mb-1">5. Webhook payload (sent to callback_url after each signing)</p>
-              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-[11px] overflow-x-auto text-gray-700">{`{
+              <pre className="bg-white border border-gray-200 rounded-lg p-3 text-xs overflow-x-auto text-gray-700">{`{
   "event": "signer.signed" | "session.completed",
   "session_id": "...",
   "signer": { "email": "alice@co.com", "order": 1, "signed_at": "..." },

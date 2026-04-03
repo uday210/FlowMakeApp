@@ -24,7 +24,7 @@ function CodeBlock({ code, lang = "text" }: { code: string; lang?: string }) {
         {copied ? <CheckCheck size={12} className="text-green-400" /> : <Copy size={12} />}
       </button>
       {lang !== "text" && (
-        <span className="absolute top-2.5 left-4 text-[10px] text-gray-500 font-mono">{lang}</span>
+        <span className="absolute top-2.5 left-4 text-xs text-gray-500 font-mono">{lang}</span>
       )}
     </div>
   );
@@ -68,7 +68,7 @@ function NodeRow({ name, desc, outputs }: { name: string; desc: string; outputs?
       </div>
       {outputs && (
         <div className="flex flex-wrap gap-1 flex-shrink-0 max-w-[200px]">
-          {outputs.map((o) => <span key={o} className="text-[10px] font-mono bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded">{o}</span>)}
+          {outputs.map((o) => <span key={o} className="text-xs font-mono bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded">{o}</span>)}
         </div>
       )}
     </div>
@@ -79,7 +79,7 @@ function ApiMethod({ method, path, desc }: { method: string; path: string; desc:
   const colors: Record<string, string> = { GET: "bg-green-100 text-green-700", POST: "bg-blue-100 text-blue-700", DELETE: "bg-red-100 text-red-600", PATCH: "bg-amber-100 text-amber-700" };
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-gray-100 last:border-0">
-      <span className={`text-[11px] font-bold px-2 py-0.5 rounded font-mono flex-shrink-0 mt-0.5 ${colors[method] ?? "bg-gray-100 text-gray-600"}`}>{method}</span>
+      <span className={`text-xs font-bold px-2 py-0.5 rounded font-mono flex-shrink-0 mt-0.5 ${colors[method] ?? "bg-gray-100 text-gray-600"}`}>{method}</span>
       <div>
         <code className="text-xs font-mono text-gray-800">{path}</code>
         <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
@@ -124,7 +124,7 @@ export default function HelpPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* TOC */}
         <nav className="w-52 border-r border-gray-200 bg-white overflow-y-auto flex-shrink-0 py-4 px-3">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-2 mb-2">Contents</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest px-2 mb-2">Contents</p>
           {SECTIONS.map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => scrollTo(id)}
               className={`w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors text-left ${activeSection === id ? "bg-violet-50 text-violet-700 font-semibold" : "text-gray-600 hover:bg-gray-50"}`}>
@@ -148,7 +148,7 @@ export default function HelpPage() {
                 <div key={label} className="bg-violet-50 rounded-xl p-4 border border-violet-100">
                   <div className="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center mb-2"><Icon size={16} className="text-violet-600" /></div>
                   <p className="text-xs font-semibold text-gray-800 mb-1">{label}</p>
-                  <p className="text-[11px] text-gray-500">{desc}</p>
+                  <p className="text-xs text-gray-500">{desc}</p>
                 </div>
               ))}
             </div>
@@ -223,7 +223,7 @@ export default function HelpPage() {
                     </div>
                     {outputs.length > 0 && (
                       <div className="flex flex-wrap gap-1 flex-shrink-0">
-                        {outputs.map((o) => <span key={o} className="text-[10px] font-mono bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded">{`{{trigger.${o}}}`}</span>)}
+                        {outputs.map((o) => <span key={o} className="text-xs font-mono bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded">{`{{trigger.${o}}}`}</span>)}
                       </div>
                     )}
                   </div>
@@ -328,11 +328,11 @@ Key: last_run_id
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                   <p className="text-xs font-semibold text-blue-800 mb-1">External Server</p>
-                  <p className="text-[11px] text-blue-700">Connect to any MCP server by URL. We auto-discover its tools and make them available as <code className="font-mono bg-blue-100 px-1 rounded">action_mcp_tool</code> nodes in your scenarios.</p>
+                  <p className="text-xs text-blue-700">Connect to any MCP server by URL. We auto-discover its tools and make them available as <code className="font-mono bg-blue-100 px-1 rounded">action_mcp_tool</code> nodes in your scenarios.</p>
                 </div>
                 <div className="bg-violet-50 border border-violet-100 rounded-xl p-4">
                   <p className="text-xs font-semibold text-violet-800 mb-1">Hosted Server (My Server)</p>
-                  <p className="text-[11px] text-violet-700">Create your own MCP server. Add scenarios as tools — each scenario becomes a callable tool exposed via SSE and HTTP endpoints.</p>
+                  <p className="text-xs text-violet-700">Create your own MCP server. Add scenarios as tools — each scenario becomes a callable tool exposed via SSE and HTTP endpoints.</p>
                 </div>
               </div>
             </Sub>
@@ -436,9 +436,9 @@ POST https://yourapp.com/api/mcp/hosted/{slug}`} />
                 ].map(([name, syntax, example, output]) => (
                   <div key={name} className="grid grid-cols-4 gap-2 py-2 px-3 border-b border-gray-100 last:border-0">
                     <code className="font-mono text-violet-700">{name}</code>
-                    <code className="font-mono text-gray-500 text-[11px]">{syntax}</code>
-                    <code className="font-mono text-gray-600 text-[11px]">{example}</code>
-                    <span className="text-gray-500 text-[11px]">{output}</span>
+                    <code className="font-mono text-gray-500 text-xs">{syntax}</code>
+                    <code className="font-mono text-gray-600 text-xs">{example}</code>
+                    <span className="text-gray-500 text-xs">{output}</span>
                   </div>
                 ))}
               </div>
@@ -534,7 +534,7 @@ Format:       docx  (or pdf)
                   <div key={step} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                     <div className="w-7 h-7 bg-violet-600 text-white rounded-lg flex items-center justify-center text-xs font-bold mb-2">{step}</div>
                     <p className="text-xs font-semibold text-gray-800 mb-1">{label}</p>
-                    <p className="text-[11px] text-gray-500">{desc}</p>
+                    <p className="text-xs text-gray-500">{desc}</p>
                   </div>
                 ))}
               </div>

@@ -19,12 +19,12 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
     <div className="my-2 rounded-lg overflow-hidden border border-gray-200 text-left">
       {/* header bar */}
       <div className="flex items-center justify-between bg-gray-800 px-3 py-1.5">
-        <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
+        <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">
           {language || "code"}
         </span>
         <button
           onClick={copy}
-          className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-white transition-colors"
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
         >
           {copied ? <Check size={11} /> : <Copy size={11} />}
           {copied ? "Copied" : "Copy"}
@@ -60,7 +60,7 @@ export default function MarkdownMessage({ content, textColor = "text-gray-700", 
             if (isInline) {
               return (
                 <code
-                  className="bg-black/10 text-current font-mono text-[11px] px-1 py-0.5 rounded"
+                  className="bg-black/10 text-current font-mono text-xs px-1 py-0.5 rounded"
                   {...props}
                 >
                   {children}
@@ -107,7 +107,7 @@ export default function MarkdownMessage({ content, textColor = "text-gray-700", 
           // ── Tables ────────────────────────────────────────────────────────
           table: ({ children }) => (
             <div className="overflow-x-auto my-2">
-              <table className="text-[11px] border-collapse w-full">{children}</table>
+              <table className="text-xs border-collapse w-full">{children}</table>
             </div>
           ),
           thead: ({ children }) => (

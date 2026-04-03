@@ -231,7 +231,7 @@ export default function LandingPage() {
             >
               {f.badge && (
                 <span
-                  className="absolute top-5 right-5 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  className="absolute top-5 right-5 text-xs font-bold px-2 py-0.5 rounded-full"
                   style={{ background: f.color + "33", color: f.color }}
                 >
                   {f.badge}

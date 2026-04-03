@@ -361,7 +361,7 @@ export default function EmailTemplatesPage() {
       <div className="px-6 py-5 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 mb-3">
           <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Pre-built Templates</h2>
-          <span className="text-[11px] bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full font-medium">{PRESET_TEMPLATES.length}</span>
+          <span className="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full font-medium">{PRESET_TEMPLATES.length}</span>
         </div>
         <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
           {PRESET_TEMPLATES.map((tpl, i) => (
@@ -372,14 +372,14 @@ export default function EmailTemplatesPage() {
               <div className="flex items-center gap-2">
                 <span className="text-xl">{tpl.emoji}</span>
                 <span
-                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize text-white"
+                  className="text-xs font-semibold px-2 py-0.5 rounded-full capitalize text-white"
                   style={{ backgroundColor: tpl.color }}
                 >
                   {tpl.category}
                 </span>
               </div>
               <p className="text-xs font-semibold text-gray-800 leading-tight">{tpl.name}</p>
-              <p className="text-[11px] text-gray-400 leading-relaxed flex-1 line-clamp-2">{tpl.description}</p>
+              <p className="text-xs text-gray-400 leading-relaxed flex-1 line-clamp-2">{tpl.description}</p>
               <button
                 onClick={() => handleUseTemplate(tpl, i)}
                 disabled={templateLoading === i}
@@ -496,11 +496,11 @@ export default function EmailTemplatesPage() {
                       <FileText size={16} className="text-indigo-500" />
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize ${categoryColor(t.category)}`}>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${categoryColor(t.category)}`}>
                         {t.category}
                       </span>
                       {(t.usage_count ?? 0) > 0 && (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-600">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-600">
                           {t.usage_count} use{t.usage_count !== 1 ? "s" : ""}
                         </span>
                       )}
@@ -539,16 +539,16 @@ export default function EmailTemplatesPage() {
                     <div className="flex items-center gap-1 flex-wrap mb-3">
                       <Tag size={10} className="text-gray-400 flex-shrink-0" />
                       {t.variables.slice(0, 4).map(v => (
-                        <span key={v.key} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                        <span key={v.key} className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
                           {`{{${v.key}}}`}
                         </span>
                       ))}
                       {t.variables.length > 4 && (
-                        <span className="text-[10px] text-gray-400">+{t.variables.length - 4} more</span>
+                        <span className="text-xs text-gray-400">+{t.variables.length - 4} more</span>
                       )}
                     </div>
                   )}
-                  <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                  <div className="flex items-center gap-1 text-xs text-gray-400">
                     <Clock size={10} />
                     {new Date(t.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </div>
@@ -579,7 +579,7 @@ export default function EmailTemplatesPage() {
                       </button>
                     </div>
                     {testMsg && (
-                      <p className={`text-[11px] mt-1 px-1 ${testMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{testMsg}</p>
+                      <p className={`text-xs mt-1 px-1 ${testMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{testMsg}</p>
                     )}
                   </div>
                 )}

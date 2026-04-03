@@ -91,7 +91,7 @@ function DocCard({
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-sm text-gray-900 truncate">{doc.name}</p>
             {isTemplate && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">
                 TEMPLATE
               </span>
             )}
@@ -109,7 +109,7 @@ function DocCard({
 
         {/* Status badge */}
         {!isTemplate && (
-          <span className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full capitalize flex-shrink-0 ${DOC_STATUS_STYLES[doc.status]}`}>
+          <span className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full capitalize flex-shrink-0 ${DOC_STATUS_STYLES[doc.status]}`}>
             {DOC_STATUS_ICONS[doc.status]} {doc.status}
           </span>
         )}
@@ -156,7 +156,7 @@ function DocCard({
                   <span className="text-xs font-medium text-gray-700">{s.signer_name || s.signer_email}</span>
                   {s.signer_name && <span className="text-xs text-gray-400 ml-1.5">{s.signer_email}</span>}
                 </div>
-                <span className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border capitalize ${SIGNER_STATUS_STYLES[s.status]}`}>
+                <span className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${SIGNER_STATUS_STYLES[s.status]}`}>
                   {SIGNER_STATUS_ICONS[s.status]} {s.status}
                 </span>
               </div>

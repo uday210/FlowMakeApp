@@ -220,7 +220,7 @@ function TemplateCard({ t, onUse, loading }: { t: Template; onUse: (t: Template)
       <h3 className="text-sm font-semibold text-gray-900 mt-3 mb-1.5 line-clamp-2">{t.name}</h3>
       <p className="text-xs text-gray-500 flex-1 line-clamp-2 mb-4">{t.description}</p>
       <div className="flex items-center justify-between mt-auto">
-        <span className="text-[10px] text-gray-400">Used {t.usedCount.toLocaleString()}×</span>
+        <span className="text-xs text-gray-400">Used {t.usedCount.toLocaleString()}×</span>
         <button
           onClick={() => onUse(t)}
           disabled={loading}
@@ -480,7 +480,7 @@ function WorkflowsPageInner() {
           <Zap size={14} />
           My Scenarios
           {workflows.length > 0 && (
-            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">
               {workflows.length}
             </span>
           )}
@@ -495,7 +495,7 @@ function WorkflowsPageInner() {
         >
           <Layers size={14} />
           Templates
-          <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">
+          <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">
             {TEMPLATES.length}
           </span>
         </button>
@@ -507,7 +507,7 @@ function WorkflowsPageInner() {
           {/* Folder sidebar */}
           {allFolders.length > 0 && (
             <div className="w-44 border-r border-gray-100 bg-gray-50/50 flex-shrink-0 overflow-y-auto p-3 space-y-0.5">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 mb-2">Folders</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase px-2 mb-2">Folders</p>
               <button
                 onClick={() => setFolderFilter(null)}
                 className={`w-full text-left text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 ${
@@ -515,7 +515,7 @@ function WorkflowsPageInner() {
                 }`}
               >
                 All Scenarios
-                <span className="ml-auto text-[10px] text-gray-400">{workflows.length}</span>
+                <span className="ml-auto text-xs text-gray-400">{workflows.length}</span>
               </button>
               {allFolders.map((f) => (
                 <button
@@ -526,7 +526,7 @@ function WorkflowsPageInner() {
                   }`}
                 >
                   📁 {f}
-                  <span className="ml-auto text-[10px] text-gray-400">
+                  <span className="ml-auto text-xs text-gray-400">
                     {workflows.filter((w) => w.folder === f).length}
                   </span>
                 </button>
@@ -568,7 +568,7 @@ function WorkflowsPageInner() {
                 <button
                   key={p}
                   onClick={() => setAiPrompt(p)}
-                  className="text-[11px] bg-white/15 hover:bg-white/25 text-violet-100 px-3 py-1 rounded-full transition-all border border-white/10"
+                  className="text-xs bg-white/15 hover:bg-white/25 text-violet-100 px-3 py-1 rounded-full transition-all border border-white/10"
                 >
                   {p}
                 </button>
@@ -643,7 +643,7 @@ function WorkflowsPageInner() {
                         <button
                           onClick={e => { e.stopPropagation(); setEditingTagsId(w.id); setTagInput(""); }}
                           title="Add tag"
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-[10px] text-gray-400 font-bold"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-xs text-gray-400 font-bold"
                         >
                           #
                         </button>
@@ -670,7 +670,7 @@ function WorkflowsPageInner() {
                         {(w.tags ?? []).map((tag) => (
                           <span
                             key={tag}
-                            className="inline-flex items-center gap-0.5 text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-full"
+                            className="inline-flex items-center gap-0.5 text-xs bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-full"
                           >
                             {tag}
                             <button onClick={() => removeTag(w.id, tag)} className="hover:text-red-500 ml-0.5">×</button>
@@ -680,7 +680,7 @@ function WorkflowsPageInner() {
                     )}
 
                     <div className="flex items-center justify-between mt-3">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
                         w.is_active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${w.is_active ? "bg-green-400" : "bg-gray-300"}`} />
@@ -698,14 +698,14 @@ function WorkflowsPageInner() {
                               setWorkflowFolder(w.id, e.target.value || null);
                             }
                           }}
-                          className="text-[10px] text-gray-400 border-none bg-transparent outline-none cursor-pointer hover:text-gray-600"
+                          className="text-xs text-gray-400 border-none bg-transparent outline-none cursor-pointer hover:text-gray-600"
                           title="Assign folder"
                         >
                           <option value="">No folder</option>
                           {allFolders.map(f => <option key={f} value={f}>{f}</option>)}
                           <option value="__new__">+ New folder…</option>
                         </select>
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
                           <Clock size={9} />
                           {new Date(w.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </span>
@@ -728,7 +728,7 @@ function WorkflowsPageInner() {
                           }}
                           onBlur={() => { setEditingTagsId(null); setTagInput(""); }}
                           placeholder="Type a tag and press Enter"
-                          className="w-full text-[11px] border border-violet-200 rounded-lg px-2 py-1 outline-none focus:border-violet-400"
+                          className="w-full text-xs border border-violet-200 rounded-lg px-2 py-1 outline-none focus:border-violet-400"
                         />
                       </div>
                     )}

@@ -72,7 +72,7 @@ function formatTime(iso: string) {
 function MetaDetail({ label, value }: { label: string; value: unknown }) {
   if (value === undefined || value === null || value === "") return null;
   return (
-    <div className="flex gap-2 text-[11px]">
+    <div className="flex gap-2 text-xs">
       <span className="text-gray-400 font-medium min-w-[80px]">{label}</span>
       <span className="text-gray-600 break-all">
         {typeof value === "object" ? JSON.stringify(value) : String(value)}
@@ -111,17 +111,17 @@ function LogRow({ log }: { log: AuditLog }) {
             {label}
           </p>
           {log.meta.status === "failed" && Number(log.meta.nodes_error) > 0 && (
-            <p className="text-[11px] text-red-400 mt-0.5">
+            <p className="text-xs text-red-400 mt-0.5">
               {Number(log.meta.nodes_error)} node{Number(log.meta.nodes_error) > 1 ? "s" : ""} failed
             </p>
           )}
           {log.resource_id && !cfg && (
-            <p className="text-[10px] text-gray-400 font-mono truncate mt-0.5">{log.resource_id}</p>
+            <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{log.resource_id}</p>
           )}
         </div>
 
         {/* Time */}
-        <span className="text-[11px] text-gray-400 flex-shrink-0">{formatTime(log.created_at)}</span>
+        <span className="text-xs text-gray-400 flex-shrink-0">{formatTime(log.created_at)}</span>
 
         {/* Expand chevron */}
         {metaEntries.length > 0 && (
@@ -141,7 +141,7 @@ function LogRow({ log }: { log: AuditLog }) {
           <MetaDetail label="Type" value={log.meta.type} />
           <MetaDetail label="Key" value={log.meta.key} />
           {Array.isArray(log.meta.errors) && log.meta.errors.length > 0 && (
-            <div className="text-[11px] mt-1">
+            <div className="text-xs mt-1">
               <span className="text-gray-400 font-medium">Errors</span>
               <div className="mt-1 space-y-1">
                 {(log.meta.errors as { node: string; error?: string }[]).map((e, i) => (

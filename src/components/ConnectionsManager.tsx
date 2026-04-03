@@ -97,7 +97,7 @@ export default function ConnectionsManager({ onClose }: Props) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div>
           <h2 className="text-sm font-semibold text-gray-800">Connections</h2>
-          <p className="text-[10px] text-gray-400 mt-0.5">Reusable credentials for integrations</p>
+          <p className="text-xs text-gray-400 mt-0.5">Reusable credentials for integrations</p>
         </div>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
           <X size={16} />
@@ -108,16 +108,16 @@ export default function ConnectionsManager({ onClose }: Props) {
         {/* Form */}
         {isFormOpen && (
           <div className="p-4 border-b border-gray-100 bg-gray-50 space-y-3">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
               {editingId ? "Edit Connection" : "New Connection"}
             </p>
             <div>
-              <label className="text-[10px] font-medium text-gray-500 block mb-1">Name</label>
+              <label className="text-xs font-medium text-gray-500 block mb-1">Name</label>
               <input className={base} placeholder="e.g. My Salesforce Prod" value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
             </div>
             <div>
-              <label className="text-[10px] font-medium text-gray-500 block mb-1">Type</label>
+              <label className="text-xs font-medium text-gray-500 block mb-1">Type</label>
               <select className={base} value={form.type} onChange={(e) => handleTypeChange(e.target.value)}
                 disabled={!!editingId}>
                 {[...CONNECTION_DEFINITIONS].sort((a, b) => a.label.localeCompare(b.label)).map((d) => (
@@ -127,7 +127,7 @@ export default function ConnectionsManager({ onClose }: Props) {
             </div>
             {selectedDef?.fields.map((f) => (
               <div key={f.key}>
-                <label className="text-[10px] font-medium text-gray-500 block mb-1">
+                <label className="text-xs font-medium text-gray-500 block mb-1">
                   {f.label}{f.required && <span className="text-red-400 ml-0.5">*</span>}
                 </label>
                 {f.type === "select" ? (
@@ -170,7 +170,7 @@ export default function ConnectionsManager({ onClose }: Props) {
               const def = CONNECTION_DEF_MAP[type];
               return (
                 <div key={type}>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-1 mb-1">{def?.label ?? type}</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 mb-1">{def?.label ?? type}</p>
                   {[...conns].sort((a, b) => a.name.localeCompare(b.name)).map((conn) => (
                     <div key={conn.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-100 bg-white hover:border-blue-200 transition-colors group">
                       <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />

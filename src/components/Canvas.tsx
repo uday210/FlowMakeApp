@@ -341,7 +341,7 @@ export default function Canvas({
             showInteractive={false}
           />
           <Panel position="bottom-center">
-            <div className="text-[10px] text-gray-400 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+            <div className="text-xs text-gray-400 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
               Drag from sidebar to add · Click node to configure · Ctrl+C/V to copy/paste · Backspace to delete
             </div>
           </Panel>

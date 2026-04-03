@@ -52,7 +52,7 @@ const WORKFLOW_VARS = [
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
+      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
       {children}
     </div>
   );
@@ -122,7 +122,7 @@ function BlockEditor({ block, onChange }: { block: BlockWithId; onChange: (b: Bl
         <div className="space-y-4">
           <Field label="Content">
             <Textarea value={block.content} onChange={(v) => update({ content: v })} rows={6} />
-            <p className="text-[11px] text-gray-400 mt-1">Use {"{{variable}}"} to insert dynamic values</p>
+            <p className="text-xs text-gray-400 mt-1">Use {"{{variable}}"} to insert dynamic values</p>
           </Field>
           <Field label="Font Size">
             <input type="range" min={11} max={28} value={block.fontSize}
@@ -576,9 +576,9 @@ export default function EmailTemplateBuilderPage({ params }: { params: Promise<{
                       className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 transition-colors group text-left">
                       <div>
                         <p className="text-xs font-semibold text-gray-700 group-hover:text-indigo-700 font-mono">{`{{${v.key}}}`}</p>
-                        <p className="text-[11px] text-gray-400">{v.label}</p>
+                        <p className="text-xs text-gray-400">{v.label}</p>
                       </div>
-                      <span className="text-[10px] text-gray-300 group-hover:text-indigo-400">copy</span>
+                      <span className="text-xs text-gray-300 group-hover:text-indigo-400">copy</span>
                     </button>
                   ))}
                 </div>
@@ -588,30 +588,30 @@ export default function EmailTemplateBuilderPage({ params }: { params: Promise<{
               <div className="flex-1 p-4 space-y-5">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Design Settings</p>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Description</label>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
                   <Textarea value={description} onChange={setDescription} rows={2} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Background Color</label>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Background Color</label>
                   <ColorInput value={settings.bgColor} onChange={(v) => setSettings((s) => ({ ...s, bgColor: v }))} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Content Background</label>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Content Background</label>
                   <ColorInput value={settings.contentBgColor} onChange={(v) => setSettings((s) => ({ ...s, contentBgColor: v }))} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Accent Color</label>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Accent Color</label>
                   <ColorInput value={settings.accentColor} onChange={(v) => setSettings((s) => ({ ...s, accentColor: v }))} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Max Width</label>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Max Width</label>
                   <input type="range" min={400} max={800} step={20} value={settings.maxWidth}
                     onChange={(e) => setSettings((s) => ({ ...s, maxWidth: +e.target.value }))}
                     className="w-full accent-indigo-600" />
                   <p className="text-xs text-gray-500 text-right">{settings.maxWidth}px</p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Font</label>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Font</label>
                   <Select value={settings.fontFamily}
                     onChange={(v) => setSettings((s) => ({ ...s, fontFamily: v }))}
                     options={[

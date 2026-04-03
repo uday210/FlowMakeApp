@@ -264,14 +264,14 @@ export default function WorldMap({ countries, cities = [] }: Props) {
         <p className="text-xs font-semibold text-gray-700">🗺️ Visitor Map</p>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="text-[9px] text-gray-400">Countries</span>
+            <span className="text-xs text-gray-400">Countries</span>
             {["#ddd6fe","#a78bfa","#7c3aed","#5b21b6"].map(c => (
               <div key={c} className="w-4 h-2 rounded-sm" style={{ background: c }} />
             ))}
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-white" />
-            <span className="text-[9px] text-gray-400">Cities</span>
+            <span className="text-xs text-gray-400">Cities</span>
           </div>
         </div>
       </div>
@@ -335,7 +335,7 @@ export default function WorldMap({ countries, cities = [] }: Props) {
 
       {tooltip && (
         <div
-          className="fixed z-50 pointer-events-none bg-gray-900 text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl"
+          className="fixed z-50 pointer-events-none bg-gray-900 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl"
           style={{ left: tooltip.x + 12, top: tooltip.y - 36 }}
         >
           <span className="font-semibold">{tooltip.name}</span>
