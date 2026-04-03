@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "api refresh_token offline_access openid profile email",
+    scope: "full refresh_token offline_access",
     state,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",

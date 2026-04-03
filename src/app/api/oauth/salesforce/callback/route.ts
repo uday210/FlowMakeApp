@@ -59,12 +59,13 @@ export async function GET(request: NextRequest) {
   // instance_url is critical — it's the Salesforce org's unique API base URL
   const instanceUrl = tokens.instance_url as string;
 
-  // Get user info
-  const userRes = await fetch(`${instanceUrl}/services/oauth2/userinfo`, {
+  // Get user info via identity URL returned in token response
+  const identityUrl = (tokens.id as string) || `${instanceUrl}/services/oauth2/userinfo`;
+  const userRes = await fetch(identityUrl, {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
-  const userInfo = await userRes.json();
-  const name = userInfo.email ?? userInfo.preferred_username ?? "Salesforce Account";
+  const userInfo = userRes.ok ? await userRes.json() : {};
+  const name = userInfo.email ?? userInfo.preferred_username ?? userInfo.username ?? "Salesforce Account";
 
   const supabase = createServerClient();
 
