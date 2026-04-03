@@ -399,7 +399,7 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node | null)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as globalThis.Node | null)) {
         setOpen(false);
       }
     };
