@@ -394,10 +394,10 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Keep search text in sync when value changes externally
-  React.useEffect(() => { setSearch(value); }, [value]);
+  useEffect(() => { setSearch(value); }, [value]);
 
   // Close dropdown on outside click
-  React.useEffect(() => {
+  useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
