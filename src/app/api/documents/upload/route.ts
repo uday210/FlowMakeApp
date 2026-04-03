@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase";
 import { extractText } from "unpdf";
 import { PDFDocument, rgb, degrees } from "pdf-lib";
 
-async function applyWatermark(buffer: Buffer, text: string): Promise<Buffer> {
+async function applyWatermark(buffer: Buffer<ArrayBuffer>, text: string): Promise<Buffer<ArrayBuffer>> {
   const pdfDoc = await PDFDocument.load(buffer);
   const pages = pdfDoc.getPages();
 
@@ -25,7 +25,7 @@ async function applyWatermark(buffer: Buffer, text: string): Promise<Buffer> {
   }
 
   const watermarked = await pdfDoc.save();
-  return Buffer.from(watermarked);
+  return Buffer.from(new Uint8Array(watermarked));
 }
 
 export async function POST(request: Request) {
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   const arrayBuffer = await file.arrayBuffer();
-  let buffer = Buffer.from(arrayBuffer);
+  let buffer = Buffer.from(new Uint8Array(arrayBuffer));
 
   // Apply watermark if requested (non-fatal — falls back to original)
   if (watermarkText) {
