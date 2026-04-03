@@ -495,12 +495,21 @@ export const handlers: Record<string, NodeHandler> = {
     const atBase = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(table)}`;
 
     if (atAction === "create_record") {
-      let fields: Record<string, unknown> = {};
-      try { fields = JSON.parse(config.fields as string); } catch { throw new Error("Fields must be valid JSON"); }
-      const res = await fetch(atBase, { method: "POST", headers: atHeaders, body: JSON.stringify({ fields }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
-      return { record_id: data.id, fields: data.fields };
+      let parsed: unknown;
+      try { parsed = JSON.parse(config.fields as string); } catch { throw new Error("Fields must be valid JSON"); }
+      // Support array of objects (batch) or single object
+      if (Array.isArray(parsed)) {
+        const records = parsed.map((f) => ({ fields: f as Record<string, unknown> }));
+        const res = await fetch(atBase, { method: "POST", headers: atHeaders, body: JSON.stringify({ records }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+        return { records: data.records, count: data.records?.length };
+      } else {
+        const res = await fetch(atBase, { method: "POST", headers: atHeaders, body: JSON.stringify({ fields: parsed }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+        return { record_id: data.id, fields: data.fields };
+      }
     } else if (atAction === "list_records") {
       const maxRecords = Number(config.max_records) || 20;
       const filter = config.filter_formula as string;
