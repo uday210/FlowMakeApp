@@ -1,37 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-
-export const dynamic = "force-dynamic";
-
-// Simple text extraction from PDF byte stream — works for text-based PDFs
-function extractTextFromPdf(buffer: Buffer): string {
-  try {
-    const str = buffer.toString("latin1");
-    const chunks: string[] = [];
-
-    // Find all literal strings inside parentheses — simplest reliable approach
-    // Skips BT/ET parsing entirely to avoid regex catastrophic backtracking
-    const re = /\(([^)]{1,500})\)/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(str)) !== null) {
-      try {
-        // Replace only safe escape sequences, drop anything unusual
-        const text = m[1]
-          .replace(/\\n/g, " ")
-          .replace(/\\r/g, " ")
-          .replace(/\\t/g, " ")
-          .replace(/\\\\/g, "\\")
-          .replace(/\\[^\\nrt]/g, "") // drop unknown escapes
-          .replace(/[^\x20-\x7E]/g, ""); // keep only printable ASCII
-        if (text.trim().length > 1) chunks.push(text.trim());
-      } catch { /* skip malformed string */ }
-    }
-
-    return chunks.join(" ").replace(/\s+/g, " ").trim();
-  } catch {
-    return "";
-  }
-}
+import { extractText } from "unpdf";
 
 export async function POST(request: Request) {
   const supabase = createServerClient();
@@ -56,8 +25,9 @@ export async function POST(request: Request) {
   // Extract text for AI assistant context (non-fatal)
   let extractedText = "";
   try {
-    extractedText = extractTextFromPdf(buffer);
-  } catch { /* silent */ }
+    const { text } = await extractText(new Uint8Array(buffer), { mergePages: true });
+    extractedText = Array.isArray(text) ? text.join(" ").trim() : (text ?? "").trim();
+  } catch { /* silent — upload still succeeds without text */ }
 
   return NextResponse.json({ file_path: fileName, file_url: urlData.publicUrl, extracted_text: extractedText });
 }
