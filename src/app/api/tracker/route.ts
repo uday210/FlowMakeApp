@@ -100,14 +100,38 @@ export async function GET(request: Request) {
   history.pushState=function(){sendDuration();_push.apply(this,arguments);resetTimer();send("pageview");};
   window.addEventListener("popstate",function(){sendDuration();resetTimer();send("pageview");});
 
-  // Click tracking — fire on every click, no filtering
+  // Click tracking — capture phase, walk up to find meaningful element
+  var SKIP_TAGS={html:1,body:1,main:1,section:1,article:1,header:1,footer:1,nav:1,aside:1,div:1,span:1,p:1,ul:1,ol:1,form:1};
   document.addEventListener("click",function(e){
     try{
-      var el=e.target;
-      var tag=el&&el.tagName?el.tagName.toLowerCase():"unknown";
-      var txt=(el&&(el.innerText||el.value||el.alt||el.getAttribute&&el.getAttribute("aria-label"))||"").toString().trim().replace(/\s+/g," ").slice(0,80);
-      var eid=el&&el.id?el.id:"";
-      send("click",{element:tag,name:txt||eid||tag,page:location.pathname});
+      var cur=e.target;
+      for(var i=0;i<8;i++){
+        if(!cur||cur===document)break;
+        var tag=(cur.tagName||"").toLowerCase();
+        // Outbound link
+        if(tag==="a"){
+          if(cur.href&&cur.hostname!==location.hostname){
+            send("click",{element:"link",name:((cur.innerText||"").trim()||cur.href).slice(0,100),page:location.pathname});
+          }
+          return;
+        }
+        var dt=cur.getAttribute?cur.getAttribute("data-track")||"":"";
+        var al=cur.getAttribute?cur.getAttribute("aria-label")||cur.getAttribute("title")||"":"";
+        var val=cur.value||"";
+        var txt=(cur.innerText||val||"").trim().replace(/\s+/g," ");
+        var eid=cur.id||"";
+        var role=cur.getAttribute?cur.getAttribute("role")||"":"";
+        var isInteractive=tag==="button"||tag==="select"||(tag==="input"&&cur.type!=="text"&&cur.type!=="email"&&cur.type!=="password"&&cur.type!=="search")||role==="button"||role==="menuitem"||role==="tab"||role==="option";
+        // Use explicit name first, then short text, then id
+        var name=dt||al||(isInteractive?txt.slice(0,100)||eid||tag:"")|| (txt.length>0&&txt.length<=40?txt:"");
+        if(name){
+          send("click",{element:tag,name:name,page:location.pathname});
+          return;
+        }
+        // Don't walk into layout containers — stop here
+        if(SKIP_TAGS[tag])break;
+        cur=cur.parentElement;
+      }
     }catch(err){}
   },true);
 
