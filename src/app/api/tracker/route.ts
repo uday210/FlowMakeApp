@@ -100,33 +100,32 @@ export async function GET(request: Request) {
   history.pushState=function(){sendDuration();_push.apply(this,arguments);resetTimer();send("pageview");};
   window.addEventListener("popstate",function(){sendDuration();resetTimer();send("pageview");});
 
-  // Click tracking — walk ancestors to find button or outbound link
+  // Click tracking — capture phase so stopPropagation on the page can't block us
   document.addEventListener("click",function(e){
     try{
       var cur=e.target;
-      while(cur&&cur.tagName){
+      while(cur&&cur!==document){
         var tag=(cur.tagName||"").toLowerCase();
-        // Outbound link
         if(tag==="a"){
           if(cur.href&&cur.hostname&&cur.hostname!==location.hostname){
             send("click",{element:"link",name:((cur.innerText||"").trim()||cur.href).slice(0,100),target:cur.href,page:location.pathname});
           }
           return;
         }
-        // Button or input[type=button/submit]
-        var isBtn=tag==="button"||(tag==="input"&&(cur.type==="button"||cur.type==="submit"))||(cur.getAttribute&&cur.getAttribute("role")==="button");
+        var role=cur.getAttribute?cur.getAttribute("role"):"";
+        var isBtn=tag==="button"||(tag==="input"&&(cur.type==="button"||cur.type==="submit"))||role==="button";
         if(isBtn){
-          var btext=(cur.innerText||cur.value||"").slice(0,100).trim();
-          var blabel=(cur.getAttribute?cur.getAttribute("aria-label")||cur.getAttribute("title")||cur.getAttribute("data-track"):"").slice(0,100);
-          var bid=cur.id||"";
-          var bname=blabel||btext||bid||"button";
-          send("click",{element:"button",name:bname,text:btext,id:bid||null,page:location.pathname});
+          var bdt=cur.getAttribute?cur.getAttribute("data-track"):"";
+          var blbl=cur.getAttribute?(cur.getAttribute("aria-label")||cur.getAttribute("title")||""):"";
+          var btxt=(cur.innerText||cur.value||"").slice(0,100).trim();
+          var bname=bdt||blbl||btxt||cur.id||"button";
+          send("click",{element:"button",name:bname.slice(0,100),page:location.pathname});
           return;
         }
         cur=cur.parentElement;
       }
     }catch(err){}
-  });
+  },true);
 
   // Form submissions
   document.addEventListener("submit",function(e){
