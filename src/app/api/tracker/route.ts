@@ -100,26 +100,30 @@ export async function GET(request: Request) {
   history.pushState=function(){sendDuration();_push.apply(this,arguments);resetTimer();send("pageview");};
   window.addEventListener("popstate",function(){sendDuration();resetTimer();send("pageview");});
 
-  // Click tracking — capture phase so stopPropagation on the page can't block us
+  // Click tracking — capture phase, walks up to 6 ancestors, tracks any clickable element
   document.addEventListener("click",function(e){
     try{
       var cur=e.target;
-      while(cur&&cur!==document){
+      for(var i=0;i<6;i++){
+        if(!cur||cur===document||cur===document.body)break;
         var tag=(cur.tagName||"").toLowerCase();
+        // Outbound link
         if(tag==="a"){
           if(cur.href&&cur.hostname&&cur.hostname!==location.hostname){
             send("click",{element:"link",name:((cur.innerText||"").trim()||cur.href).slice(0,100),target:cur.href,page:location.pathname});
           }
           return;
         }
-        var role=cur.getAttribute?cur.getAttribute("role"):"";
+        // Any element — pick best available name
+        var dt=cur.getAttribute?cur.getAttribute("data-track")||"":"";
+        var al=cur.getAttribute?cur.getAttribute("aria-label")||cur.getAttribute("title")||"":"";
+        var tx=(cur.innerText||cur.value||"").trim().replace(/\s+/g," ").slice(0,80);
+        var eid=cur.id||"";
+        var role=cur.getAttribute?cur.getAttribute("role")||"":"";
         var isBtn=tag==="button"||(tag==="input"&&(cur.type==="button"||cur.type==="submit"))||role==="button";
-        if(isBtn){
-          var bdt=cur.getAttribute?cur.getAttribute("data-track"):"";
-          var blbl=cur.getAttribute?(cur.getAttribute("aria-label")||cur.getAttribute("title")||""):"";
-          var btxt=(cur.innerText||cur.value||"").slice(0,100).trim();
-          var bname=bdt||blbl||btxt||cur.id||"button";
-          send("click",{element:"button",name:bname.slice(0,100),page:location.pathname});
+        var name=dt||al||(isBtn?tx||eid||"button":"")||(tx.length>0&&tx.length<40?tx:"");
+        if(name){
+          send("click",{element:tag,name:name,page:location.pathname});
           return;
         }
         cur=cur.parentElement;
