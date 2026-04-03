@@ -109,13 +109,14 @@ export async function GET(request: Request) {
       send("click",{element:"link",target:a.href,text:(a.innerText||"").slice(0,100),page:location.pathname});
       return;
     }
-    // Button clicks
+    // Button clicks — track all, use data-track > text > aria-label > title > id > "button"
     var btn=el.closest("button,[role='button']");
     if(btn){
-      var text=(btn.innerText||btn.getAttribute("aria-label")||btn.getAttribute("title")||"").slice(0,100).trim();
-      var id=btn.id||null;
-      var name=btn.getAttribute("data-track")||text||id||null;
-      if(name){send("click",{element:"button",name:name,text:text,id:id,page:location.pathname});}
+      var btext=(btn.innerText||"").slice(0,100).trim();
+      var blabel=btn.getAttribute("aria-label")||btn.getAttribute("title")||"";
+      var bid=btn.id||null;
+      var bname=btn.getAttribute("data-track")||btext||blabel||bid||"button";
+      send("click",{element:"button",name:bname,text:btext||blabel,id:bid,page:location.pathname});
     }
   });
 

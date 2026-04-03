@@ -91,10 +91,9 @@ function StatCard({ label, value, sub, icon }: {
   );
 }
 
-function TopList({ title, items, valueLabel = "Views" }: {
+function TopList({ title, items }: {
   title: string;
   items: { value: string; count: number }[];
-  valueLabel?: string;
 }) {
   const max = items[0]?.count ?? 1;
   return (
@@ -239,6 +238,7 @@ interface SessionEvent {
   path: string | null;
   created_at: string;
   duration_ms?: number | null;
+  label?: string;
 }
 
 interface Session {
@@ -328,7 +328,9 @@ function SessionRow({ session }: { session: Session }) {
                 <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${EVENT_TYPE_COLORS[e.type] ?? "bg-gray-100 text-gray-500"}`}>
                   {e.type}
                 </span>
-                <span className="text-gray-600 truncate flex-1">{e.path || "/"}</span>
+                <span className="text-gray-600 truncate flex-1">
+                  {e.label ? e.label : (e.path || "/")}
+                </span>
                 {e.duration_ms && e.duration_ms > 0 && (
                   <span className="text-[10px] text-gray-400 flex-shrink-0">{fmtDuration(e.duration_ms)}</span>
                 )}
@@ -649,7 +651,7 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
           {/* Top pages + referrers */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <TopList title="Top Pages" items={stats.top_pages} />
-            <TopList title="Top Referrers" items={stats.top_referrers} valueLabel="Visits" />
+            <TopList title="Top Referrers" items={stats.top_referrers} />
           </div>
 
           {/* World Map */}

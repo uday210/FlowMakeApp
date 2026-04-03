@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { data: events, error } = await ctx.admin
     .from("web_analytics_events")
-    .select("type, path, url, referrer, country, city, device, browser, os, session_id, visitor_id, language, timezone, duration_ms, created_at")
+    .select("type, path, url, referrer, country, city, device, browser, os, session_id, visitor_id, language, timezone, duration_ms, properties, created_at")
     .eq("site_id", id)
     .gte("created_at", from)
     .not("session_id", "is", null)
@@ -73,7 +73,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     s.ended_at = e.created_at;
     if (e.duration_ms) s.total_duration_ms += e.duration_ms;
     if (e.type !== "duration") {
-      s.events.push({ type: e.type, path: e.path, created_at: e.created_at, duration_ms: e.duration_ms });
+      const props = (e.properties ?? {}) as Record<string, unknown>;
+      const label = props.name as string | undefined;
+      s.events.push({ type: e.type, path: e.path, created_at: e.created_at, duration_ms: e.duration_ms, label });
     }
   }
 
