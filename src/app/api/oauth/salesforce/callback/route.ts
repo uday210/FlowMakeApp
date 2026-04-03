@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
   const go = (path: string) => NextResponse.redirect(`${appUrl}${path}`);
 
   if (error || !code || !state) {
-    return go("/connections?error=salesforce_oauth_failed");
+    const desc = url.searchParams.get("error_description") ?? error ?? "oauth_failed";
+    console.error("[salesforce/callback] error:", error, desc);
+    return go(`/connections?error=${encodeURIComponent(desc)}`);
   }
 
   let orgId: string;
@@ -26,12 +28,15 @@ export async function GET(request: NextRequest) {
     return go("/connections?error=invalid_state");
   }
 
+  const codeVerifier = request.cookies.get("salesforce_cv")?.value;
+  if (!codeVerifier) return go("/connections?error=missing_code_verifier");
+
   const clientId = process.env.SALESFORCE_CLIENT_ID!;
   const clientSecret = process.env.SALESFORCE_CLIENT_SECRET!;
   const redirectUri = `${appUrl}/api/oauth/salesforce/callback`;
   const baseUrl = isSandbox ? "https://test.salesforce.com" : "https://login.salesforce.com";
 
-  // Exchange code for tokens
+  // Exchange code for tokens (with PKCE verifier)
   const tokenRes = await fetch(`${baseUrl}/services/oauth2/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -41,6 +46,7 @@ export async function GET(request: NextRequest) {
       client_secret: clientSecret,
       redirect_uri: redirectUri,
       grant_type: "authorization_code",
+      code_verifier: codeVerifier,
     }),
   });
 
@@ -89,5 +95,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  return go("/connections?success=salesforce_connected");
+  const res = go("/connections?success=salesforce_connected");
+  res.cookies.set("salesforce_cv", "", { maxAge: 0, path: "/" });
+  return res;
 }
