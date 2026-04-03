@@ -17,8 +17,12 @@ async function executeNodeOnce(
 
     // Merge connection credentials into config if a connectionId is set
     const effectiveConfig: Record<string, unknown> = { ...node.data.config };
-    if (node.data.config.connectionId && connections[node.data.config.connectionId as string]) {
-      Object.assign(effectiveConfig, connections[node.data.config.connectionId as string]);
+    const connId = node.data.config.connectionId as string | undefined;
+    if (connId) {
+      if (!connections[connId]) {
+        throw new Error(`Connection not found — it may have been deleted. Re-open the node and select a valid connection.`);
+      }
+      Object.assign(effectiveConfig, connections[connId]);
     }
     // ── Shared interpolation helper (available to ALL node cases) ──────────────
     // Resolves {{node_id.field}} and {{secret.NAME}} placeholders.
