@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
   const challengeBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier));
   const codeChallenge = base64url(challengeBytes);
 
-  const state = Buffer.from(JSON.stringify({ orgId: ctx.orgId, isSandbox })).toString("base64url");
+  const label = request.nextUrl.searchParams.get("label") ?? "";
+  const state = Buffer.from(JSON.stringify({ orgId: ctx.orgId, isSandbox, label })).toString("base64url");
 
   const params = new URLSearchParams({
     client_id: clientId,

@@ -20,10 +20,12 @@ export async function GET(request: NextRequest) {
 
   let orgId: string;
   let isSandbox = false;
+  let label = "";
   try {
     const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
     orgId = decoded.orgId;
     isSandbox = decoded.isSandbox ?? false;
+    label = decoded.label ?? "";
   } catch {
     return go("/connections?error=invalid_state");
   }
@@ -65,7 +67,8 @@ export async function GET(request: NextRequest) {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
   const userInfo = userRes.ok ? await userRes.json() : {};
-  const name = userInfo.email ?? userInfo.preferred_username ?? userInfo.username ?? "Salesforce Account";
+  const providerName = userInfo.email ?? userInfo.preferred_username ?? userInfo.username ?? "Salesforce Account";
+  const name = label || providerName;
 
   const supabase = createServerClient();
 

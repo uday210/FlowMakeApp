@@ -240,15 +240,18 @@ const OAUTH_PROVIDERS: Record<string, {
   },
 };
 
-function OAuthConnectPanel({ serviceType }: { serviceType: string }) {
+function OAuthConnectPanel({ serviceType, connectionName }: { serviceType: string; connectionName: string }) {
   const provider = OAUTH_PROVIDERS[serviceType];
   if (!provider) return null;
+  const href = connectionName.trim()
+    ? `${provider.startUrl}?label=${encodeURIComponent(connectionName.trim())}`
+    : provider.startUrl;
   return (
     <div className={`rounded-lg border p-4 text-sm ${provider.colors}`}>
       <p className="font-medium mb-1">{provider.label}</p>
       <p className="text-xs opacity-70 mb-3">{provider.description}</p>
       <a
-        href={provider.startUrl}
+        href={href}
         className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-current/20 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
       >
         {provider.logo}
@@ -463,7 +466,7 @@ function ConnectionsPageInner() {
               </div>
 
               {selectedService.oauthConnect ? (
-                <OAuthConnectPanel serviceType={selectedService.value} />
+                <OAuthConnectPanel serviceType={selectedService.value} connectionName={form.name} />
               ) : (
                 selectedService.fields.map((field) => (
                   <div key={field.key}>

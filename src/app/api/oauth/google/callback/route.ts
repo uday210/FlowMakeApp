@@ -14,9 +14,11 @@ export async function GET(request: Request) {
   }
 
   let orgId: string;
+  let label = "";
   try {
     const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
     orgId = decoded.orgId;
+    label = decoded.label ?? "";
   } catch {
     return NextResponse.redirect(`${appUrl}/connections?error=invalid_state`);
   }
@@ -56,6 +58,8 @@ export async function GET(request: Request) {
     .eq("type", "google")
     .single();
 
+  const displayName = label || email;
+
   const config = {
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
@@ -64,10 +68,10 @@ export async function GET(request: Request) {
   };
 
   if (existing) {
-    await supabase.from("connections").update({ config, name: email }).eq("id", existing.id);
+    await supabase.from("connections").update({ config, name: displayName }).eq("id", existing.id);
   } else {
     await supabase.from("connections").insert({
-      org_id: orgId, type: "google", name: email, config,
+      org_id: orgId, type: "google", name: displayName, config,
     });
   }
 

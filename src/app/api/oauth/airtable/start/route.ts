@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
   const codeChallenge = base64url(challengeBytes);
 
   // Encode org context in state
-  const state = Buffer.from(JSON.stringify({ orgId: ctx.orgId })).toString("base64url");
+  const label = request.nextUrl.searchParams.get("label") ?? "";
+  const state = Buffer.from(JSON.stringify({ orgId: ctx.orgId, label })).toString("base64url");
 
   const params = new URLSearchParams({
     client_id: clientId,

@@ -19,9 +19,11 @@ export async function GET(request: NextRequest) {
   }
 
   let orgId: string;
+  let label = "";
   try {
     const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
     orgId = decoded.orgId;
+    label = decoded.label ?? "";
   } catch {
     return go("/connections?error=invalid_state");
   }
@@ -60,7 +62,8 @@ export async function GET(request: NextRequest) {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
   const userInfo = await userRes.json();
-  const name = userInfo.email ?? userInfo.id ?? "Airtable Account";
+  const providerName = userInfo.email ?? userInfo.id ?? "Airtable Account";
+  const name = label || providerName;
 
   const supabase = createServerClient();
 

@@ -4,42 +4,54 @@ import { getGoogleAccessToken } from "./googleAuth";
 export const handlers: Record<string, NodeHandler> = {
   "trigger_salesforce": async ({ config, node }) => {
     // Combined handler — trigger_salesforce handles polling
-    const env = (config.environment as string) || "production";
-    const authFlow = (config.auth_flow as string) || "password";
+    let access_token: string;
+    let instance_url: string;
 
-    const loginUrl = (() => {
-      const custom = (config.login_url as string)?.trim().replace(/\/$/, "");
-      if (custom) return custom;
-      if (env === "sandbox") return "https://test.salesforce.com";
-      return "https://login.salesforce.com";
-    })();
-
-    const clientId = config.client_id as string;
-    const clientSecret = config.client_secret as string;
-    if (!clientId || !clientSecret) throw new Error("Consumer Key and Secret are required");
-
-    const tokenParams = new URLSearchParams({ client_id: clientId, client_secret: clientSecret });
-    if (authFlow === "client_credentials") {
-      tokenParams.set("grant_type", "client_credentials");
+    if (config.access_token) {
+      // OAuth connection — tokens already merged from connection config
+      access_token = config.access_token as string;
+      instance_url = config.instance_url as string;
+      if (!instance_url) throw new Error("instance_url missing from OAuth connection config");
     } else {
-      const username = config.username as string;
-      const password = (config.password as string) + ((config.security_token as string) || "");
-      if (!username) throw new Error("Username is required for password flow");
-      tokenParams.set("grant_type", "password");
-      tokenParams.set("username", username);
-      tokenParams.set("password", password);
-    }
+      // Client credentials or password flow
+      const env = (config.environment as string) || "production";
+      const authFlow = (config.auth_flow as string) || "password";
 
-    const tokenRes = await fetch(`${loginUrl}/services/oauth2/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: tokenParams.toString(),
-    });
-    const tokenData = await tokenRes.json();
-    if (!tokenRes.ok || !tokenData.access_token) {
-      throw new Error(tokenData.error_description || `Salesforce auth failed: ${tokenRes.status}`);
+      const loginUrl = (() => {
+        const custom = (config.login_url as string)?.trim().replace(/\/$/, "");
+        if (custom) return custom;
+        if (env === "sandbox") return "https://test.salesforce.com";
+        return "https://login.salesforce.com";
+      })();
+
+      const clientId = config.client_id as string;
+      const clientSecret = config.client_secret as string;
+      if (!clientId || !clientSecret) throw new Error("client_id and client_secret are required");
+
+      const tokenParams = new URLSearchParams({ client_id: clientId, client_secret: clientSecret });
+      if (authFlow === "client_credentials") {
+        tokenParams.set("grant_type", "client_credentials");
+      } else {
+        const username = config.username as string;
+        const password = (config.password as string) + ((config.security_token as string) || "");
+        if (!username) throw new Error("Username is required for password flow");
+        tokenParams.set("grant_type", "password");
+        tokenParams.set("username", username);
+        tokenParams.set("password", password);
+      }
+
+      const tokenRes = await fetch(`${loginUrl}/services/oauth2/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: tokenParams.toString(),
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        throw new Error(tokenData.error_description || `Salesforce auth failed: ${tokenRes.status}`);
+      }
+      access_token = tokenData.access_token as string;
+      instance_url = tokenData.instance_url as string;
     }
-    const { access_token, instance_url } = tokenData as { access_token: string; instance_url: string };
     const sfHeaders = {
       Authorization: `Bearer ${access_token}`,
       "Content-Type": "application/json",
@@ -88,43 +100,54 @@ export const handlers: Record<string, NodeHandler> = {
   },
 
   "action_salesforce": async ({ config, node }) => {
-    // Shared auth logic
-    const env = (config.environment as string) || "production";
-    const authFlow = (config.auth_flow as string) || "password";
+    let access_token: string;
+    let instance_url: string;
 
-    const loginUrl = (() => {
-      const custom = (config.login_url as string)?.trim().replace(/\/$/, "");
-      if (custom) return custom;
-      if (env === "sandbox") return "https://test.salesforce.com";
-      return "https://login.salesforce.com";
-    })();
-
-    const clientId = config.client_id as string;
-    const clientSecret = config.client_secret as string;
-    if (!clientId || !clientSecret) throw new Error("Consumer Key and Secret are required");
-
-    const tokenParams = new URLSearchParams({ client_id: clientId, client_secret: clientSecret });
-    if (authFlow === "client_credentials") {
-      tokenParams.set("grant_type", "client_credentials");
+    if (config.access_token) {
+      // OAuth connection — tokens already merged from connection config
+      access_token = config.access_token as string;
+      instance_url = config.instance_url as string;
+      if (!instance_url) throw new Error("instance_url missing from OAuth connection config");
     } else {
-      const username = config.username as string;
-      const password = (config.password as string) + ((config.security_token as string) || "");
-      if (!username) throw new Error("Username is required for password flow");
-      tokenParams.set("grant_type", "password");
-      tokenParams.set("username", username);
-      tokenParams.set("password", password);
-    }
+      // Client credentials or password flow
+      const env = (config.environment as string) || "production";
+      const authFlow = (config.auth_flow as string) || "password";
 
-    const tokenRes = await fetch(`${loginUrl}/services/oauth2/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: tokenParams.toString(),
-    });
-    const tokenData = await tokenRes.json();
-    if (!tokenRes.ok || !tokenData.access_token) {
-      throw new Error(tokenData.error_description || `Salesforce auth failed: ${tokenRes.status}`);
+      const loginUrl = (() => {
+        const custom = (config.login_url as string)?.trim().replace(/\/$/, "");
+        if (custom) return custom;
+        if (env === "sandbox") return "https://test.salesforce.com";
+        return "https://login.salesforce.com";
+      })();
+
+      const clientId = config.client_id as string;
+      const clientSecret = config.client_secret as string;
+      if (!clientId || !clientSecret) throw new Error("client_id and client_secret are required");
+
+      const tokenParams = new URLSearchParams({ client_id: clientId, client_secret: clientSecret });
+      if (authFlow === "client_credentials") {
+        tokenParams.set("grant_type", "client_credentials");
+      } else {
+        const username = config.username as string;
+        const password = (config.password as string) + ((config.security_token as string) || "");
+        if (!username) throw new Error("Username is required for password flow");
+        tokenParams.set("grant_type", "password");
+        tokenParams.set("username", username);
+        tokenParams.set("password", password);
+      }
+
+      const tokenRes = await fetch(`${loginUrl}/services/oauth2/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: tokenParams.toString(),
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        throw new Error(tokenData.error_description || `Salesforce auth failed: ${tokenRes.status}`);
+      }
+      access_token = tokenData.access_token as string;
+      instance_url = tokenData.instance_url as string;
     }
-    const { access_token, instance_url } = tokenData as { access_token: string; instance_url: string };
     const sfHeaders = {
       Authorization: `Bearer ${access_token}`,
       "Content-Type": "application/json",
