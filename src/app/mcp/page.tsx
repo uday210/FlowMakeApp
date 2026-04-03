@@ -119,70 +119,139 @@ function buildInputSchema(params: InputParam[]): Record<string, unknown> {
 // ── SDK Modal ─────────────────────────────────────────────────────────────────
 
 function SdkModal({ server, onClose }: { server: McpServer; onClose: () => void }) {
-  const [sdkTab, setSdkTab] = useState<"python" | "javascript">("python");
-  const [copied, setCopied] = useState<string | null>(null);
+  const transport = server.transport; // "sse" | "http" | "both"
+  const defaultTransport = transport === "http" ? "http" : "sse";
+  const [lang, setLang] = useState<"python" | "javascript">("javascript");
+  const [activeTransport, setActiveTransport] = useState<"sse" | "http">(defaultTransport);
+  const [copied, setCopied] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "https://yourapp.com";
   const slug = server.slug ?? "your-server-slug";
-  const mcpUrl = `${origin}/api/mcp/hosted/${slug}`;
-  const sseUrl = `${origin}/api/mcp/hosted/${slug}/sse`;
-
+  const httpUrl = `${origin}/api/mcp/hosted/${slug}`;
+  const sseUrl  = `${origin}/api/mcp/hosted/${slug}/sse`;
   const hasAuth = !!server.auth_key;
-  const authHeaderPy = hasAuth ? `\nHEADERS = {\n    "Content-Type": "application/json",\n    "Authorization": "Bearer YOUR_API_KEY",  # from server settings\n}` : `\nHEADERS = {"Content-Type": "application/json"}`;
-  const authHeaderJs = hasAuth ? `\nconst HEADERS = {\n  "Content-Type": "application/json",\n  "Authorization": "Bearer YOUR_API_KEY", // from server settings\n};` : `\nconst HEADERS = { "Content-Type": "application/json" };`;
 
-  const pythonSnippet = `import requests
+  // ── JavaScript (Node.js) snippets ──────────────────────────────────────────
+  const jsAuthLine = hasAuth
+    ? `\n  headers: { Authorization: "Bearer YOUR_API_KEY" },`
+    : "";
 
-MCP_URL = "${mcpUrl}"
-# SSE transport: "${sseUrl}"
-${authHeaderPy}
+  const jsSse = `// Run in Node.js — not browser code
+// npm install @modelcontextprotocol/sdk
 
-def call_tool(tool_name: str, args: dict):
-    response = requests.post(
-        MCP_URL,
-        json={
-            "jsonrpc": "2.0",
-            "method": "tools/call",
-            "params": {"name": tool_name, "arguments": args},
-            "id": 1
-        },
-        headers=HEADERS
-    )
-    return response.json()
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
-# Example
-result = call_tool("your_tool_name", {"param1": "value1"})
-print(result)`;
+const transport = new SSEClientTransport(
+  new URL("${sseUrl}"),
+  {${jsAuthLine}
+  }
+);
 
-  const jsSnippet = `const MCP_URL = "${mcpUrl}";
-// SSE transport: "${sseUrl}"
-${authHeaderJs}
+const client = new Client({ name: "my-client", version: "1.0.0" });
+await client.connect(transport);
 
-async function callTool(toolName, args) {
-  const response = await fetch(MCP_URL, {
-    method: "POST",
-    headers: HEADERS,
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      method: "tools/call",
-      params: { name: toolName, arguments: args },
-      id: 1
-    })
-  });
-  return response.json();
-}
+// List available tools
+const { tools } = await client.listTools();
+console.log(tools.map(t => t.name));
 
-// Example
-const result = await callTool("your_tool_name", { param1: "value1" });
+// Call a tool
+const result = await client.callTool({
+  name: "your_tool_name",
+  arguments: { param1: "value1" },
+});
 console.log(result);`;
 
-  const copySnippet = async (text: string, key: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
-  };
+  const jsHttp = `// Run in Node.js — not browser code
+// npm install @modelcontextprotocol/sdk
 
-  const activeSnippet = sdkTab === "python" ? pythonSnippet : jsSnippet;
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const transport = new StreamableHTTPClientTransport(
+  new URL("${httpUrl}"),
+  {${jsAuthLine}
+  }
+);
+
+const client = new Client({ name: "my-client", version: "1.0.0" });
+await client.connect(transport);
+
+// List available tools
+const { tools } = await client.listTools();
+console.log(tools.map(t => t.name));
+
+// Call a tool
+const result = await client.callTool({
+  name: "your_tool_name",
+  arguments: { param1: "value1" },
+});
+console.log(result);`;
+
+  // ── Python snippets ────────────────────────────────────────────────────────
+  const pyAuthKw = hasAuth
+    ? `,\n        headers={"Authorization": "Bearer YOUR_API_KEY"}`
+    : "";
+
+  const pySse = `# pip install mcp
+import asyncio
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+
+async def main():
+    async with sse_client(
+        "${sseUrl}"${pyAuthKw}
+    ) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            # List available tools
+            tools = await session.list_tools()
+            print([t.name for t in tools.tools])
+
+            # Call a tool
+            result = await session.call_tool(
+                "your_tool_name",
+                {"param1": "value1"}
+            )
+            print(result)
+
+asyncio.run(main())`;
+
+  const pyHttp = `# pip install mcp
+import asyncio
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+async def main():
+    async with streamablehttp_client(
+        "${httpUrl}"${pyAuthKw}
+    ) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            # List available tools
+            tools = await session.list_tools()
+            print([t.name for t in tools.tools])
+
+            # Call a tool
+            result = await session.call_tool(
+                "your_tool_name",
+                {"param1": "value1"}
+            )
+            print(result)
+
+asyncio.run(main())`;
+
+  const snippet = lang === "javascript"
+    ? (activeTransport === "sse" ? jsSse : jsHttp)
+    : (activeTransport === "sse" ? pySse : pyHttp);
+
+  const copySnippet = async () => {
+    await navigator.clipboard.writeText(snippet);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -190,52 +259,73 @@ console.log(result);`;
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Code2 size={16} className="text-violet-600" />
-            <h2 className="text-sm font-semibold text-gray-800">SDK Code Export — {server.name}</h2>
+            <h2 className="text-sm font-semibold text-gray-800">SDK — {server.name}</h2>
           </div>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
         </div>
 
-        <div className="px-6 pt-4 pb-2">
-          <div className="flex gap-1">
-            {(["python", "javascript"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setSdkTab(t)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${sdkTab === t ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-              >
-                {t === "python" ? "Python" : "JavaScript"}
+        <div className="px-6 pt-4 pb-2 flex items-center justify-between gap-4">
+          {/* Language */}
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+            {(["javascript", "python"] as const).map((l) => (
+              <button key={l} onClick={() => setLang(l)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${lang === l ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                {l === "javascript" ? "JavaScript (Node.js)" : "Python"}
               </button>
             ))}
           </div>
+
+          {/* Transport — only show selector when both are available */}
+          {transport === "both" && (
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+              {(["sse", "http"] as const).map((tr) => (
+                <button key={tr} onClick={() => setActiveTransport(tr)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${activeTransport === tr ? "bg-violet-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  {tr === "sse" ? "SSE" : "HTTP"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
+        {/* Node.js callout for JS */}
+        {lang === "javascript" && (
+          <div className="mx-6 mt-2 flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+            <AlertCircle size={12} className="text-amber-500 flex-shrink-0" />
+            <p className="text-xs text-amber-700">This runs in <strong>Node.js</strong> — not the browser. CSP will block browser fetch to external origins.</p>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto px-6 pb-6">
-          <div className="relative mt-2">
+          <div className="relative mt-3">
             <pre className="text-xs font-mono bg-gray-950 text-gray-100 rounded-xl p-4 overflow-x-auto whitespace-pre leading-relaxed">
-              {activeSnippet}
+              {snippet}
             </pre>
             <button
-              onClick={() => copySnippet(activeSnippet, sdkTab)}
+              onClick={copySnippet}
               className="absolute top-3 right-3 flex items-center gap-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded-lg transition-colors"
             >
-              {copied === sdkTab ? <CheckCheck size={10} className="text-green-400" /> : <Copy size={10} />}
-              {copied === sdkTab ? "Copied!" : "Copy"}
+              {copied ? <CheckCheck size={10} className="text-green-400" /> : <Copy size={10} />}
+              {copied ? "Copied!" : "Copy"}
             </button>
           </div>
 
-          <div className="mt-3 bg-violet-50 rounded-lg px-3 py-2">
+          <div className="mt-3 bg-violet-50 rounded-lg px-3 py-2 space-y-1">
             <p className="text-xs text-violet-700">
-              <strong>Endpoint:</strong>{" "}
-              <code className="bg-violet-100 px-1 rounded font-mono">{mcpUrl}</code>
+              <strong>HTTP:</strong>{" "}
+              <code className="bg-violet-100 px-1 rounded font-mono text-[10px]">{httpUrl}</code>
             </p>
-            {server.auth_key && (
-              <p className="text-xs text-violet-600 mt-1">
-                Replace <code className="bg-violet-100 px-1 rounded font-mono">YOUR_API_KEY</code> with your actual key from the server settings (eye icon → copy key).
+            <p className="text-xs text-violet-700">
+              <strong>SSE:</strong>{" "}
+              <code className="bg-violet-100 px-1 rounded font-mono text-[10px]">{sseUrl}</code>
+            </p>
+            {server.auth_key ? (
+              <p className="text-xs text-violet-600">
+                Replace <code className="bg-violet-100 px-1 rounded font-mono">YOUR_API_KEY</code> with your key from server settings.
               </p>
-            )}
-            {!server.auth_key && (
-              <p className="text-xs text-gray-400 mt-1">
-                No auth key set — this server is publicly accessible. Add one in server settings for security.
+            ) : (
+              <p className="text-xs text-gray-400">
+                No auth key — server is public. Add one in settings for security.
               </p>
             )}
           </div>
