@@ -50,14 +50,6 @@ export async function GET(request: Request) {
 
   const supabase = createServerClient();
 
-  // Upsert connection — one Google connection per org (update if exists)
-  const { data: existing } = await supabase
-    .from("connections")
-    .select("id")
-    .eq("org_id", orgId)
-    .eq("type", "google")
-    .single();
-
   const displayName = label || email;
 
   const config = {
@@ -67,13 +59,9 @@ export async function GET(request: Request) {
     email,
   };
 
-  if (existing) {
-    await supabase.from("connections").update({ config, name: displayName }).eq("id", existing.id);
-  } else {
-    await supabase.from("connections").insert({
-      org_id: orgId, type: "google", name: displayName, config,
-    });
-  }
+  await supabase.from("connections").insert({
+    org_id: orgId, type: "google", name: displayName, config,
+  });
 
   return NextResponse.redirect(`${appUrl}/connections?success=google_connected`);
 }

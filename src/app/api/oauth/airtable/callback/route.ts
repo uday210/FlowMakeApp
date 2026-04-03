@@ -67,13 +67,6 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServerClient();
 
-  const { data: existing } = await supabase
-    .from("connections")
-    .select("id")
-    .eq("org_id", orgId)
-    .eq("type", "airtable")
-    .single();
-
   const config = {
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
@@ -81,11 +74,7 @@ export async function GET(request: NextRequest) {
     email: name,
   };
 
-  if (existing) {
-    await supabase.from("connections").update({ config, name }).eq("id", existing.id);
-  } else {
-    await supabase.from("connections").insert({ org_id: orgId, type: "airtable", name, config });
-  }
+  await supabase.from("connections").insert({ org_id: orgId, type: "airtable", name, config });
 
   const res = go("/connections?success=airtable_connected");
   res.cookies.set("airtable_cv", "", { maxAge: 0, path: "/" });
