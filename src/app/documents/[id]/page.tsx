@@ -7,8 +7,9 @@ import {
   ArrowLeft, Save, Send, Loader2, PenLine, Type, Calendar, AlignLeft,
   CheckCircle2, Clock, X, Download, Copy, Check, Link2, Users, UserPlus,
   Eye, FileText, RefreshCw, GitMerge, Layers2, ArrowDownUp, ChevronUp, ChevronDown,
-  Ban,
+  Ban, Stamp,
 } from "lucide-react";
+import WatermarkDialog from "@/components/WatermarkDialog";
 
 const PDFEditorCanvas = dynamic(() => import("@/components/PDFEditorCanvas"), { ssr: false });
 
@@ -78,6 +79,9 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [isTemplate, setIsTemplate]       = useState(false);
   const [aiEnabled, setAiEnabled]         = useState(false);
   const [aiDisclaimer, setAiDisclaimer]   = useState("");
+  const [watermarkText, setWatermarkText] = useState<string | null>(null);
+  const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
+  const [watermarking, setWatermarking]   = useState(false);
   const [showStatus, setShowStatus]       = useState(false);
   const [sendSuccess, setSendSuccess]     = useState<{ email: string; url: string | null; order: number }[]>([]);
   const [copiedId, setCopiedId]           = useState<string | null>(null);
@@ -112,6 +116,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     setIsTemplate(!!docData.is_template);
     setAiEnabled(!!docData.ai_enabled);
     setAiDisclaimer(docData.ai_disclaimer ?? "");
+    setWatermarkText(docData.watermark_text ?? null);
     setEmailTemplateId(docData.email_template_id || "");
     if (statusData.requests?.length > 0) setShowStatus(true);
     setLoading(false);
@@ -271,6 +276,34 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     setSignerRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: "cancelled" } : r));
   };
 
+  const handleApplyWatermark = async (text: string) => {
+    setShowWatermarkDialog(false);
+    if (!text) return;
+    setWatermarking(true);
+    const res = await fetch(`/api/documents/${id}/watermark`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setWatermarkText(data.watermark_text);
+      // Reload doc so PDF viewer picks up new file_url
+      load();
+    }
+    setWatermarking(false);
+  };
+
+  const handleRemoveWatermark = async () => {
+    setWatermarking(true);
+    const res = await fetch(`/api/documents/${id}/watermark`, { method: "DELETE" });
+    if (res.ok) {
+      setWatermarkText(null);
+      load();
+    }
+    setWatermarking(false);
+  };
+
   const handleDeleteField = (fieldId: string) => {
     setFields(prev => prev.filter(f => f.id !== fieldId));
     setSelectedField(null);
@@ -311,6 +344,15 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+
+      {showWatermarkDialog && (
+        <WatermarkDialog
+          fileName={doc.name}
+          initialText={watermarkText ?? ""}
+          onConfirm={handleApplyWatermark}
+          onCancel={() => setShowWatermarkDialog(false)}
+        />
+      )}
 
       {/* ── Top bar ── */}
       <header className="bg-white border-b border-gray-200 px-4 h-12 flex items-center gap-3 flex-shrink-0 z-20 shadow-sm">
@@ -394,6 +436,39 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
         >
           ✦ {aiEnabled ? "AI On" : "AI Off"}
         </button>
+
+        {/* Watermark */}
+        {watermarkText ? (
+          <div className="flex items-center gap-1 border border-amber-200 bg-amber-50 rounded-lg px-2 py-1.5 flex-shrink-0">
+            <Stamp size={11} className="text-amber-600" />
+            <span className="text-xs font-bold text-amber-700 tracking-wide max-w-[80px] truncate">{watermarkText}</span>
+            <button
+              onClick={handleRemoveWatermark}
+              disabled={watermarking}
+              className="ml-1 text-amber-400 hover:text-amber-700 transition-colors disabled:opacity-50"
+              title="Remove watermark"
+            >
+              {watermarking ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
+            </button>
+            <button
+              onClick={() => setShowWatermarkDialog(true)}
+              className="text-amber-400 hover:text-amber-700 transition-colors"
+              title="Change watermark"
+            >
+              <RefreshCw size={10} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowWatermarkDialog(true)}
+            disabled={watermarking}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            title="Add watermark to this document"
+          >
+            {watermarking ? <Loader2 size={11} className="animate-spin" /> : <Stamp size={11} />}
+            Watermark
+          </button>
+        )}
 
         <button
           onClick={saveFields} disabled={saving}
