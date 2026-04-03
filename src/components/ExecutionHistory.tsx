@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { Execution, ExecutionLog } from "@/lib/types";
 import {
   CheckCircle, XCircle, Loader2, Clock, ChevronDown,
-  ChevronRight, X, RefreshCw, AlertCircle, MinusCircle,
+  ChevronRight, X, RefreshCw, AlertCircle, MinusCircle, RotateCcw,
 } from "lucide-react";
 
 function duration(e: Execution) {
@@ -75,11 +75,19 @@ function LogRow({ log }: { log: ExecutionLog }) {
   );
 }
 
-function ExecutionRow({ execution }: { execution: Execution }) {
+function ExecutionRow({ execution, onRerun }: { execution: Execution; onRerun: (e: Execution) => void }) {
   const [open, setOpen] = useState(false);
+  const [rerunning, setRerunning] = useState(false);
   const logs: ExecutionLog[] = execution.logs ?? [];
   const successCount = logs.filter((l) => l.status === "success").length;
   const errorCount = logs.filter((l) => l.status === "error").length;
+
+  async function handleRerun(ev: React.MouseEvent) {
+    ev.stopPropagation();
+    setRerunning(true);
+    await onRerun(execution);
+    setRerunning(false);
+  }
 
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden">
@@ -122,6 +130,18 @@ function ExecutionRow({ execution }: { execution: Execution }) {
           </p>
         </div>
 
+        <button
+          onClick={handleRerun}
+          disabled={rerunning}
+          title="Re-run with same trigger data"
+          className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mr-1 disabled:opacity-50"
+        >
+          {rerunning
+            ? <Loader2 size={12} className="animate-spin" />
+            : <RotateCcw size={12} />
+          }
+        </button>
+
         {open
           ? <ChevronDown size={13} className="text-gray-400 flex-shrink-0" />
           : <ChevronRight size={13} className="text-gray-400 flex-shrink-0" />
@@ -151,6 +171,8 @@ function ExecutionRow({ execution }: { execution: Execution }) {
   );
 }
 
+type StatusFilter = "all" | "success" | "failed" | "running";
+
 interface Props {
   workflowId: string;
   onClose: () => void;
@@ -159,6 +181,7 @@ interface Props {
 export default function ExecutionHistory({ workflowId, onClose }: Props) {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -175,6 +198,26 @@ export default function ExecutionHistory({ workflowId, onClose }: Props) {
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, [load]);
+
+  async function handleRerun(execution: Execution) {
+    await fetch(`/api/execute/${workflowId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trigger_data: execution.trigger_data ?? {} }),
+    });
+    load();
+  }
+
+  const filtered = statusFilter === "all"
+    ? executions
+    : executions.filter((e) => e.status === statusFilter);
+
+  const statusOptions: { value: StatusFilter; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "success", label: "Success" },
+    { value: "failed", label: "Failed" },
+    { value: "running", label: "Running" },
+  ];
 
   return (
     <div className="absolute inset-y-0 right-0 w-96 bg-white border-l border-gray-200 shadow-xl z-20 flex flex-col">
@@ -201,20 +244,37 @@ export default function ExecutionHistory({ workflowId, onClose }: Props) {
         </div>
       </div>
 
+      {/* Status filter */}
+      <div className="flex gap-1 px-3 py-2 border-b border-gray-100 flex-shrink-0">
+        {statusOptions.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setStatusFilter(opt.value)}
+            className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
+              statusFilter === opt.value
+                ? "bg-gray-800 text-white"
+                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       {/* List */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="animate-spin text-gray-300" size={24} />
           </div>
-        ) : executions.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <Clock size={28} className="text-gray-200 mx-auto mb-2" />
             <p className="text-xs text-gray-400">No executions yet.</p>
             <p className="text-[10px] text-gray-300 mt-1">Run the workflow to see logs here.</p>
           </div>
         ) : (
-          executions.map((e) => <ExecutionRow key={e.id} execution={e} />)
+          filtered.map((e) => <ExecutionRow key={e.id} execution={e} onRerun={handleRerun} />)
         )}
       </div>
     </div>

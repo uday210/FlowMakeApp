@@ -22,6 +22,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { v4 as uuidv4 } from "uuid";
 import BaseNode from "./nodes/BaseNode";
+import StickyNoteNode from "./nodes/StickyNoteNode";
 import type { NodeData, NodeType } from "@/lib/types";
 import { NODE_DEF_MAP } from "@/lib/nodeDefinitions";
 
@@ -131,7 +132,7 @@ function MakeEdge({
   );
 }
 
-const NODE_TYPES = { workflowNode: BaseNode };
+const NODE_TYPES = { workflowNode: BaseNode, stickyNote: StickyNoteNode };
 const EDGE_TYPES = { makeEdge: MakeEdge };
 
 const DEFAULT_EDGE_OPTIONS: Partial<Edge> = {
@@ -196,6 +197,56 @@ export default function Canvas({
   useEffect(() => { onNodesChange?.(nodes); }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { onEdgesChange?.(edges); }, [edges]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Copy / Paste (Ctrl+C / Ctrl+V) ─────────────────────────────────────────
+  const clipboardNodes = useRef<Node[]>([]);
+  const clipboardEdges = useRef<Edge[]>([]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Ignore when typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        const selected = nodes.filter((n) => n.selected);
+        if (selected.length === 0) return;
+        const selectedIds = new Set(selected.map((n) => n.id));
+        clipboardNodes.current = selected;
+        // Copy edges that connect two selected nodes
+        clipboardEdges.current = edges.filter(
+          (e) => selectedIds.has(e.source) && selectedIds.has(e.target)
+        );
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        if (clipboardNodes.current.length === 0) return;
+        const OFFSET = 40;
+        const idMap: Record<string, string> = {};
+        const newNodes = clipboardNodes.current.map((n) => {
+          const newId = uuidv4();
+          idMap[n.id] = newId;
+          return {
+            ...n,
+            id: newId,
+            selected: false,
+            position: { x: n.position.x + OFFSET, y: n.position.y + OFFSET },
+          };
+        });
+        const newEdges = clipboardEdges.current.map((e) => ({
+          ...e,
+          id: uuidv4(),
+          type: e.type ?? "makeEdge",
+          source: idMap[e.source] ?? e.source,
+          target: idMap[e.target] ?? e.target,
+        }));
+        setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), ...newNodes]);
+        setEdges((eds) => [...eds, ...newEdges]);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [nodes, edges, setNodes, setEdges]);
+
   const onConnect: OnConnect = useCallback(
     (params: Connection) => {
       setEdges((eds) => addEdge({ ...params, type: "makeEdge", animated: false }, eds));
@@ -217,7 +268,7 @@ export default function Canvas({
       const position = { x: e.clientX - bounds.left - 55, y: e.clientY - bounds.top - 55 };
       const newNode: Node = {
         id: uuidv4(),
-        type: "workflowNode",
+        type: nodeType === "sticky_note" ? "stickyNote" : "workflowNode",
         position,
         data: {
           label: def.label,
@@ -291,7 +342,7 @@ export default function Canvas({
           />
           <Panel position="bottom-center">
             <div className="text-[10px] text-gray-400 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
-              Drag from sidebar to add · Click node to configure · Backspace to delete
+              Drag from sidebar to add · Click node to configure · Ctrl+C/V to copy/paste · Backspace to delete
             </div>
           </Panel>
         </ReactFlow>

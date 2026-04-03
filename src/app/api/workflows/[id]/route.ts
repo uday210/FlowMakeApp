@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgContext } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,8 @@ export async function PATCH(
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.is_active !== undefined) updates.is_active = body.is_active;
   if (body.name !== undefined) updates.name = body.name;
+  if (body.folder !== undefined) updates.folder = body.folder;
+  if (body.tags !== undefined) updates.tags = body.tags;
 
   const { data, error } = await ctx.admin
     .from("workflows")
@@ -92,5 +95,11 @@ export async function DELETE(
     .eq("org_id", ctx.orgId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    supabase: ctx.admin, orgId: ctx.orgId,
+    action: "workflow.deleted", resourceType: "workflow", resourceId: id,
+  });
+
   return NextResponse.json({ success: true });
 }

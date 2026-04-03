@@ -3901,6 +3901,17 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
         required: true },
     ],
   },
+  {
+    type: "sticky_note",
+    label: "Sticky Note",
+    description: "Add an annotation or comment to the canvas",
+    category: "action",
+    subcategory: "Flow Control",
+    color: "#ca8a04",
+    icon: "StickyNote",
+    defaultConfig: { text: "" },
+    configFields: [],
+  },
 ];
 
 export const NODE_DEF_MAP = Object.fromEntries(

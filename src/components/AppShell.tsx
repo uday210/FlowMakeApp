@@ -22,6 +22,7 @@ import {
   Crown,
   Mail,
   BarChart2,
+  ClipboardList,
 } from "lucide-react";
 
 const USER_NAV = [
@@ -40,6 +41,7 @@ const USER_NAV = [
   { href: "/email-templates", icon: Mail, label: "Email Templates" },
   { href: "/analytics", icon: BarChart2, label: "Analytics" },
   { href: "/web-analytics", icon: Globe, label: "Web Analytics" },
+  { href: "/settings/activity", icon: ClipboardList, label: "Activity Log" },
   { href: "/help", icon: HelpCircle, label: "Help & Docs" },
 ];
 

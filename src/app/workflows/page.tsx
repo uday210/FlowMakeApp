@@ -7,7 +7,9 @@ import {
   Plus, Search, Zap, PlayCircle, PauseCircle, Trash2, Loader2,
   Clock, Sparkles, AlertCircle, Star, Layers,
   Mail, MessageSquare, Database, Bot, Globe, FileText, BarChart3, Shield, RefreshCw,
+  Download, Upload,
 } from "lucide-react";
+import { useRef } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,10 @@ interface Workflow {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  folder?: string | null;
+  tags?: string[];
+  nodes?: object[];
+  edges?: object[];
 }
 
 interface Template {
@@ -243,6 +249,10 @@ function WorkflowsPageInner() {
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  const importRef = useRef<HTMLInputElement>(null);
+  const [folderFilter, setFolderFilter] = useState<string | null>(null);
+  const [editingTagsId, setEditingTagsId] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -259,9 +269,13 @@ function WorkflowsPageInner() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredWorkflows = workflows.filter(w =>
-    w.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const allFolders = [...new Set(workflows.map((w) => w.folder).filter(Boolean))] as string[];
+
+  const filteredWorkflows = workflows.filter(w => {
+    const matchesSearch = w.name.toLowerCase().includes(search.toLowerCase());
+    const matchesFolder = folderFilter === null || w.folder === folderFilter;
+    return matchesSearch && matchesFolder;
+  });
 
   const filteredTemplates = TEMPLATES.filter(t => {
     const matchSearch = t.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
@@ -271,6 +285,79 @@ function WorkflowsPageInner() {
   });
   const featuredTemplates = filteredTemplates.filter(t => t.featured);
   const restTemplates = filteredTemplates.filter(t => !t.featured);
+
+  async function setWorkflowFolder(id: string, folder: string | null) {
+    await fetch(`/api/workflows/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder }),
+    });
+    setWorkflows((ws) => ws.map((w) => w.id === id ? { ...w, folder } : w));
+  }
+
+  async function addTag(id: string, tag: string) {
+    const wf = workflows.find((w) => w.id === id);
+    if (!wf) return;
+    const existing = wf.tags ?? [];
+    if (existing.includes(tag)) return;
+    const tags = [...existing, tag];
+    await fetch(`/api/workflows/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    setWorkflows((ws) => ws.map((w) => w.id === id ? { ...w, tags } : w));
+  }
+
+  async function removeTag(id: string, tag: string) {
+    const wf = workflows.find((w) => w.id === id);
+    if (!wf) return;
+    const tags = (wf.tags ?? []).filter((t) => t !== tag);
+    await fetch(`/api/workflows/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    setWorkflows((ws) => ws.map((w) => w.id === id ? { ...w, tags } : w));
+  }
+
+  function handleExport(w: Workflow, e: React.MouseEvent) {
+    e.stopPropagation();
+    const payload = { name: w.name, nodes: w.nodes ?? [], edges: w.edges ?? [] };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${w.name.replace(/[^a-z0-9]/gi, "_")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as { name?: string; nodes?: object[]; edges?: object[] };
+      const res = await fetch("/api/workflows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name ? `${data.name} (imported)` : "Imported Scenario",
+          nodes: data.nodes ?? [],
+          edges: data.edges ?? [],
+        }),
+      });
+      if (res.ok) {
+        const wf = await res.json() as { id: string };
+        router.push(`/workflows/${wf.id}`);
+      }
+    } catch {
+      // malformed JSON — silently ignore, user sees nothing happened
+    } finally {
+      if (importRef.current) importRef.current.value = "";
+    }
+  }
 
   const handleCreate = async () => {
     setCreating(true);
@@ -353,15 +440,24 @@ function WorkflowsPageInner() {
         subtitle="Build and manage your automation workflows"
         action={
           <div className="flex flex-col items-end gap-1.5">
-            <button
-              onClick={handleCreate}
-              disabled={creating}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all hover:opacity-90 disabled:opacity-60"
-              style={{ background: "linear-gradient(135deg, #7c3aed, #ec4899)" }}
-            >
-              {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-              New Scenario
-            </button>
+            <div className="flex items-center gap-2">
+              <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
+              <button
+                onClick={() => importRef.current?.click()}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:border-violet-300 hover:text-violet-600 transition-all"
+              >
+                <Upload size={14} /> Import
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all hover:opacity-90 disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #ec4899)" }}
+              >
+                {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                New Scenario
+              </button>
+            </div>
             {createError && (
               <p className="flex items-center gap-1.5 text-xs text-red-500 font-medium">
                 <AlertCircle size={12} /> {createError}
@@ -407,7 +503,39 @@ function WorkflowsPageInner() {
 
       {/* ── My Scenarios tab ── */}
       {tab === "scenarios" && (
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex flex-1 overflow-hidden">
+          {/* Folder sidebar */}
+          {allFolders.length > 0 && (
+            <div className="w-44 border-r border-gray-100 bg-gray-50/50 flex-shrink-0 overflow-y-auto p-3 space-y-0.5">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 mb-2">Folders</p>
+              <button
+                onClick={() => setFolderFilter(null)}
+                className={`w-full text-left text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 ${
+                  folderFilter === null ? "bg-violet-50 text-violet-700 font-semibold" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                All Scenarios
+                <span className="ml-auto text-[10px] text-gray-400">{workflows.length}</span>
+              </button>
+              {allFolders.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFolderFilter(f === folderFilter ? null : f)}
+                  className={`w-full text-left text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 ${
+                    folderFilter === f ? "bg-violet-50 text-violet-700 font-semibold" : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  📁 {f}
+                  <span className="ml-auto text-[10px] text-gray-400">
+                    {workflows.filter((w) => w.folder === f).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Main content */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Build with AI */}
           <div className="bg-gradient-to-r from-violet-600 to-purple-700 rounded-2xl p-5 text-white">
             <div className="flex items-center gap-2 mb-3">
@@ -513,6 +641,20 @@ function WorkflowsPageInner() {
                             : <PlayCircle size={15} className="text-green-500" />}
                         </button>
                         <button
+                          onClick={e => { e.stopPropagation(); setEditingTagsId(w.id); setTagInput(""); }}
+                          title="Add tag"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-[10px] text-gray-400 font-bold"
+                        >
+                          #
+                        </button>
+                        <button
+                          onClick={e => handleExport(w, e)}
+                          title="Export as JSON"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <Download size={15} className="text-gray-400" />
+                        </button>
+                        <button
                           onClick={e => handleDelete(w, e)}
                           title="Delete"
                           className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
@@ -522,6 +664,21 @@ function WorkflowsPageInner() {
                       </div>
                     </div>
                     <h3 className="font-semibold text-gray-900 text-sm mb-1 truncate">{w.name}</h3>
+                    {/* Tags */}
+                    {(w.tags ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2" onClick={e => e.stopPropagation()}>
+                        {(w.tags ?? []).map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-0.5 text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-full"
+                          >
+                            {tag}
+                            <button onClick={() => removeTag(w.id, tag)} className="hover:text-red-500 ml-0.5">×</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between mt-3">
                       <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                         w.is_active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"
@@ -529,16 +686,58 @@ function WorkflowsPageInner() {
                         <span className={`w-1.5 h-1.5 rounded-full ${w.is_active ? "bg-green-400" : "bg-gray-300"}`} />
                         {w.is_active ? "Active" : "Inactive"}
                       </span>
-                      <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                        <Clock size={9} />
-                        {new Date(w.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        {/* Folder picker */}
+                        <select
+                          value={w.folder ?? ""}
+                          onChange={e => {
+                            if (e.target.value === "__new__") {
+                              const name = prompt("Folder name:");
+                              if (name?.trim()) setWorkflowFolder(w.id, name.trim());
+                            } else {
+                              setWorkflowFolder(w.id, e.target.value || null);
+                            }
+                          }}
+                          className="text-[10px] text-gray-400 border-none bg-transparent outline-none cursor-pointer hover:text-gray-600"
+                          title="Assign folder"
+                        >
+                          <option value="">No folder</option>
+                          {allFolders.map(f => <option key={f} value={f}>{f}</option>)}
+                          <option value="__new__">+ New folder…</option>
+                        </select>
+                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                          <Clock size={9} />
+                          {new Date(w.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Tag input — shown when editing tags for this card */}
+                    {editingTagsId === w.id && (
+                      <div className="mt-2" onClick={e => e.stopPropagation()}>
+                        <input
+                          autoFocus
+                          value={tagInput}
+                          onChange={e => setTagInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && tagInput.trim()) {
+                              addTag(w.id, tagInput.trim());
+                              setTagInput("");
+                            }
+                            if (e.key === "Escape") setEditingTagsId(null);
+                          }}
+                          onBlur={() => { setEditingTagsId(null); setTagInput(""); }}
+                          placeholder="Type a tag and press Enter"
+                          className="w-full text-[11px] border border-violet-200 rounded-lg px-2 py-1 outline-none focus:border-violet-400"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
+          </div>{/* end main content */}
         </div>
       )}
 

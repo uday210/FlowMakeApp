@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 import { executeWorkflow } from "@/lib/executor";
+import { logAudit } from "@/lib/audit";
 import type { WorkflowNode, WorkflowEdge } from "@/lib/types";
 
 export async function POST(
@@ -92,6 +93,12 @@ export async function POST(
       finished_at: new Date().toISOString(),
     })
     .eq("id", execution.id);
+
+  await logAudit({
+    supabase, orgId: workflow.org_id as string,
+    action: "execution.triggered", resourceType: "execution",
+    resourceId: execution.id, meta: { workflow_id: id, status: finalStatus },
+  });
 
   // Surface agent_reply if present so the calling agent gets a clean text response
   const agentReply = (ctx as { nodeOutputs?: Record<string, unknown> }).nodeOutputs?.["__agent_reply__"];

@@ -219,7 +219,8 @@ export type NodeType =
   | "trigger_activecampaign"
   | "trigger_postgres_row"
   | "trigger_mysql_row"
-  | "trigger_mongodb_document";
+  | "trigger_mongodb_document"
+  | "sticky_note";
 
 export interface UserTable {
   id: string;
