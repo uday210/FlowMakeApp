@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOrgContext } from "@/lib/auth";
 import { checkPlanLimit } from "@/lib/plan-limits";
+import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -41,5 +42,13 @@ export async function POST(req: Request) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit({
+    supabase: ctx.admin,
+    orgId: ctx.orgId,
+    action: "table.created",
+    resourceType: "table",
+    resourceId: String(data.id),
+    meta: { name: body.name },
+  });
   return NextResponse.json(data, { status: 201 });
 }

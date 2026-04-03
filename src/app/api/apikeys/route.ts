@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOrgContext } from "@/lib/auth";
 import { generateApiKey, hashKey } from "@/lib/apiAuth";
+import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,14 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit({
+    supabase: ctx.admin,
+    orgId: ctx.orgId,
+    action: "apikey.created",
+    resourceType: "apikey",
+    resourceId: String(data.id),
+    meta: { name },
+  });
 
   // Return the full raw key ONCE — never shown again
   return NextResponse.json({ ...data, raw_key: raw });

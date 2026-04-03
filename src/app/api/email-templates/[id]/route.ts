@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgContext } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -62,5 +63,12 @@ export async function DELETE(_req: Request, { params }: Params) {
     .eq("org_id", ctx.orgId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit({
+    supabase: ctx.admin,
+    orgId: ctx.orgId,
+    action: "email_template.deleted",
+    resourceType: "email_template",
+    resourceId: id,
+  });
   return NextResponse.json({ success: true });
 }

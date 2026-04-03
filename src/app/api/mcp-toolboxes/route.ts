@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgContext } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,14 @@ export async function POST(request: Request) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit({
+    supabase: ctx.admin,
+    orgId: ctx.orgId,
+    action: "mcp_toolbox.created",
+    resourceType: "mcp_toolbox",
+    resourceId: String(data.id),
+    meta: { name },
+  });
   return NextResponse.json(data);
 }
 
@@ -62,5 +71,12 @@ export async function DELETE(request: Request) {
     .eq("id", id)
     .eq("org_id", ctx.orgId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit({
+    supabase: ctx.admin,
+    orgId: ctx.orgId,
+    action: "mcp_toolbox.deleted",
+    resourceType: "mcp_toolbox",
+    resourceId: id,
+  });
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrgContext } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 export async function GET() {
   const ctx = await getOrgContext();
@@ -24,6 +25,14 @@ export async function POST(req: NextRequest) {
     .select("id, name, created_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit({
+    supabase: ctx.admin,
+    orgId: ctx.orgId,
+    action: "secret.created",
+    resourceType: "secret",
+    resourceId: String(data.id),
+    meta: { name },
+  });
   return NextResponse.json(data);
 }
 
@@ -39,5 +48,12 @@ export async function DELETE(req: NextRequest) {
     .eq("id", id)
     .eq("org_id", ctx.orgId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit({
+    supabase: ctx.admin,
+    orgId: ctx.orgId,
+    action: "secret.deleted",
+    resourceType: "secret",
+    resourceId: id,
+  });
   return NextResponse.json({ deleted: true, id });
 }
