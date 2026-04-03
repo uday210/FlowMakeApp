@@ -38,6 +38,8 @@ export type NodeType =
   | "action_sheets"
   | "action_salesforce"
   | "trigger_salesforce"
+  | "trigger_salesforce_cdc"
+  | "trigger_salesforce_platform_event"
   | "action_if_else"
   | "action_switch"
   | "action_hubspot"
