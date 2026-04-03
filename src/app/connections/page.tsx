@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, Suspense } from "react";
+import React, { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import AppShell, { PageHeader } from "@/components/AppShell";
 import {
@@ -293,6 +293,9 @@ function ConnectionsPageInner() {
 
   const [form, setForm] = useState({ name: "", type: "openai", config: {} as Record<string, string> });
   const [serviceSearch, setServiceSearch] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const selectedService = SERVICE_TYPES.find((s) => s.value === form.type) ?? SERVICE_TYPES[0];
   const filteredServices = serviceSearch
@@ -357,6 +360,26 @@ function ConnectionsPageInner() {
     if (!confirm("Remove this connection?")) return;
     await fetch(`/api/connections/${id}`, { method: "DELETE" });
     setConnections((c) => c.filter((x) => x.id !== id));
+  };
+
+  const startRename = (conn: Connection) => {
+    setRenamingId(conn.id);
+    setRenameValue(conn.name);
+    setTimeout(() => renameInputRef.current?.select(), 0);
+  };
+
+  const commitRename = async (id: string) => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) { setRenamingId(null); return; }
+    await fetch(`/api/connections/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    setConnections((c) => c.map((x) => x.id === id ? { ...x, name: trimmed } : x));
+    setSavedId(id);
+    setTimeout(() => setSavedId(null), 2000);
+    setRenamingId(null);
   };
 
   const filtered = connections.filter(
@@ -562,7 +585,22 @@ function ConnectionsPageInner() {
                           <ServiceIcon type={type} size={16} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-800">{conn.name}</p>
+                          {renamingId === conn.id ? (
+                            <input
+                              ref={renameInputRef}
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onBlur={() => commitRename(conn.id)}
+                              onKeyDown={(e) => { if (e.key === "Enter") commitRename(conn.id); if (e.key === "Escape") setRenamingId(null); }}
+                              className="text-sm font-semibold text-gray-800 border-b border-violet-400 outline-none bg-transparent w-full"
+                            />
+                          ) : (
+                            <p
+                              className="text-sm font-semibold text-gray-800 cursor-pointer hover:text-violet-600 transition-colors"
+                              title="Click to rename"
+                              onClick={() => startRename(conn)}
+                            >{conn.name}</p>
+                          )}
                           <p className="text-[11px] text-gray-400 mt-0.5">
                             {(conn.type === "google" || conn.type === "airtable" || conn.type === "salesforce") && conn.config?.email
                               ? <>Connected as <span className="text-blue-500">{conn.config.email}</span> · </>

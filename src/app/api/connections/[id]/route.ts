@@ -37,6 +37,26 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   return NextResponse.json(data);
 }
 
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await request.json();
+  if (!body.name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+
+  const { data, error } = await ctx.admin
+    .from("connections")
+    .update({ name: body.name.trim() })
+    .eq("id", id)
+    .eq("org_id", ctx.orgId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const ctx = await getOrgContext();
