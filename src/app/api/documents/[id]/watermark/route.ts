@@ -58,13 +58,19 @@ export async function POST(request: Request, { params }: Params) {
   const sourceBytes = new Uint8Array(await fileData.arrayBuffer());
   const watermarkedBytes = await applyWatermarkToPdf(sourceBytes, text.trim());
 
-  // Upload watermarked version (consistent name so upsert works)
-  const watermarkedPath = `${id}-watermarked.pdf`;
+  // Use a unique filename each time so the CDN never serves a stale cached version
+  const watermarkedPath = `${id}-wm-${Date.now()}.pdf`;
   const { error: upErr } = await supabase.storage
     .from("esign-documents")
-    .upload(watermarkedPath, watermarkedBytes, { contentType: "application/pdf", upsert: true });
+    .upload(watermarkedPath, watermarkedBytes, { contentType: "application/pdf", upsert: false });
 
   if (upErr) return NextResponse.json({ error: "Failed to upload watermarked file" }, { status: 500 });
+
+  // Delete previous watermarked file if there was one (keep storage clean)
+  const prevWatermarkedPath = doc.original_file_path ? (doc.file_path as string) : null;
+  if (prevWatermarkedPath && prevWatermarkedPath !== sourcePath) {
+    await supabase.storage.from("esign-documents").remove([prevWatermarkedPath]).catch(() => {});
+  }
 
   const { data: urlData } = supabase.storage.from("esign-documents").getPublicUrl(watermarkedPath);
 
