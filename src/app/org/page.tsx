@@ -10,7 +10,7 @@ import {
   TrendingUp, AlertTriangle, CheckCircle2, Clock,
   ArrowRight, Zap, Sparkles, ChevronRight, RefreshCw,
   Activity, Globe, Loader2, Save, Infinity, Plug2,
-  Table2, Check, Crown, Mail, Plus, Trash2, ShieldCheck, X,
+  Table2, Check, Crown, Mail, Plus, Trash2, ShieldCheck, X, Eye, EyeOff, KeyRound,
 } from "lucide-react";
 import { PLAN_LIMITS, PLAN_LABELS, type PlanName, type ResourceKey } from "@/lib/plan-limits";
 import type { Execution } from "@/lib/types";
@@ -1625,21 +1625,61 @@ function UsersPanel({ currentUserId }: { currentUserId: string }) {
 // ─── E-Sign AI Panel ──────────────────────────────────────────────────────────
 
 const ESIGN_AI_PROVIDERS = [
-  { value: "openai",    label: "OpenAI",    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"] },
-  { value: "anthropic", label: "Anthropic", models: ["claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-opus-4-6"] },
-  { value: "groq",      label: "Groq",      models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"] },
-  { value: "gemini",    label: "Google Gemini", models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"] },
-  { value: "mistral",   label: "Mistral",   models: ["mistral-large-latest", "mistral-small-latest", "open-mistral-7b"] },
+  {
+    value: "openai",
+    label: "OpenAI",
+    tagline: "GPT-4o · industry standard",
+    badge: "bg-emerald-100 text-emerald-700",
+    letter: "O",
+    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+    keyPlaceholder: "sk-proj-...",
+  },
+  {
+    value: "anthropic",
+    label: "Anthropic",
+    tagline: "Claude · best for reasoning",
+    badge: "bg-orange-100 text-orange-700",
+    letter: "A",
+    models: ["claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-opus-4-6"],
+    keyPlaceholder: "sk-ant-api03-...",
+  },
+  {
+    value: "groq",
+    label: "Groq",
+    tagline: "Llama 3 · fastest inference",
+    badge: "bg-pink-100 text-pink-700",
+    letter: "G",
+    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+    keyPlaceholder: "gsk_...",
+  },
+  {
+    value: "gemini",
+    label: "Google Gemini",
+    tagline: "Gemini 2.0 · multimodal",
+    badge: "bg-blue-100 text-blue-700",
+    letter: "G",
+    models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    keyPlaceholder: "AIzaSy...",
+  },
+  {
+    value: "mistral",
+    label: "Mistral",
+    tagline: "Open weights · EU-hosted",
+    badge: "bg-indigo-100 text-indigo-700",
+    letter: "M",
+    models: ["mistral-large-latest", "mistral-small-latest", "open-mistral-7b"],
+    keyPlaceholder: "API key...",
+  },
 ];
 
 function EsignAIPanel() {
-  const [enabled, setEnabled]     = useState(false);
-  const [provider, setProvider]   = useState("openai");
-  const [model, setModel]         = useState("gpt-4o-mini");
-  const [apiKey, setApiKey]       = useState("");
-  const [showKey, setShowKey]     = useState(false);
-  const [loading, setLoading]     = useState(true);
-  const [saving, setSaving]       = useState(false);
+  const [enabled, setEnabled]       = useState(false);
+  const [provider, setProvider]     = useState("openai");
+  const [model, setModel]           = useState("gpt-4o-mini");
+  const [apiKey, setApiKey]         = useState("");
+  const [showKey, setShowKey]       = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
 
   useEffect(() => {
@@ -1656,7 +1696,8 @@ function EsignAIPanel() {
       .finally(() => setLoading(false));
   }, []);
 
-  const models = ESIGN_AI_PROVIDERS.find(p => p.value === provider)?.models ?? [];
+  const activeProvider = ESIGN_AI_PROVIDERS.find(p => p.value === provider);
+  const models = activeProvider?.models ?? [];
 
   const handleProviderChange = (v: string) => {
     setProvider(v);
@@ -1686,119 +1727,165 @@ function EsignAIPanel() {
           <h1 className="text-lg font-bold text-gray-900">E-Sign AI Assistant</h1>
           <p className="text-xs text-gray-400 mt-0.5">Let signers ask questions about documents before signing</p>
         </div>
+        <span className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${enabled ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${enabled ? "bg-green-500" : "bg-gray-300"}`} />
+          {enabled ? "Active" : "Inactive"}
+        </span>
       </header>
 
-      <div className="px-8 py-6 max-w-2xl space-y-6">
+      <div className="px-8 py-6 max-w-2xl space-y-5">
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-violet-400" /></div>
         ) : (
           <>
             {/* Enable toggle */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-800">Enable AI Assistant</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  When enabled, signers see a chat panel on the signing page where they can ask questions about the document they are signing.
+            <div
+              onClick={() => setEnabled(v => !v)}
+              className={`rounded-2xl border p-5 flex items-center gap-4 cursor-pointer select-none transition-all ${
+                enabled
+                  ? "bg-violet-600 border-violet-600 shadow-sm shadow-violet-200"
+                  : "bg-white border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${enabled ? "bg-white/20" : "bg-violet-50"}`}>
+                <Bot size={20} className={enabled ? "text-white" : "text-violet-500"} />
+              </div>
+              <div className="flex-1">
+                <p className={`text-sm font-semibold ${enabled ? "text-white" : "text-gray-800"}`}>AI Assistant</p>
+                <p className={`text-xs mt-0.5 ${enabled ? "text-violet-200" : "text-gray-400"}`}>
+                  Signers get a chat panel to ask questions about the document
                 </p>
               </div>
-              <button
-                onClick={() => setEnabled(v => !v)}
-                className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors duration-200 ${enabled ? "bg-violet-600" : "bg-gray-300"}`}
+              <div
+                className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors duration-200 ${enabled ? "bg-white/30" : "bg-gray-200"}`}
               >
                 <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${enabled ? "translate-x-5" : "translate-x-0"}`} />
-              </button>
+              </div>
             </div>
 
-            {/* Provider + model + key */}
-            <div className={`bg-white rounded-2xl border border-gray-100 p-6 space-y-4 transition-opacity ${!enabled ? "opacity-40 pointer-events-none" : ""}`}>
-              <p className="text-sm font-semibold text-gray-800">LLM Configuration</p>
+            {/* Config section */}
+            <div className={`space-y-4 transition-all duration-200 ${!enabled ? "opacity-40 pointer-events-none" : ""}`}>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Provider</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {ESIGN_AI_PROVIDERS.map(p => (
-                    <button
-                      key={p.value}
-                      onClick={() => handleProviderChange(p.value)}
-                      className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
-                        provider === p.value
-                          ? "bg-violet-600 text-white border-violet-600"
-                          : "bg-white text-gray-500 border-gray-200 hover:border-violet-300"
-                      }`}
+              {/* Provider grid */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">LLM Provider</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {ESIGN_AI_PROVIDERS.map(p => {
+                    const active = provider === p.value;
+                    return (
+                      <button
+                        key={p.value}
+                        onClick={() => handleProviderChange(p.value)}
+                        className={`relative flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all ${
+                          active
+                            ? "border-violet-500 bg-violet-50 shadow-sm"
+                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${p.badge}`}>
+                          {p.letter}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-xs font-semibold truncate ${active ? "text-violet-700" : "text-gray-700"}`}>{p.label}</p>
+                          <p className={`text-[10px] truncate ${active ? "text-violet-400" : "text-gray-400"}`}>{p.tagline}</p>
+                        </div>
+                        {active && (
+                          <div className="absolute top-2 right-2 w-4 h-4 bg-violet-600 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Check size={9} className="text-white" strokeWidth={3} />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Model + API key */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Model</label>
+                    <select
+                      value={model}
+                      onChange={e => setModel(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400 bg-white"
                     >
-                      {p.label}
-                    </button>
-                  ))}
+                      {models.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Speed vs Quality</label>
+                    <div className="h-[42px] flex items-center">
+                      <p className="text-xs text-gray-400">
+                        {models.indexOf(model) <= 0 ? "Most capable" : models.indexOf(model) >= models.length - 1 ? "Fastest" : "Balanced"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
+                    <KeyRound size={11} />
+                    API Key
+                    <span className="text-gray-300">·</span>
+                    <span className="text-gray-400 font-normal">{activeProvider?.label}</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type={showKey ? "text" : "password"}
+                        value={apiKey}
+                        onChange={e => setApiKey(e.target.value)}
+                        placeholder={activeProvider?.keyPlaceholder ?? "API key..."}
+                        className="w-full border border-gray-200 rounded-xl pl-3 pr-10 py-2.5 text-sm font-mono outline-none focus:border-violet-400"
+                      />
+                      <button
+                        onClick={() => setShowKey(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="flex items-center gap-1 text-xs text-gray-400 mt-1.5">
+                    <ShieldCheck size={11} className="text-gray-300" />
+                    Stored securely — only used server-side when signers chat
+                  </p>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Model</label>
-                <select
-                  value={model}
-                  onChange={e => setModel(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400 bg-white"
+              {/* Per-document note */}
+              <div className="flex items-start gap-3 bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3">
+                <Sparkles size={14} className="text-violet-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-violet-600">
+                  <span className="font-semibold">Per-document control —</span>{" "}
+                  toggle AI on or off for individual documents from the document editor.
+                </p>
+              </div>
+
+              {/* Save */}
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-50"
                 >
-                  {models.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  Save Settings
+                </button>
+                {saveStatus === "saved" && (
+                  <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
+                    <CheckCircle2 size={13} /> Saved
+                  </span>
+                )}
+                {saveStatus === "error" && (
+                  <span className="flex items-center gap-1.5 text-xs text-red-500 font-medium">
+                    <AlertTriangle size={13} /> Failed to save
+                  </span>
+                )}
               </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">API Key</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type={showKey ? "text" : "password"}
-                    value={apiKey}
-                    onChange={e => setApiKey(e.target.value)}
-                    placeholder={provider === "openai" ? "sk-..." : "sk-ant-..."}
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-violet-400"
-                  />
-                  <button
-                    onClick={() => setShowKey(v => !v)}
-                    className="px-3 py-2.5 text-xs text-gray-400 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    {showKey ? "Hide" : "Show"}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400 mt-1.5">
-                  Stored securely. Used only server-side when signers chat with documents.
-                </p>
-              </div>
-            </div>
-
-            {/* Per-document note */}
-            <div className="bg-violet-50 border border-violet-100 rounded-2xl px-5 py-4 flex gap-3">
-              <Sparkles size={16} className="text-violet-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-semibold text-violet-700">Per-document control</p>
-                <p className="text-xs text-violet-500 mt-0.5">
-                  Even with AI enabled here, you can toggle it on or off for each individual document from the document editor.
-                </p>
-              </div>
-            </div>
-
-            {/* Save */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-50"
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                Save Settings
-              </button>
-              {saveStatus === "saved" && (
-                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                  <CheckCircle2 size={13} /> Saved
-                </span>
-              )}
-              {saveStatus === "error" && (
-                <span className="flex items-center gap-1 text-xs text-red-500 font-medium">
-                  <AlertTriangle size={13} /> Failed to save
-                </span>
-              )}
             </div>
           </>
         )}
