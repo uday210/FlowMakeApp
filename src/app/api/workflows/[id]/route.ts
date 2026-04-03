@@ -49,6 +49,13 @@ export async function PUT(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    supabase: ctx.admin, orgId: ctx.orgId,
+    action: "workflow.updated", resourceType: "workflow",
+    resourceId: id, meta: { name: body.name, node_count: (body.nodes ?? []).length },
+  });
+
   return NextResponse.json(data);
 }
 

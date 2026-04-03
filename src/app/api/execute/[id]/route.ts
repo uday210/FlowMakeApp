@@ -94,10 +94,27 @@ export async function POST(
     })
     .eq("id", execution.id);
 
+  const successNodes = ctx.logs.filter((l) => l.status === "success").length;
+  const errorNodes = ctx.logs.filter((l) => l.status === "error").length;
+  const skippedNodes = ctx.logs.filter((l) => l.status === "skipped").length;
+  const errorDetails = ctx.logs
+    .filter((l) => l.status === "error")
+    .map((l) => ({ node: l.node_label, error: l.error }));
+
   await logAudit({
     supabase, orgId: workflow.org_id as string,
     action: "execution.triggered", resourceType: "execution",
-    resourceId: execution.id, meta: { workflow_id: id, status: finalStatus },
+    resourceId: execution.id,
+    meta: {
+      workflow_id: id,
+      workflow_name: workflow.name,
+      status: finalStatus,
+      nodes_total: ctx.logs.length,
+      nodes_success: successNodes,
+      nodes_error: errorNodes,
+      nodes_skipped: skippedNodes,
+      errors: errorDetails.length > 0 ? errorDetails : undefined,
+    },
   });
 
   // Surface agent_reply if present so the calling agent gets a clean text response
