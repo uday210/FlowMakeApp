@@ -14,13 +14,215 @@ import AIBuilderPanel from "@/components/AIBuilderPanel";
 import {
   Save, Play, ArrowLeft, Loader2, CheckCircle, AlertCircle,
   Plug, GitBranch, X, RotateCcw, RefreshCw, ChevronDown, ChevronRight,
-  Clock, XCircle, MinusCircle, Sparkles,
+  Clock, XCircle, MinusCircle, Sparkles, Code2, Plus, Trash2, Copy,
 } from "lucide-react";
 
 const Canvas = dynamic(() => import("@/components/Canvas"), { ssr: false });
 
 type ExecStatus = "idle" | "running" | "success" | "failed";
 type ActiveTab = "diagram" | "history" | "incomplete";
+
+interface EmbedField {
+  name: string;
+  label: string;
+  type: "text" | "email" | "tel" | "textarea";
+  required: boolean;
+}
+
+const DEFAULT_FIELDS: EmbedField[] = [
+  { name: "email", label: "Email", type: "email", required: true },
+  { name: "message", label: "Message", type: "textarea", required: false },
+];
+
+function EmbedPanel({ workflowId, onClose }: { workflowId: string; onClose: () => void }) {
+  const [buttonText, setButtonText] = useState("Get in touch");
+  const [buttonColor, setButtonColor] = useState("#7c3aed");
+  const [title, setTitle] = useState("Get in touch");
+  const [successMsg, setSuccessMsg] = useState("Thanks! We'll be in touch.");
+  const [position, setPosition] = useState<"bottom-right" | "bottom-left" | "top-right" | "top-left">("bottom-right");
+  const [fields, setFields] = useState<EmbedField[]>(DEFAULT_FIELDS);
+  const [copied, setCopied] = useState(false);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const snippet = `<script
+  src="${origin}/api/widget/${workflowId}"
+  data-button-text="${buttonText}"
+  data-button-color="${buttonColor}"
+  data-title="${title}"
+  data-success="${successMsg}"
+  data-position="${position}"
+  data-fields='${JSON.stringify(fields)}'
+><\/script>`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(snippet);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const addField = () => {
+    setFields(f => [...f, { name: `field_${f.length + 1}`, label: "New Field", type: "text", required: false }]);
+  };
+
+  const updateField = (i: number, patch: Partial<EmbedField>) => {
+    setFields(f => f.map((x, idx) => idx === i ? { ...x, ...patch } : x));
+  };
+
+  const removeField = (i: number) => {
+    setFields(f => f.filter((_, idx) => idx !== i));
+  };
+
+  return (
+    <div className="absolute inset-y-0 right-0 w-[400px] bg-white border-l border-gray-200 shadow-xl z-30 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-800">Embed Widget</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Drop a trigger button on any website</p>
+        </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
+          <X size={14} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        {/* Button config */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Button</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Button label</label>
+              <input
+                value={buttonText}
+                onChange={e => setButtonText(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-violet-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Modal title</label>
+              <input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-violet-400"
+              />
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Color</label>
+                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5">
+                  <input
+                    type="color"
+                    value={buttonColor}
+                    onChange={e => setButtonColor(e.target.value)}
+                    className="w-6 h-6 rounded cursor-pointer border-none bg-transparent"
+                  />
+                  <span className="text-xs font-mono text-gray-500">{buttonColor}</span>
+                </div>
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Position</label>
+                <select
+                  value={position}
+                  onChange={e => setPosition(e.target.value as typeof position)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-violet-400 bg-white"
+                >
+                  <option value="bottom-right">Bottom right</option>
+                  <option value="bottom-left">Bottom left</option>
+                  <option value="top-right">Top right</option>
+                  <option value="top-left">Top left</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Success message</label>
+              <input
+                value={successMsg}
+                onChange={e => setSuccessMsg(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-violet-400"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Fields */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Form Fields</p>
+            <button
+              onClick={addField}
+              className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 font-medium"
+            >
+              <Plus size={12} /> Add field
+            </button>
+          </div>
+          <div className="space-y-3">
+            {fields.map((f, i) => (
+              <div key={i} className="border border-gray-100 rounded-xl p-3 space-y-2 bg-gray-50/50">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={f.label}
+                    onChange={e => updateField(i, { label: e.target.value })}
+                    placeholder="Label"
+                    className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-violet-400 bg-white"
+                  />
+                  <input
+                    value={f.name}
+                    onChange={e => updateField(i, { name: e.target.value.replace(/\s/g, "_").toLowerCase() })}
+                    placeholder="field_name"
+                    className="w-28 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-mono outline-none focus:border-violet-400 bg-white"
+                  />
+                  <button onClick={() => removeField(i)} className="p-1 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={f.type}
+                    onChange={e => updateField(i, { type: e.target.value as EmbedField["type"] })}
+                    className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-violet-400 bg-white"
+                  >
+                    <option value="text">Text</option>
+                    <option value="email">Email</option>
+                    <option value="tel">Phone</option>
+                    <option value="textarea">Textarea</option>
+                  </select>
+                  <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={f.required}
+                      onChange={e => updateField(i, { required: e.target.checked })}
+                      className="accent-violet-600"
+                    />
+                    Required
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Snippet */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Embed Code</p>
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 font-medium"
+            >
+              <Copy size={11} /> {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <pre className="text-[10px] font-mono bg-gray-950 text-gray-300 rounded-xl p-3.5 overflow-x-auto whitespace-pre-wrap break-all border border-gray-800 leading-relaxed">
+            {snippet}
+          </pre>
+          <p className="text-xs text-gray-400 mt-2">
+            Paste this before the closing <code className="bg-gray-100 px-1 rounded text-gray-600">&lt;/body&gt;</code> tag of your website.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface WorkflowVersion {
   id: string;
@@ -372,6 +574,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
   const [canvasKey, setCanvasKey] = useState(0);
   const [showAIBuilder, setShowAIBuilder] = useState(false);
   const [aiInjectVersion, setAiInjectVersion] = useState(0);
+  const [showEmbed, setShowEmbed] = useState(false);
   const prevNodeCount = useRef(0);
   const prevEdgeCount = useRef(0);
 
@@ -611,7 +814,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
           </button>
 
           <button
-            onClick={() => { setShowAIBuilder(v => !v); setShowConnections(false); setShowVersions(false); setSelectedNode(null); }}
+            onClick={() => { setShowAIBuilder(v => !v); setShowConnections(false); setShowVersions(false); setSelectedNode(null); setShowEmbed(false); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg transition-all ${
               showAIBuilder
                 ? "bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-200"
@@ -619,6 +822,17 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
             }`}
           >
             <Sparkles size={13} /> AI Builder
+          </button>
+
+          <button
+            onClick={() => { setShowEmbed(v => !v); setShowAIBuilder(false); setShowConnections(false); setShowVersions(false); setSelectedNode(null); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-lg transition-all ${
+              showEmbed
+                ? "bg-gray-800 text-white border-gray-800"
+                : "text-gray-600 border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            <Code2 size={13} /> Embed
           </button>
         </div>
 
@@ -787,8 +1001,11 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
             />
           )}
 
+          {/* Embed panel */}
+          {showEmbed && <EmbedPanel workflowId={id} onClose={() => setShowEmbed(false)} />}
+
           {/* Node config */}
-          {selectedNode && !showConnections && (
+          {selectedNode && !showConnections && !showEmbed && (
             <NodeConfigPanel
               node={selectedNode}
               workflowId={id}
@@ -800,7 +1017,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
           )}
 
           {/* Right stats panel — always visible in diagram tab (when no node selected) */}
-          {!selectedNode && !showConnections && !showVersions && (
+          {!selectedNode && !showConnections && !showVersions && !showEmbed && (
             <ScenarioStatsPanel
               key={statsKey}
               workflowId={id}
