@@ -27,7 +27,7 @@ export async function POST() {
     "trigger_airtable_record", "trigger_notion_page", "trigger_google_drive",
     "trigger_dropbox_file", "trigger_onedrive_file", "trigger_trello_card",
     "trigger_monday_item", "trigger_mailchimp_subscriber", "trigger_activecampaign",
-    "trigger_rss_poll", "trigger_salesforce",
+    "trigger_rss_poll", "trigger_salesforce", "trigger_salesforce_cdc", "trigger_salesforce_platform_event",
     "trigger_postgres_row", "trigger_mysql_row", "trigger_mongodb_document",
   ]);
 

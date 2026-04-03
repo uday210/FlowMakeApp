@@ -114,6 +114,159 @@ export const handlers: Record<string, NodeHandler> = {
     void node;
   },
 
+  "trigger_salesforce_cdc": async ({ config, node }) => {
+    let access_token: string;
+    let instance_url: string;
+
+    if (config.access_token) {
+      access_token = config.access_token as string;
+      instance_url = config.instance_url as string;
+      if (!instance_url) throw new Error("instance_url missing from OAuth connection config");
+    } else {
+      const env = (config.environment as string) || "production";
+      const authFlow = (config.auth_flow as string) || "password";
+      const loginUrl = (() => {
+        const custom = (config.login_url as string)?.trim().replace(/\/$/, "");
+        if (custom) return custom;
+        if (env === "sandbox") return "https://test.salesforce.com";
+        return "https://login.salesforce.com";
+      })();
+      const clientId = config.client_id as string;
+      const clientSecret = config.client_secret as string;
+      if (!clientId || !clientSecret) throw new Error("client_id and client_secret are required");
+      const tokenParams = new URLSearchParams({ client_id: clientId, client_secret: clientSecret });
+      if (authFlow === "client_credentials") {
+        tokenParams.set("grant_type", "client_credentials");
+      } else {
+        const username = config.username as string;
+        const password = (config.password as string) + ((config.security_token as string) || "");
+        if (!username) throw new Error("Username is required for password flow");
+        tokenParams.set("grant_type", "password");
+        tokenParams.set("username", username);
+        tokenParams.set("password", password);
+      }
+      const tokenRes = await fetch(`${loginUrl}/services/oauth2/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: tokenParams.toString(),
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        throw new Error(tokenData.error_description || `Salesforce auth failed: ${tokenRes.status}`);
+      }
+      access_token = tokenData.access_token as string;
+      instance_url = tokenData.instance_url as string;
+    }
+
+    const sfHeaders = { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" };
+    const apiBase = `${instance_url}/services/data/v59.0`;
+
+    const cdcObject = (config.cdc_object as string)?.trim() || "AccountChangeEvent";
+    const filter = config.filter as string;
+    const pollMins = Math.max(1, Number(config.poll_interval) || 5);
+    const since = new Date(Date.now() - 2 * pollMins * 60 * 1000).toISOString().replace(/\.\d+Z$/, "Z");
+
+    let soql = `SELECT Id, CreatedDate, ChangeEventHeader FROM ${cdcObject} WHERE CreatedDate > ${since}`;
+    if (filter) soql += ` AND ${filter}`;
+    soql += " ORDER BY CreatedDate DESC LIMIT 50";
+
+    const res = await fetch(`${apiBase}/query?q=${encodeURIComponent(soql)}`, { headers: sfHeaders });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data[0]?.message || `Salesforce CDC query failed: ${res.status}`);
+
+    if (!data.totalSize || data.totalSize === 0) {
+      return { _skip: true, cdc_object: cdcObject, total: 0, records: [] };
+    }
+
+    const firstRecord = data.records[0];
+    return {
+      cdc_object: cdcObject,
+      total: data.totalSize,
+      records: data.records,
+      change_type: (firstRecord.ChangeEventHeader as Record<string, unknown>)?.changeType,
+      changed_fields: (firstRecord.ChangeEventHeader as Record<string, unknown>)?.changedFields,
+      ...firstRecord,
+    };
+
+    void node;
+  },
+
+  "trigger_salesforce_platform_event": async ({ config, node }) => {
+    let access_token: string;
+    let instance_url: string;
+
+    if (config.access_token) {
+      access_token = config.access_token as string;
+      instance_url = config.instance_url as string;
+      if (!instance_url) throw new Error("instance_url missing from OAuth connection config");
+    } else {
+      const env = (config.environment as string) || "production";
+      const authFlow = (config.auth_flow as string) || "password";
+      const loginUrl = (() => {
+        const custom = (config.login_url as string)?.trim().replace(/\/$/, "");
+        if (custom) return custom;
+        if (env === "sandbox") return "https://test.salesforce.com";
+        return "https://login.salesforce.com";
+      })();
+      const clientId = config.client_id as string;
+      const clientSecret = config.client_secret as string;
+      if (!clientId || !clientSecret) throw new Error("client_id and client_secret are required");
+      const tokenParams = new URLSearchParams({ client_id: clientId, client_secret: clientSecret });
+      if (authFlow === "client_credentials") {
+        tokenParams.set("grant_type", "client_credentials");
+      } else {
+        const username = config.username as string;
+        const password = (config.password as string) + ((config.security_token as string) || "");
+        if (!username) throw new Error("Username is required for password flow");
+        tokenParams.set("grant_type", "password");
+        tokenParams.set("username", username);
+        tokenParams.set("password", password);
+      }
+      const tokenRes = await fetch(`${loginUrl}/services/oauth2/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: tokenParams.toString(),
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        throw new Error(tokenData.error_description || `Salesforce auth failed: ${tokenRes.status}`);
+      }
+      access_token = tokenData.access_token as string;
+      instance_url = tokenData.instance_url as string;
+    }
+
+    const sfHeaders = { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" };
+    const apiBase = `${instance_url}/services/data/v59.0`;
+
+    const eventObject = (config.event_object as string)?.trim();
+    if (!eventObject) throw new Error("Platform Event Object is required (e.g. My_Event__e)");
+    const filter = config.filter as string;
+    const pollMins = Math.max(1, Number(config.poll_interval) || 5);
+    const since = new Date(Date.now() - 2 * pollMins * 60 * 1000).toISOString().replace(/\.\d+Z$/, "Z");
+
+    let soql = `SELECT Id, CreatedDate FROM ${eventObject} WHERE CreatedDate > ${since}`;
+    if (filter) soql += ` AND ${filter}`;
+    soql += " ORDER BY CreatedDate DESC LIMIT 50";
+
+    const res = await fetch(`${apiBase}/query?q=${encodeURIComponent(soql)}`, { headers: sfHeaders });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data[0]?.message || `Platform Event query failed: ${res.status}`);
+
+    if (!data.totalSize || data.totalSize === 0) {
+      return { _skip: true, event_object: eventObject, total: 0, records: [] };
+    }
+
+    const firstRecord = data.records[0];
+    return {
+      event_object: eventObject,
+      total: data.totalSize,
+      records: data.records,
+      ...firstRecord,
+    };
+
+    void node;
+  },
+
   "action_salesforce": async ({ config, node }) => {
     let access_token: string;
     let instance_url: string;
