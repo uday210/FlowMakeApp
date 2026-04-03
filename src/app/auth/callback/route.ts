@@ -1,56 +1,38 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const redirectTo = url.searchParams.get("redirect") ?? "/org";
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (request.headers.get("x-forwarded-host")
-      ? `https://${request.headers.get("x-forwarded-host")}`
-      : url.origin);
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || url.host;
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
 
-  const makeRedirect = (path: string) =>
-    NextResponse.redirect(new URL(path, appUrl));
+  const go = (path: string) => NextResponse.redirect(`${appUrl}${path}`);
 
-  if (!code) return makeRedirect(redirectTo);
-
-  // Build a redirect response so we can attach Set-Cookie headers
-  let response = makeRedirect(redirectTo);
+  if (!code) return go("/org");
 
   try {
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll: () => [],
-        setAll: (cookiesToSet) => {
-          // Re-create the response so each Set-Cookie gets attached
-          response = makeRedirect(redirectTo);
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
-          );
-        },
-      },
-    });
-
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    // Use a plain supabase-js client — no cookie handling needed here.
+    // Supabase will set the session via the access_token in the URL hash on the client side.
+    // On the server we just need to exchange the code for tokens and set them as cookies manually.
+    const { data, error } = await createClient(supabaseUrl, supabaseAnonKey).auth.exchangeCodeForSession(code);
 
     if (error || !data?.user) {
-      console.error("[auth/callback] exchangeCodeForSession:", error?.message);
-      return makeRedirect("/auth/login?error=auth_failed");
+      console.error("[auth/callback] exchange error:", error?.message ?? "no user");
+      return go("/auth/login?error=auth_failed");
     }
 
-    // Upsert profile
+    // Upsert profile (best-effort — don't block login if this fails)
     try {
-      const admin = createClient(
-        supabaseUrl,
-        process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseAnonKey
-      );
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const admin = createClient(supabaseUrl, serviceKey ?? supabaseAnonKey);
 
       const { data: profile } = await admin
         .from("profiles")
@@ -62,48 +44,50 @@ export async function GET(request: Request) {
       const pendingRole = (data.user.user_metadata?.pending_role as string | undefined) ?? "member";
 
       if (!profile) {
-        const insertData: Record<string, unknown> = {
+        const row: Record<string, unknown> = {
           id: data.user.id,
           full_name: data.user.user_metadata?.full_name ?? data.user.email?.split("@")[0] ?? "",
           avatar_url: data.user.user_metadata?.avatar_url ?? null,
         };
-        if (pendingOrgId) {
-          insertData.org_id = pendingOrgId;
-          insertData.role = pendingRole;
-        }
-        await admin.from("profiles").insert(insertData);
-        const dest = pendingOrgId ? "/org" : "/onboarding";
-        const r = makeRedirect(dest);
-        // Copy session cookies onto the new redirect response
-        response.cookies.getAll().forEach(({ name, value, ...rest }) =>
-          r.cookies.set(name, value, rest as Parameters<typeof r.cookies.set>[2])
-        );
-        return r;
+        if (pendingOrgId) { row.org_id = pendingOrgId; row.role = pendingRole; }
+        await admin.from("profiles").insert(row);
+        return go(pendingOrgId ? "/org" : "/onboarding");
       }
 
       if (!profile.org_id) {
         if (pendingOrgId) {
           await admin.from("profiles").update({ org_id: pendingOrgId, role: pendingRole }).eq("id", data.user.id);
-          const r = makeRedirect("/org");
-          response.cookies.getAll().forEach(({ name, value, ...rest }) =>
-            r.cookies.set(name, value, rest as Parameters<typeof r.cookies.set>[2])
-          );
-          return r;
+          return go("/org");
         }
-        const r = makeRedirect("/onboarding");
-        response.cookies.getAll().forEach(({ name, value, ...rest }) =>
-          r.cookies.set(name, value, rest as Parameters<typeof r.cookies.set>[2])
-        );
-        return r;
+        return go("/onboarding");
       }
     } catch (profileErr) {
-      console.error("[auth/callback] profile upsert error:", profileErr);
-      // Don't block login if profile upsert fails — just redirect to org
+      console.error("[auth/callback] profile error:", profileErr);
     }
+
+    // Build response with session cookies
+    const response = go("/org");
+
+    // Set access token and refresh token as cookies so SSR auth works
+    const maxAge = data.session?.expires_in ?? 3600;
+    response.cookies.set("sb-access-token", data.session?.access_token ?? "", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge,
+      path: "/",
+    });
+    response.cookies.set("sb-refresh-token", data.session?.refresh_token ?? "", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
+    });
 
     return response;
   } catch (err) {
     console.error("[auth/callback] unexpected error:", err);
-    return makeRedirect("/auth/login?error=unexpected");
+    return go("/auth/login?error=unexpected");
   }
 }
