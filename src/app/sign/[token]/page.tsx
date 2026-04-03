@@ -44,6 +44,7 @@ interface EsignRequest {
   signing_order: number;
   file_url: string | null;
   ai_enabled: boolean;
+  ai_disclaimer: string;
   document_fields: EsignField[];
   previous_signatures: PreviousSignature[];
 }
@@ -61,7 +62,7 @@ const SUGGESTED_QUESTIONS = [
   "What are my obligations?",
 ];
 
-function AiChatWidget({ documentId }: { documentId: string }) {
+function AiChatWidget({ documentId, disclaimer }: { documentId: string; disclaimer?: string }) {
   const [open, setOpen]       = useState(false);
   const [input, setInput]     = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -163,6 +164,13 @@ function AiChatWidget({ documentId }: { documentId: string }) {
 
       {open && (
         <div className="border-t border-indigo-50">
+          {/* Disclaimer */}
+          {disclaimer && (
+            <div className="mx-5 mt-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-xs text-amber-700 leading-relaxed">{disclaimer}</p>
+            </div>
+          )}
+
           {/* Suggested questions */}
           {messages.length === 0 && (
             <div className="px-5 py-3 flex flex-wrap gap-2">
@@ -594,7 +602,7 @@ export default function SignPage({ params }: { params: Promise<{ token: string }
 
         {/* AI Chat Widget */}
         {req.ai_enabled && req.document_id && (
-          <AiChatWidget documentId={req.document_id} />
+          <AiChatWidget documentId={req.document_id} disclaimer={req.ai_disclaimer} />
         )}
 
         {/* Signature pad */}

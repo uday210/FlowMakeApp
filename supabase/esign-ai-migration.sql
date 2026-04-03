@@ -24,3 +24,7 @@ ALTER TABLE esign_documents
 --   SELECT vault.create_secret('sk-...', 'esign_ai_key_<org_id>');
 -- For simplicity this migration stores it as plain text in org_settings.
 -- You can encrypt/decrypt at the application layer as needed.
+
+-- Add AI disclaimer field (run this if you already ran the previous migration)
+ALTER TABLE esign_documents
+  ADD COLUMN IF NOT EXISTS ai_disclaimer TEXT;

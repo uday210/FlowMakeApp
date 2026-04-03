@@ -34,8 +34,9 @@ export async function PUT(request: Request, { params }: Params) {
     is_template: body.is_template ?? false,
     email_template_id: body.email_template_id ?? null,
   };
-  // Only update ai_enabled when explicitly provided so other saves don't reset it
+  // Only update ai_enabled / ai_disclaimer when explicitly provided
   if (body.ai_enabled !== undefined) patch.ai_enabled = body.ai_enabled;
+  if (body.ai_disclaimer !== undefined) patch.ai_disclaimer = body.ai_disclaimer;
   const { data, error } = await ctx.admin
     .from("esign_documents")
     .update(patch)

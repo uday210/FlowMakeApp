@@ -75,6 +75,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [activeSignerIdx, setActiveSignerIdx] = useState(0);
   const [isTemplate, setIsTemplate]       = useState(false);
   const [aiEnabled, setAiEnabled]         = useState(false);
+  const [aiDisclaimer, setAiDisclaimer]   = useState("");
   const [showStatus, setShowStatus]       = useState(false);
   const [sendSuccess, setSendSuccess]     = useState<{ email: string; url: string | null; order: number }[]>([]);
   const [copiedId, setCopiedId]           = useState<string | null>(null);
@@ -108,6 +109,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     setPageCount(docData.page_count || 1);
     setIsTemplate(!!docData.is_template);
     setAiEnabled(!!docData.ai_enabled);
+    setAiDisclaimer(docData.ai_disclaimer ?? "");
     setEmailTemplateId(docData.email_template_id || "");
     if (statusData.requests?.length > 0) setShowStatus(true);
     setLoading(false);
@@ -799,6 +801,31 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
                 </div>
               )}
             </div>
+            {/* AI DISCLAIMER */}
+            {aiEnabled && (
+              <div className="p-4 border-t border-gray-100">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-xs font-semibold text-amber-600 uppercase tracking-wider">✦ AI Disclaimer</span>
+                </div>
+                <textarea
+                  value={aiDisclaimer}
+                  onChange={e => setAiDisclaimer(e.target.value)}
+                  onBlur={async () => {
+                    if (doc) {
+                      await fetch(`/api/documents/${id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: doc.name, page_count: pageCount, status: doc.status, is_template: isTemplate, ai_enabled: aiEnabled, ai_disclaimer: aiDisclaimer }),
+                      });
+                    }
+                  }}
+                  placeholder="e.g. This AI assistant provides general information only and does not constitute legal advice. Please consult a qualified professional before signing."
+                  rows={4}
+                  className="w-full text-xs border border-amber-200 rounded-lg px-2.5 py-2 outline-none focus:border-amber-400 resize-none bg-amber-50/40 text-gray-600 placeholder-gray-400"
+                />
+                <p className="text-xs text-gray-400 mt-1">Shown to signers above the AI chat panel.</p>
+              </div>
+            )}
           </aside>
         )}
 

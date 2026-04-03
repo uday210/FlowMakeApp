@@ -16,16 +16,17 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("esign_requests")
-    .select("id, token, document_id, document_title, document_content, signer_email, signer_name, signer_role, status, signed_at, created_at, signing_order, session_id, esign_documents(file_url, ai_enabled)")
+    .select("id, token, document_id, document_title, document_content, signer_email, signer_name, signer_role, status, signed_at, created_at, signing_order, session_id, esign_documents(file_url, ai_enabled, ai_disclaimer)")
     .eq("token", token)
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Flatten the joined file_url so callers don't need an authenticated /api/documents fetch
-  const esignDoc = data.esign_documents as { file_url?: string; ai_enabled?: boolean } | null;
+  const esignDoc = data.esign_documents as { file_url?: string; ai_enabled?: boolean; ai_disclaimer?: string } | null;
   const fileUrl = esignDoc?.file_url ?? null;
   const aiEnabled = esignDoc?.ai_enabled ?? false;
+  const aiDisclaimer = esignDoc?.ai_disclaimer ?? "";
 
   // Fetch fields for the document so the signing page doesn't need an authenticated call
   let documentFields: unknown[] = [];
@@ -77,5 +78,5 @@ export async function GET(
   }
 
   const { esign_documents: _doc, ...rest } = data as typeof data & { esign_documents: unknown };
-  return NextResponse.json({ ...rest, file_url: fileUrl, ai_enabled: aiEnabled, document_fields: documentFields, previous_signatures: previousSignatures });
+  return NextResponse.json({ ...rest, file_url: fileUrl, ai_enabled: aiEnabled, ai_disclaimer: aiDisclaimer, document_fields: documentFields, previous_signatures: previousSignatures });
 }
