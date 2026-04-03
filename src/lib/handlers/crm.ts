@@ -61,19 +61,34 @@ export const handlers: Record<string, NodeHandler> = {
     // Polling trigger
     const sfObject = (config.object as string) || "Lead";
     const event = (config.event as string) || "new_record";
+    const eventTopic = (config.event_topic as string)?.trim();
     const filter = config.filter as string;
     // Use poll_interval to determine the look-back window (×2 for overlap to avoid missing records)
     const pollMins = Math.max(1, Number(config.poll_interval) || 5);
     const since = new Date(Date.now() - 2 * pollMins * 60 * 1000).toISOString().replace(/\.\d+Z$/, "Z");
 
     let soql = "";
-    if (event === "new_record" || event === "new_lead") {
+    if (event === "platform_event") {
+      // Platform Events — query the event bus object (must end in __e)
+      const topic = eventTopic || "MyEvent__e";
+      soql = `SELECT Id, CreatedDate FROM ${topic} WHERE CreatedDate > ${since}`;
+      if (filter) soql += ` AND ${filter}`;
+      soql += " ORDER BY CreatedDate DESC LIMIT 50";
+    } else if (event === "cdc") {
+      // Change Data Capture — query the ChangeEvent object (e.g. AccountChangeEvent)
+      const cdcObject = eventTopic || `${sfObject}ChangeEvent`;
+      soql = `SELECT Id, CreatedDate, ChangeEventHeader FROM ${cdcObject} WHERE CreatedDate > ${since}`;
+      if (filter) soql += ` AND ${filter}`;
+      soql += " ORDER BY CreatedDate DESC LIMIT 50";
+    } else if (event === "new_record" || event === "new_lead") {
       soql = `SELECT Id, Name, CreatedDate FROM ${sfObject} WHERE CreatedDate > ${since}`;
+      if (filter) soql += ` AND ${filter}`;
+      soql += " ORDER BY CreatedDate DESC LIMIT 50";
     } else if (event === "record_updated" || event === "opportunity_stage") {
       soql = `SELECT Id, Name, LastModifiedDate${event === "opportunity_stage" ? ", StageName" : ""} FROM ${sfObject} WHERE LastModifiedDate > ${since}`;
+      if (filter) soql += ` AND ${filter}`;
+      soql += " ORDER BY CreatedDate DESC LIMIT 50";
     }
-    if (filter) soql += ` AND ${filter}`;
-    soql += " ORDER BY CreatedDate DESC LIMIT 50";
 
     const res = await fetch(`${apiBase}/query?q=${encodeURIComponent(soql)}`, { headers: sfHeaders });
     const data = await res.json();

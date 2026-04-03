@@ -398,6 +398,8 @@ function RemoteSelectField({ field, value, onChange, config, base }: {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            access_token: config.access_token,
+            instance_url: config.instance_url,
             auth_flow: config.auth_flow,
             environment: config.environment,
             login_url: config.login_url,
