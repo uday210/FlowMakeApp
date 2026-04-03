@@ -62,6 +62,7 @@ interface ServiceType {
 const SERVICE_TYPES: ServiceType[] = [
   // ── Google (OAuth) ─────────────────────────────────────────────────────────
   { value: "google", label: "Google (OAuth)", icon: Globe, color: "bg-blue-100 text-blue-600", fields: [], oauthConnect: true },
+  { value: "airtable", label: "Airtable (OAuth)", icon: Database, color: "bg-cyan-100 text-cyan-600", fields: [], oauthConnect: true },
   // ── AI & ML ────────────────────────────────────────────────────────────────
   { value: "openai", label: "OpenAI", icon: Bot, color: "bg-green-100 text-green-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
   { value: "anthropic", label: "Anthropic / Claude", icon: Bot, color: "bg-amber-100 text-amber-600", fields: [{ key: "api_key", label: "API Key", type: "password" }] },
@@ -129,7 +130,7 @@ const SERVICE_TYPES: ServiceType[] = [
   { value: "todoist", label: "Todoist", icon: Layers, color: "bg-red-100 text-red-600", fields: [{ key: "api_key", label: "API Token", type: "password" }] },
   // ── Productivity / Data ────────────────────────────────────────────────────
   { value: "notion", label: "Notion", icon: FileText, color: "bg-gray-100 text-gray-700", fields: [{ key: "token", label: "Integration Token", type: "password" }] },
-  { value: "airtable", label: "Airtable", icon: Database, color: "bg-cyan-100 text-cyan-600", fields: [{ key: "token", label: "API Token", type: "password" }, { key: "base_id", label: "Base ID", type: "text" }] },
+  { value: "airtable_manual", label: "Airtable (API Key)", icon: Database, color: "bg-cyan-100 text-cyan-600", fields: [{ key: "token", label: "API Token", type: "password" }, { key: "base_id", label: "Base ID", type: "text" }] },
   { value: "sheets", label: "Google Sheets", icon: Table2, color: "bg-green-100 text-green-700", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "spreadsheet_id", label: "Spreadsheet ID", type: "text" }] },
   { value: "google_drive", label: "Google Drive", icon: Cloud, color: "bg-blue-100 text-blue-500", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "refresh_token", label: "Refresh Token", type: "password" }] },
   { value: "google_calendar", label: "Google Calendar", icon: Calendar, color: "bg-blue-100 text-blue-600", fields: [{ key: "access_token", label: "Access Token", type: "password" }, { key: "calendar_id", label: "Calendar ID", type: "text" }] },
@@ -206,6 +207,64 @@ const SERVICE_TYPES: ServiceType[] = [
   { value: "custom", label: "Custom", icon: Zap, color: "bg-pink-100 text-pink-600", fields: [{ key: "key", label: "Key / Token", type: "password" }] },
 ];
 
+const OAUTH_PROVIDERS: Record<string, {
+  startUrl: string;
+  label: string;
+  description: string;
+  buttonLabel: string;
+  logo: React.ReactNode;
+  colors: string;
+}> = {
+  google: {
+    startUrl: "/api/oauth/google/start",
+    label: "Connect via Google OAuth",
+    description: "Authorize access to Sheets, Drive, Calendar, and Gmail for your org.",
+    buttonLabel: "Sign in with Google",
+    colors: "border-blue-100 bg-blue-50 text-blue-700",
+    logo: (
+      <svg width="16" height="16" viewBox="0 0 48 48" fill="none">
+        <path d="M44.5 20H24V28.5H35.9C34.7 33.1 30.5 36.5 24 36.5C16.5 36.5 10.5 30.5 10.5 23C10.5 15.5 16.5 9.5 24 9.5C27.3 9.5 30.3 10.7 32.6 12.7L38.6 6.7C35 3.4 29.8 1.5 24 1.5C12.4 1.5 3 10.9 3 22.5C3 34.1 12.4 43.5 24 43.5C35 43.5 44.5 34.5 44.5 23C44.5 22 44.4 21 44.5 20Z" fill="#4285F4"/>
+        <path d="M6.3 13.7L13.4 19C15.4 14.1 19.3 10.5 24 9.5C27.3 9.5 30.3 10.7 32.6 12.7L38.6 6.7C35 3.4 29.8 1.5 24 1.5C16.5 1.5 10 6.7 6.3 13.7Z" fill="#EA4335"/>
+        <path d="M24 43.5C29.7 43.5 34.8 41.6 38.4 38.4L31.8 32.8C29.6 34.4 26.9 35.5 24 35.5C17.6 35.5 12.2 31.1 10.6 25.1L3.5 30.3C7.2 37.6 15 43.5 24 43.5Z" fill="#34A853"/>
+        <path d="M44.5 20H24V28.5H35.9C35.3 31 33.9 33.1 31.8 34.6L38.4 40.2C42.4 36.5 44.5 30.5 44.5 23C44.5 22 44.4 21 44.5 20Z" fill="#FBBC05"/>
+      </svg>
+    ),
+  },
+  airtable: {
+    startUrl: "/api/oauth/airtable/start",
+    label: "Connect via Airtable OAuth",
+    description: "Authorize access to your Airtable bases and records for your org.",
+    buttonLabel: "Sign in with Airtable",
+    colors: "border-cyan-100 bg-cyan-50 text-cyan-700",
+    logo: (
+      <svg width="16" height="16" viewBox="0 0 200 200" fill="none">
+        <rect width="200" height="200" rx="40" fill="#FCB400"/>
+        <path d="M90 45L20 75v15l70-30 70 30V75L90 45z" fill="white"/>
+        <path d="M20 95v60l65 28V123L20 95z" fill="white" opacity=".8"/>
+        <path d="M160 95l-65 28v60l65-28V95z" fill="white" opacity=".5"/>
+      </svg>
+    ),
+  },
+};
+
+function OAuthConnectPanel({ serviceType }: { serviceType: string }) {
+  const provider = OAUTH_PROVIDERS[serviceType];
+  if (!provider) return null;
+  return (
+    <div className={`rounded-lg border p-4 text-sm ${provider.colors}`}>
+      <p className="font-medium mb-1">{provider.label}</p>
+      <p className="text-xs opacity-70 mb-3">{provider.description}</p>
+      <a
+        href={provider.startUrl}
+        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-current/20 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
+      >
+        {provider.logo}
+        {provider.buttonLabel}
+      </a>
+    </div>
+  );
+}
+
 function ServiceIcon({ type, size = 16 }: { type: string; size?: number }) {
   const svc = SERVICE_TYPES.find((s) => s.value === type);
   if (!svc) return <Link2 size={size} />;
@@ -256,8 +315,12 @@ function ConnectionsPageInner() {
     load();
     const success = searchParams.get("success");
     const err = searchParams.get("error");
-    if (success === "google_connected") {
-      setSuccessMsg("Google account connected successfully!");
+    const successMessages: Record<string, string> = {
+      google_connected: "Google account connected successfully!",
+      airtable_connected: "Airtable account connected successfully!",
+    };
+    if (success && successMessages[success]) {
+      setSuccessMsg(successMessages[success]);
       setTimeout(() => setSuccessMsg(null), 4000);
       router.replace("/connections");
     } else if (err) {
@@ -406,24 +469,7 @@ function ConnectionsPageInner() {
               </div>
 
               {selectedService.oauthConnect ? (
-                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
-                  <p className="font-medium mb-1">Connect via Google OAuth</p>
-                  <p className="text-xs text-blue-500 mb-3">
-                    You will be redirected to Google to authorize access to Sheets, Drive, Calendar, and Gmail for your org.
-                  </p>
-                  <a
-                    href="/api/oauth/google/start"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-blue-200 rounded-lg text-sm font-semibold text-blue-700 hover:bg-blue-50 transition-colors shadow-sm"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M44.5 20H24V28.5H35.9C34.7 33.1 30.5 36.5 24 36.5C16.5 36.5 10.5 30.5 10.5 23C10.5 15.5 16.5 9.5 24 9.5C27.3 9.5 30.3 10.7 32.6 12.7L38.6 6.7C35 3.4 29.8 1.5 24 1.5C12.4 1.5 3 10.9 3 22.5C3 34.1 12.4 43.5 24 43.5C35 43.5 44.5 34.5 44.5 23C44.5 22 44.4 21 44.5 20Z" fill="#4285F4"/>
-                      <path d="M6.3 13.7L13.4 19C15.4 14.1 19.3 10.5 24 9.5C27.3 9.5 30.3 10.7 32.6 12.7L38.6 6.7C35 3.4 29.8 1.5 24 1.5C16.5 1.5 10 6.7 6.3 13.7Z" fill="#EA4335"/>
-                      <path d="M24 43.5C29.7 43.5 34.8 41.6 38.4 38.4L31.8 32.8C29.6 34.4 26.9 35.5 24 35.5C17.6 35.5 12.2 31.1 10.6 25.1L3.5 30.3C7.2 37.6 15 43.5 24 43.5Z" fill="#34A853"/>
-                      <path d="M44.5 20H24V28.5H35.9C35.3 31 33.9 33.1 31.8 34.6L38.4 40.2C42.4 36.5 44.5 30.5 44.5 23C44.5 22 44.4 21 44.5 20Z" fill="#FBBC05"/>
-                    </svg>
-                    Sign in with Google
-                  </a>
-                </div>
+                <OAuthConnectPanel serviceType={selectedService.value} />
               ) : (
                 selectedService.fields.map((field) => (
                   <div key={field.key}>
