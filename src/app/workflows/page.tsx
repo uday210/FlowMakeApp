@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import { useAutoTour } from "@/components/AppTour";
+import { PAGE_TOURS } from "@/lib/tours";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppShell, { PageHeader } from "@/components/AppShell";
 import {
@@ -237,6 +239,7 @@ function TemplateCard({ t, onUse, loading }: { t: Template; onUse: (t: Template)
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 function WorkflowsPageInner() {
+  useAutoTour(PAGE_TOURS["/workflows"].steps, PAGE_TOURS["/workflows"].key);
   const router = useRouter();
   const params = useSearchParams();
   const [tab, setTab] = useState<"scenarios" | "templates">(

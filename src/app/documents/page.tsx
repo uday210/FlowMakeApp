@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useAutoTour } from "@/components/AppTour";
+import { PAGE_TOURS } from "@/lib/tours";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppShell, { PageHeader } from "@/components/AppShell";
@@ -168,6 +170,7 @@ function DocCard({
 }
 
 export default function DocumentsPage() {
+  useAutoTour(PAGE_TOURS["/documents"].steps, PAGE_TOURS["/documents"].key);
   const router = useRouter();
   const [docs, setDocs] = useState<EsignDocument[]>([]);
   const [signerMap, setSignerMap] = useState<Record<string, SignerRequest[]>>({});

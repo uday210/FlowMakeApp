@@ -4,6 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import NavigationProgress, { startNavProgress } from "@/components/NavigationProgress";
+import { useTour } from "@/components/AppTour";
+import { PAGE_TOURS } from "@/lib/tours";
 import {
   Zap,
   LayoutTemplate,
@@ -102,6 +104,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
+  const { startTour } = useTour();
   const [userInitial, setUserInitial] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
@@ -211,6 +214,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Global top bar */}
         <div className="h-11 bg-white border-b border-gray-200 flex items-center justify-end px-5 gap-3 flex-shrink-0">
+          {/* Tour trigger */}
+          {(() => {
+            const tourKey = Object.keys(PAGE_TOURS).find(k => pathname.startsWith(k));
+            const tour = tourKey ? PAGE_TOURS[tourKey] : null;
+            if (!tour) return null;
+            return (
+              <button
+                onClick={() => startTour(tour.steps, tour.key)}
+                title="Show page guide"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-violet-500 hover:bg-violet-50 transition-colors"
+              >
+                <HelpCircle size={14} />
+              </button>
+            );
+          })()}
+
           {/* Theme toggle */}
           <button
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
