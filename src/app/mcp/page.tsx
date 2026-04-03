@@ -121,8 +121,10 @@ function buildInputSchema(params: InputParam[]): Record<string, unknown> {
 function SdkModal({ server, onClose }: { server: McpServer; onClose: () => void }) {
   const transport = server.transport; // "sse" | "http" | "both"
   const defaultTransport = transport === "http" ? "http" : "sse";
+  const [mode, setMode] = useState<"code" | "config">("code");
   const [lang, setLang] = useState<"python" | "javascript">("javascript");
   const [activeTransport, setActiveTransport] = useState<"sse" | "http">(defaultTransport);
+  const [configClient, setConfigClient] = useState<"cline" | "claude">("cline");
   const [copied, setCopied] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "https://yourapp.com";
@@ -130,6 +132,7 @@ function SdkModal({ server, onClose }: { server: McpServer; onClose: () => void 
   const httpUrl = `${origin}/api/mcp/hosted/${slug}`;
   const sseUrl  = `${origin}/api/mcp/hosted/${slug}/sse`;
   const hasAuth = !!server.auth_key;
+  const apiKey  = server.auth_key ?? "YOUR_API_KEY";
 
   // ── JavaScript (Node.js) snippets ──────────────────────────────────────────
   const jsAuthLine = hasAuth
@@ -247,8 +250,39 @@ asyncio.run(main())`;
     ? (activeTransport === "sse" ? jsSse : jsHttp)
     : (activeTransport === "sse" ? pySse : pyHttp);
 
-  const copySnippet = async () => {
-    await navigator.clipboard.writeText(snippet);
+  // ── Config JSON snippets ───────────────────────────────────────────────────
+  const toolNames = (server.tools_cache ?? []).map(t => t.name);
+
+  const clineConfig = (tr: "sse" | "http") => {
+    const url = tr === "sse" ? sseUrl : httpUrl;
+    const obj: Record<string, unknown> = {
+      type: tr === "sse" ? "sse" : "streamable-http",
+      url,
+      ...(hasAuth ? { headers: { Authorization: `Bearer ${apiKey}` } } : {}),
+      disabled: false,
+      timeout: 60,
+      ...(toolNames.length > 0 ? { autoApprove: toolNames } : {}),
+    };
+    return JSON.stringify({ [slug]: obj }, null, 2);
+  };
+
+  const claudeConfig = (tr: "sse" | "http") => {
+    const url = tr === "sse" ? sseUrl : httpUrl;
+    const inner: Record<string, unknown> = {
+      url,
+      ...(hasAuth ? { headers: { Authorization: `Bearer ${apiKey}` } } : {}),
+    };
+    return JSON.stringify({ mcpServers: { [slug]: inner } }, null, 2);
+  };
+
+  const configSnippet = configClient === "cline"
+    ? clineConfig(activeTransport)
+    : claudeConfig(activeTransport);
+
+  const activeSnippet = mode === "code" ? snippet : configSnippet;
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(activeSnippet);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -256,26 +290,27 @@ asyncio.run(main())`;
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Code2 size={16} className="text-violet-600" />
-            <h2 className="text-sm font-semibold text-gray-800">SDK — {server.name}</h2>
+            <h2 className="text-sm font-semibold text-gray-800">Connect — {server.name}</h2>
           </div>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
         </div>
 
-        <div className="px-6 pt-4 pb-2 flex items-center justify-between gap-4">
-          {/* Language */}
+        {/* Mode tabs: Code | Config */}
+        <div className="px-6 pt-4 pb-0 flex items-center gap-4">
           <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
-            {(["javascript", "python"] as const).map((l) => (
-              <button key={l} onClick={() => setLang(l)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${lang === l ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-                {l === "javascript" ? "JavaScript (Node.js)" : "Python"}
+            {(["code", "config"] as const).map((m) => (
+              <button key={m} onClick={() => setMode(m)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${mode === m ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                {m === "code" ? "SDK Code" : "Client Config"}
               </button>
             ))}
           </div>
 
-          {/* Transport — only show selector when both are available */}
+          {/* Transport selector (when both available) */}
           {transport === "both" && (
             <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
               {(["sse", "http"] as const).map((tr) => (
@@ -286,47 +321,72 @@ asyncio.run(main())`;
               ))}
             </div>
           )}
+
+          {/* Language (code mode) / Client (config mode) */}
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 ml-auto">
+            {mode === "code" ? (
+              (["javascript", "python"] as const).map((l) => (
+                <button key={l} onClick={() => setLang(l)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${lang === l ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  {l === "javascript" ? "JS" : "Python"}
+                </button>
+              ))
+            ) : (
+              (["cline", "claude"] as const).map((c) => (
+                <button key={c} onClick={() => setConfigClient(c)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${configClient === c ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  {c === "cline" ? "Cline / VS Code" : "Claude Desktop"}
+                </button>
+              ))
+            )}
+          </div>
         </div>
 
-        {/* Node.js callout for JS */}
-        {lang === "javascript" && (
-          <div className="mx-6 mt-2 flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-            <AlertCircle size={12} className="text-amber-500 flex-shrink-0" />
-            <p className="text-xs text-amber-700">This runs in <strong>Node.js</strong> — not the browser. CSP will block browser fetch to external origins.</p>
-          </div>
-        )}
+        {/* Contextual callout */}
+        <div className="mx-6 mt-3">
+          {mode === "code" && lang === "javascript" && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+              <AlertCircle size={12} className="text-amber-500 flex-shrink-0" />
+              <p className="text-xs text-amber-700">Runs in <strong>Node.js</strong> — not the browser.</p>
+            </div>
+          )}
+          {mode === "config" && configClient === "cline" && (
+            <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+              <AlertCircle size={12} className="text-blue-400 flex-shrink-0" />
+              <p className="text-xs text-blue-600">Paste inside the <code className="bg-blue-100 px-1 rounded font-mono">mcpServers</code> object in your Cline MCP settings JSON.</p>
+            </div>
+          )}
+          {mode === "config" && configClient === "claude" && (
+            <div className="flex items-center gap-2 bg-purple-50 border border-purple-100 rounded-xl px-3 py-2">
+              <AlertCircle size={12} className="text-purple-400 flex-shrink-0" />
+              <p className="text-xs text-purple-600">Paste into <code className="bg-purple-100 px-1 rounded font-mono">claude_desktop_config.json</code> (merging with any existing <code className="bg-purple-100 px-1 rounded font-mono">mcpServers</code>).</p>
+            </div>
+          )}
+        </div>
 
         <div className="flex-1 overflow-y-auto px-6 pb-6">
           <div className="relative mt-3">
             <pre className="text-xs font-mono bg-gray-950 text-gray-100 rounded-xl p-4 overflow-x-auto whitespace-pre leading-relaxed">
-              {snippet}
+              {activeSnippet}
             </pre>
-            <button
-              onClick={copySnippet}
-              className="absolute top-3 right-3 flex items-center gap-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded-lg transition-colors"
-            >
+            <button onClick={copy}
+              className="absolute top-3 right-3 flex items-center gap-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded-lg transition-colors">
               {copied ? <CheckCheck size={10} className="text-green-400" /> : <Copy size={10} />}
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
 
           <div className="mt-3 bg-violet-50 rounded-lg px-3 py-2 space-y-1">
-            <p className="text-xs text-violet-700">
-              <strong>HTTP:</strong>{" "}
-              <code className="bg-violet-100 px-1 rounded font-mono text-[10px]">{httpUrl}</code>
-            </p>
-            <p className="text-xs text-violet-700">
-              <strong>SSE:</strong>{" "}
+            <p className="text-xs text-violet-700"><strong>SSE:</strong>{" "}
               <code className="bg-violet-100 px-1 rounded font-mono text-[10px]">{sseUrl}</code>
             </p>
-            {server.auth_key ? (
-              <p className="text-xs text-violet-600">
-                Replace <code className="bg-violet-100 px-1 rounded font-mono">YOUR_API_KEY</code> with your key from server settings.
-              </p>
+            <p className="text-xs text-violet-700"><strong>HTTP:</strong>{" "}
+              <code className="bg-violet-100 px-1 rounded font-mono text-[10px]">{httpUrl}</code>
+            </p>
+            {hasAuth ? (
+              <p className="text-xs text-violet-600">Auth key shown above is your actual key — keep it secret.</p>
             ) : (
-              <p className="text-xs text-gray-400">
-                No auth key — server is public. Add one in settings for security.
-              </p>
+              <p className="text-xs text-gray-400">No auth key — server is public. Add one in settings for security.</p>
             )}
           </div>
         </div>
