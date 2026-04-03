@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       page_count: body.page_count || 1,
       status: "draft",
       org_id: ctx.orgId,
+      extracted_text: body.extracted_text ?? null,
     })
     .select()
     .single();

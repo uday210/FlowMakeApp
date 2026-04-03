@@ -209,7 +209,7 @@ export default function DocumentsPage() {
       const docRes = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: file.name.replace(/\.pdf$/i, ""), file_path: uploadData.file_path, file_url: uploadData.file_url, page_count: 1 }),
+        body: JSON.stringify({ name: file.name.replace(/\.pdf$/i, ""), file_path: uploadData.file_path, file_url: uploadData.file_url, page_count: 1, extracted_text: uploadData.extracted_text ?? "" }),
       });
       const doc = await docRes.json();
       if (!docRes.ok) throw new Error(doc.error || "Failed to create document");
