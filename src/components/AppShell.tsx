@@ -82,9 +82,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const handleLogout = async () => {
-    startNavProgress();
     await supabase.auth.signOut();
-    router.push("/auth/login");
+    window.location.href = "/auth/login";
   };
 
   const nav = roleLoaded ? (isSuperAdmin ? ADMIN_NAV : USER_NAV) : [];
