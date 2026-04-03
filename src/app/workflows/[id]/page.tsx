@@ -154,6 +154,7 @@ function HistoryTab({ workflowId }: { workflowId: string }) {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [rerunning, setRerunning] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -164,6 +165,18 @@ function HistoryTab({ workflowId }: { workflowId: string }) {
   }, [workflowId]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function handleRerun(e: Execution, ev: React.MouseEvent) {
+    ev.stopPropagation();
+    setRerunning(e.id);
+    await fetch(`/api/execute/${workflowId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trigger_data: e.trigger_data ?? {} }),
+    });
+    setRerunning(null);
+    load();
+  }
 
   if (loading) {
     return (
@@ -201,42 +214,45 @@ function HistoryTab({ workflowId }: { workflowId: string }) {
             return (
               <div key={e.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                 {/* Execution header */}
-                <button
-                  onClick={() => setExpanded(isOpen ? null : e.id)}
-                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
-                >
-                  {/* Expand indicator */}
-                  {isOpen
-                    ? <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
-                    : <ChevronRight size={14} className="text-gray-400 flex-shrink-0" />
-                  }
+                <div className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
+                  {/* Expand button (left side) */}
+                  <button
+                    onClick={() => setExpanded(isOpen ? null : e.id)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                  >
+                    {/* Expand indicator */}
+                    {isOpen
+                      ? <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
+                      : <ChevronRight size={14} className="text-gray-400 flex-shrink-0" />
+                    }
 
-                  {/* Status icon */}
-                  {e.status === "success" ? (
-                    <CheckCircle size={16} className="text-green-500 flex-shrink-0" />
-                  ) : e.status === "failed" ? (
-                    <XCircle size={16} className="text-red-400 flex-shrink-0" />
-                  ) : e.status === "running" ? (
-                    <Loader2 size={16} className="animate-spin text-blue-400 flex-shrink-0" />
-                  ) : (
-                    <MinusCircle size={16} className="text-gray-300 flex-shrink-0" />
-                  )}
+                    {/* Status icon */}
+                    {e.status === "success" ? (
+                      <CheckCircle size={16} className="text-green-500 flex-shrink-0" />
+                    ) : e.status === "failed" ? (
+                      <XCircle size={16} className="text-red-400 flex-shrink-0" />
+                    ) : e.status === "running" ? (
+                      <Loader2 size={16} className="animate-spin text-blue-400 flex-shrink-0" />
+                    ) : (
+                      <MinusCircle size={16} className="text-gray-300 flex-shrink-0" />
+                    )}
 
-                  {/* Run name */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800">
-                      {e.trigger_data && Object.keys(e.trigger_data).length > 0
-                        ? "Triggered with data" : "Manual run"}
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">
-                      {new Date(e.started_at).toLocaleString("en-US", {
-                        month: "short", day: "numeric", year: "numeric",
-                        hour: "2-digit", minute: "2-digit", second: "2-digit",
-                      })}
-                    </p>
-                  </div>
+                    {/* Run name */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">
+                        {e.trigger_data && Object.keys(e.trigger_data).length > 0
+                          ? "Triggered with data" : "Manual run"}
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        {new Date(e.started_at).toLocaleString("en-US", {
+                          month: "short", day: "numeric", year: "numeric",
+                          hour: "2-digit", minute: "2-digit", second: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </button>
 
-                  {/* Stats row */}
+                  {/* Stats + Re-run (right side) */}
                   <div className="flex items-center gap-4 flex-shrink-0">
                     <div className="text-center">
                       <p className="text-[10px] text-gray-400">Nodes</p>
@@ -252,8 +268,20 @@ function HistoryTab({ workflowId }: { workflowId: string }) {
                       e.status === "running" ? "bg-blue-50 text-blue-500 border-blue-200" :
                       "bg-gray-50 text-gray-400 border-gray-200"
                     }`}>{e.status}</span>
+                    <button
+                      onClick={(ev) => handleRerun(e, ev)}
+                      disabled={rerunning === e.id}
+                      title="Re-run with same trigger data"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-gray-100 hover:bg-violet-100 text-gray-500 hover:text-violet-600 transition-colors disabled:opacity-50"
+                    >
+                      {rerunning === e.id
+                        ? <Loader2 size={11} className="animate-spin" />
+                        : <RotateCcw size={11} />
+                      }
+                      Re-run
+                    </button>
                   </div>
-                </button>
+                </div>
 
                 {/* Trigger data (always shown when expanded) */}
                 {isOpen && (
