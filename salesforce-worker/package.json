@@ -1,0 +1,21 @@
+{
+  "name": "salesforce-worker",
+  "version": "1.0.0",
+  "description": "Persistent Salesforce Streaming API worker for Platform Events and CDC",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.47.0",
+    "jsforce": "^1.11.1"
+  },
+  "devDependencies": {
+    "@types/jsforce": "^1.11.5",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}
