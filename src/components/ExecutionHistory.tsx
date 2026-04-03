@@ -137,12 +137,13 @@ function ExecutionRow({ execution, onRerun }: { execution: Execution; onRerun: (
           onClick={handleRerun}
           disabled={rerunning}
           title="Re-run with same trigger data"
-          className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-violet-600 transition-colors flex-shrink-0 disabled:opacity-50"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium bg-gray-100 hover:bg-violet-100 text-gray-500 hover:text-violet-600 transition-colors flex-shrink-0 disabled:opacity-50"
         >
           {rerunning
-            ? <Loader2 size={12} className="animate-spin" />
-            : <RotateCcw size={12} />
+            ? <Loader2 size={10} className="animate-spin" />
+            : <RotateCcw size={10} />
           }
+          Re-run
         </button>
 
         {/* Expand toggle */}

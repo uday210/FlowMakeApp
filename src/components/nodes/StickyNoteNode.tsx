@@ -6,14 +6,18 @@ import { type NodeProps, useReactFlow } from "@xyflow/react";
 export default function StickyNoteNode({ id, data, selected }: NodeProps) {
   const text = (data as Record<string, unknown>).text as string ?? "";
   const [editing, setEditing] = useState(false);
-  const { updateNodeData } = useReactFlow();
+  const { setNodes } = useReactFlow();
 
-  const handleBlur = useCallback(
-    (e: React.FocusEvent<HTMLTextAreaElement>) => {
-      updateNodeData(id, { text: e.target.value });
+  const save = useCallback(
+    (value: string) => {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === id ? { ...n, data: { ...n.data, text: value, config: { ...(n.data as Record<string, unknown>).config as object, text: value } } } : n
+        )
+      );
       setEditing(false);
     },
-    [id, updateNodeData]
+    [id, setNodes]
   );
 
   return (
@@ -21,34 +25,39 @@ export default function StickyNoteNode({ id, data, selected }: NodeProps) {
       onDoubleClick={() => setEditing(true)}
       style={{
         width: 200,
-        minHeight: 100,
-        background: "#fef9c3",
+        minHeight: 120,
+        background: "#fef08a",
         border: selected ? "2px solid #ca8a04" : "1.5px solid #fde047",
-        borderRadius: 8,
-        padding: 10,
+        borderRadius: 4,
+        padding: "28px 12px 12px",
         boxShadow: selected
-          ? "0 4px 16px rgba(202,138,4,0.18)"
-          : "0 2px 8px rgba(0,0,0,0.08)",
-        fontFamily: "inherit",
-        cursor: editing ? "text" : "grab",
+          ? "4px 4px 16px rgba(202,138,4,0.25)"
+          : "3px 3px 10px rgba(0,0,0,0.12)",
         position: "relative",
+        cursor: editing ? "text" : "grab",
       }}
     >
-      {/* Folded corner decoration */}
+      {/* Top bar like a real sticky note */}
       <div style={{
-        position: "absolute", top: 0, right: 0,
-        width: 0, height: 0,
-        borderStyle: "solid",
-        borderWidth: "0 14px 14px 0",
-        borderColor: "transparent #fde047 transparent transparent",
-        borderRadius: "0 8px 0 0",
-      }} />
+        position: "absolute",
+        top: 0, left: 0, right: 0,
+        height: 22,
+        background: "#fde047",
+        borderRadius: "3px 3px 0 0",
+        display: "flex",
+        alignItems: "center",
+        paddingLeft: 8,
+      }}>
+        <span style={{ fontSize: 9, color: "#92400e", fontWeight: 600, letterSpacing: "0.05em", userSelect: "none" }}>
+          NOTE {editing ? "— click outside to save" : "— double-click to edit"}
+        </span>
+      </div>
 
       {editing ? (
         <textarea
           autoFocus
           defaultValue={text}
-          onBlur={handleBlur}
+          onBlur={(e) => save(e.target.value)}
           onClick={(e) => e.stopPropagation()}
           style={{
             width: "100%",
@@ -59,19 +68,20 @@ export default function StickyNoteNode({ id, data, selected }: NodeProps) {
             resize: "none",
             fontFamily: "inherit",
             fontSize: 12,
-            color: "#713f12",
-            lineHeight: 1.5,
+            color: "#78350f",
+            lineHeight: 1.6,
           }}
         />
       ) : (
         <p style={{
           fontSize: 12,
-          color: text ? "#713f12" : "#a16207",
+          color: text ? "#78350f" : "#a16207",
           whiteSpace: "pre-wrap",
           wordBreak: "break-word",
           margin: 0,
           minHeight: 80,
-          lineHeight: 1.5,
+          lineHeight: 1.6,
+          userSelect: "none",
         }}>
           {text || "Double-click to add a note…"}
         </p>

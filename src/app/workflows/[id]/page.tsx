@@ -384,7 +384,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
       .then(r => r.json())
       .then((data: Workflow) => {
         setWorkflow(data);
-        setNodes(((data.nodes as unknown as Node[]) || []).map(n => ({ ...n, type: "workflowNode" })));
+        setNodes(((data.nodes as unknown as Node[]) || []).map(n => ({ ...n, type: n.type ?? "workflowNode" })));
         setEdges((data.edges as unknown as Edge[]) || []);
       })
       .finally(() => setLoading(false));
@@ -515,7 +515,7 @@ export default function WorkflowEditor({ params }: { params: Promise<{ id: strin
       const version = await res.json();
       const snapshot = version.snapshot as { nodes?: unknown[]; edges?: unknown[] };
       const restoredNodes = snapshot.nodes
-        ? (snapshot.nodes as Node[]).map(n => ({ ...n, type: "workflowNode" }))
+        ? (snapshot.nodes as Node[]).map(n => ({ ...n, type: n.type ?? "workflowNode" }))
         : nodes;
       const restoredEdges = (snapshot.edges as Edge[]) ?? edges;
       // Update page state
