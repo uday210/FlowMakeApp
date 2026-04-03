@@ -62,6 +62,24 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const ctx = await getOrgContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Check if any workflow in this org references this connection
+  const { data: workflows } = await ctx.admin
+    .from("workflows")
+    .select("id, name, nodes")
+    .eq("org_id", ctx.orgId);
+
+  type WFNode = { data?: { config?: { connectionId?: string } } };
+  const referenced = (workflows ?? []).filter((wf) =>
+    Array.isArray(wf.nodes) && (wf.nodes as WFNode[]).some((n) => n?.data?.config?.connectionId === id)
+  );
+
+  if (referenced.length > 0) {
+    return NextResponse.json(
+      { error: "in_use", workflows: referenced.map((w) => ({ id: w.id, name: w.name })) },
+      { status: 409 }
+    );
+  }
+
   const { error } = await ctx.admin
     .from("connections")
     .delete()

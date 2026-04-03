@@ -296,6 +296,7 @@ function ConnectionsPageInner() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const [inUseModal, setInUseModal] = useState<{ connName: string; workflows: { id: string; name: string }[] } | null>(null);
 
   const selectedService = SERVICE_TYPES.find((s) => s.value === form.type) ?? SERVICE_TYPES[0];
   const filteredServices = serviceSearch
@@ -356,10 +357,14 @@ function ConnectionsPageInner() {
     }
   };
 
-  const del = async (id: string) => {
-    if (!confirm("Remove this connection?")) return;
-    await fetch(`/api/connections/${id}`, { method: "DELETE" });
-    setConnections((c) => c.filter((x) => x.id !== id));
+  const del = async (conn: Connection) => {
+    const res = await fetch(`/api/connections/${conn.id}`, { method: "DELETE" });
+    if (res.status === 409) {
+      const body = await res.json();
+      setInUseModal({ connName: conn.name, workflows: body.workflows ?? [] });
+      return;
+    }
+    if (res.ok) setConnections((c) => c.filter((x) => x.id !== conn.id));
   };
 
   const startRename = (conn: Connection) => {
@@ -614,7 +619,7 @@ function ConnectionsPageInner() {
                           </span>
                         )}
                         <button
-                          onClick={() => del(conn.id)}
+                          onClick={() => del(conn)}
                           className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 size={13} />
@@ -628,6 +633,44 @@ function ConnectionsPageInner() {
           </div>
         )}
       </main>
+
+      {/* In-use modal */}
+      {inUseModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle size={18} className="text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Connection in use</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  <span className="font-medium text-gray-700">{inUseModal.connName}</span> is referenced in the following scenario{inUseModal.workflows.length !== 1 ? "s" : ""}. Remove it from those scenarios first.
+                </p>
+              </div>
+            </div>
+            <ul className="space-y-1.5 mb-5">
+              {inUseModal.workflows.map((wf) => (
+                <li key={wf.id}>
+                  <a
+                    href={`/scenarios/${wf.id}`}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-xs font-medium text-violet-700 hover:bg-violet-50 transition-colors"
+                  >
+                    <Zap size={11} className="flex-shrink-0" />
+                    {wf.name || "Untitled scenario"}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => setInUseModal(null)}
+              className="w-full py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
