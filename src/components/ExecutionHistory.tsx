@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { Execution, ExecutionLog } from "@/lib/types";
 import {
   CheckCircle, XCircle, Loader2, Clock, ChevronDown,
-  ChevronRight, X, RefreshCw, AlertCircle, MinusCircle, RotateCcw,
+  ChevronRight, X, RefreshCw, AlertCircle, MinusCircle,
 } from "lucide-react";
 
 function duration(e: Execution) {
@@ -75,19 +75,11 @@ function LogRow({ log }: { log: ExecutionLog }) {
   );
 }
 
-function ExecutionRow({ execution, onRerun }: { execution: Execution; onRerun: (e: Execution) => void }) {
+function ExecutionRow({ execution }: { execution: Execution }) {
   const [open, setOpen] = useState(false);
-  const [rerunning, setRerunning] = useState(false);
   const logs: ExecutionLog[] = execution.logs ?? [];
   const successCount = logs.filter((l) => l.status === "success").length;
   const errorCount = logs.filter((l) => l.status === "error").length;
-
-  async function handleRerun(ev: React.MouseEvent) {
-    ev.stopPropagation();
-    setRerunning(true);
-    await onRerun(execution);
-    setRerunning(false);
-  }
 
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden">
@@ -130,20 +122,6 @@ function ExecutionRow({ execution, onRerun }: { execution: Execution; onRerun: (
           <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
             <Clock size={9} /> {timeAgo(execution.started_at)}
           </p>
-        </button>
-
-        {/* Re-run button */}
-        <button
-          onClick={handleRerun}
-          disabled={rerunning}
-          title="Re-run with same trigger data"
-          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium bg-gray-100 hover:bg-violet-100 text-gray-500 hover:text-violet-600 transition-colors flex-shrink-0 disabled:opacity-50"
-        >
-          {rerunning
-            ? <Loader2 size={10} className="animate-spin" />
-            : <RotateCcw size={10} />
-          }
-          Re-run
         </button>
 
         {/* Expand toggle */}
@@ -205,15 +183,6 @@ export default function ExecutionHistory({ workflowId, onClose }: Props) {
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, [load]);
-
-  async function handleRerun(execution: Execution) {
-    await fetch(`/api/execute/${workflowId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ trigger_data: execution.trigger_data ?? {} }),
-    });
-    load();
-  }
 
   const filtered = statusFilter === "all"
     ? executions
@@ -281,7 +250,7 @@ export default function ExecutionHistory({ workflowId, onClose }: Props) {
             <p className="text-[10px] text-gray-300 mt-1">Run the workflow to see logs here.</p>
           </div>
         ) : (
-          filtered.map((e) => <ExecutionRow key={e.id} execution={e} onRerun={handleRerun} />)
+          filtered.map((e) => <ExecutionRow key={e.id} execution={e} />)
         )}
       </div>
     </div>
