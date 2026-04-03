@@ -86,16 +86,15 @@ export async function GET(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, e]) => ({ date, calls: e.calls, errors: e.errors }));
 
+  // Build calls_by_tool map expected by the frontend
+  const calls_by_tool: Record<string, number> = {};
+  for (const t of by_tool) calls_by_tool[t.tool_name] = t.calls;
+
   return NextResponse.json({
-    summary: {
-      total_calls,
-      success_calls,
-      error_calls,
-      error_rate: parseFloat(error_rate.toFixed(4)),
-      avg_duration_ms,
-      p95_duration_ms,
-    },
-    by_tool,
-    by_day,
+    total_calls,
+    error_rate: parseFloat(error_rate.toFixed(4)),
+    avg_duration_ms,
+    calls_by_tool,
+    calls_by_day: by_day,
   });
 }
