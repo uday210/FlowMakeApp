@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
   const go = (path: string) => NextResponse.redirect(`${appUrl}${path}`);
 
   if (error || !code || !state) {
-    return go("/connections?error=airtable_oauth_failed");
+    const desc = url.searchParams.get("error_description") ?? error ?? "missing_code";
+    console.error("[airtable/callback] OAuth error:", error, desc);
+    return go(`/connections?error=${encodeURIComponent(desc)}`);
   }
 
   let orgId: string;
