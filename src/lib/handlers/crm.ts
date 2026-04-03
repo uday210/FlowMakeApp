@@ -500,14 +500,14 @@ export const handlers: Record<string, NodeHandler> = {
       // Support array of objects (batch) or single object
       if (Array.isArray(parsed)) {
         const records = parsed.map((f) => ({ fields: f as Record<string, unknown> }));
-        const res = await fetch(atBase, { method: "POST", headers: atHeaders, body: JSON.stringify({ records }) });
+        const res = await fetch(atBase, { method: "POST", headers: atHeaders, body: JSON.stringify({ records, typecast: true }) });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+        if (!res.ok) throw new Error(data.error?.message || JSON.stringify(data.error) || `Airtable ${res.status}`);
         return { records: data.records, count: data.records?.length };
       } else {
-        const res = await fetch(atBase, { method: "POST", headers: atHeaders, body: JSON.stringify({ fields: parsed }) });
+        const res = await fetch(atBase, { method: "POST", headers: atHeaders, body: JSON.stringify({ fields: parsed, typecast: true }) });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || `Airtable ${res.status}`);
+        if (!res.ok) throw new Error(data.error?.message || JSON.stringify(data.error) || `Airtable ${res.status}`);
         return { record_id: data.id, fields: data.fields };
       }
     } else if (atAction === "list_records") {
