@@ -6,7 +6,7 @@ import {
   Globe, Plus, Trash2, X, Loader2, Copy, Check,
   BarChart2, Users, MousePointer, TrendingUp, ExternalLink,
   Monitor, Smartphone, Tablet, RefreshCw, ChevronDown, ChevronRight,
-  Clock, Languages, Cpu, List, Zap,
+  Clock, Languages, Cpu, List, Zap, Filter, ArrowRight,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -501,6 +501,253 @@ window.waTrack("checkout_start", { amount: 49 });
   );
 }
 
+// ─── Funnels ─────────────────────────────────────────────────────────────────
+
+interface FunnelStep { type: "page" | "event"; value: string; label: string; }
+interface Funnel { id: string; name: string; steps: FunnelStep[]; created_at: string; }
+interface FunnelStepData { label: string; type: string; value: string; sessions: number; pct_of_total: number; drop_pct: number; }
+interface FunnelData { funnel: { id: string; name: string }; steps: FunnelStepData[]; total_entered: number; conversion_rate: number; days: number; }
+
+function CreateFunnelModal({ siteId, onClose, onCreated }: { siteId: string; onClose: () => void; onCreated: (f: Funnel) => void }) {
+  const [name, setName] = useState("");
+  const [steps, setSteps] = useState<FunnelStep[]>([
+    { type: "page", value: "", label: "" },
+    { type: "page", value: "", label: "" },
+  ]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const setStep = (i: number, patch: Partial<FunnelStep>) =>
+    setSteps(s => s.map((st, idx) => idx === i ? { ...st, ...patch } : st));
+
+  const submit = async () => {
+    if (!name.trim()) { setError("Name required"); return; }
+    if (steps.some(s => !s.value.trim())) { setError("All steps need a value"); return; }
+    setSaving(true);
+    setError("");
+    const res = await fetch(`/api/web-analytics/sites/${siteId}/funnels`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), steps: steps.map(s => ({ ...s, label: s.label || s.value })) }),
+    });
+    setSaving(false);
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? "Failed"); return; }
+    onCreated(await res.json());
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-gray-900">Create funnel</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-gray-700 block mb-1">Funnel name</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Signup funnel"
+              className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500" />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-700 block mb-2">Steps (in order)</label>
+            <div className="space-y-2">
+              {steps.map((step, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-[10px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                  <select value={step.type} onChange={e => setStep(i, { type: e.target.value as "page" | "event" })}
+                    className="text-xs px-2 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 flex-shrink-0">
+                    <option value="page">Page</option>
+                    <option value="event">Event</option>
+                  </select>
+                  <input value={step.value} onChange={e => setStep(i, { value: e.target.value })}
+                    placeholder={step.type === "page" ? "/pricing" : "signup_clicked"}
+                    className="flex-1 text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-500 font-mono" />
+                  <input value={step.label} onChange={e => setStep(i, { label: e.target.value })}
+                    placeholder="Label (optional)"
+                    className="w-28 text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-500" />
+                  {steps.length > 2 && (
+                    <button onClick={() => setSteps(s => s.filter((_, idx) => idx !== i))} className="text-gray-300 hover:text-red-400 flex-shrink-0">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setSteps(s => [...s, { type: "page", value: "", label: "" }])}
+              className="mt-2 text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1">
+              <Plus size={12} /> Add step
+            </button>
+          </div>
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+        </div>
+
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+          <button onClick={submit} disabled={saving}
+            className="flex-1 py-2 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
+            {saving ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : "Create funnel"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FunnelDetail({ funnel, siteId, onDelete }: { funnel: Funnel; siteId: string; onDelete: () => void }) {
+  const [data, setData] = useState<FunnelData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(30);
+  const [deleting, setDeleting] = useState(false);
+
+  const load = useCallback((d: number) => {
+    setLoading(true);
+    fetch(`/api/web-analytics/sites/${siteId}/funnels/${funnel.id}/data?days=${d}`)
+      .then(r => r.json()).then(setData).finally(() => setLoading(false));
+  }, [siteId, funnel.id]);
+
+  useEffect(() => { load(days); }, [load, days]);
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete "${funnel.name}"?`)) return;
+    setDeleting(true);
+    await fetch(`/api/web-analytics/sites/${siteId}/funnels/${funnel.id}`, { method: "DELETE" });
+    onDelete();
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">{funnel.name}</p>
+          {data && <p className="text-[10px] text-gray-400 mt-0.5">{data.total_entered} entered · {data.conversion_rate}% converted · last {days}d</p>}
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={days} onChange={e => { setDays(Number(e.target.value)); load(Number(e.target.value)); }}
+            className="text-xs px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none">
+            <option value={7}>7 days</option>
+            <option value={30}>30 days</option>
+            <option value={90}>90 days</option>
+          </select>
+          <button onClick={handleDelete} disabled={deleting} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors">
+            {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-300" size={22} /></div>
+      ) : !data || data.steps.length === 0 ? (
+        <p className="text-xs text-gray-400 text-center py-8">No data yet for this funnel</p>
+      ) : (
+        <div className="p-4 space-y-2">
+          {data.steps.map((step, i) => {
+            const pct = step.pct_of_total;
+            const isLast = i === data.steps.length - 1;
+            return (
+              <div key={i}>
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-[10px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`text-[9px] px-1 py-0.5 rounded font-medium flex-shrink-0 ${step.type === "page" ? "bg-blue-50 text-blue-500" : "bg-green-50 text-green-600"}`}>
+                          {step.type}
+                        </span>
+                        <span className="text-[11px] font-medium text-gray-700 truncate">{step.label}</span>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                        {i > 0 && step.drop_pct > 0 && (
+                          <span className="text-[10px] text-red-400">-{step.drop_pct}%</span>
+                        )}
+                        <span className="text-[11px] font-bold text-gray-800">{fmt(step.sessions)}</span>
+                        <span className="text-[10px] text-gray-400 w-8 text-right">{pct}%</span>
+                      </div>
+                    </div>
+                    <div className="h-6 bg-gray-100 rounded-lg overflow-hidden">
+                      <div
+                        className="h-full rounded-lg transition-all duration-500"
+                        style={{
+                          width: `${pct}%`,
+                          background: isLast
+                            ? "linear-gradient(90deg,#7c3aed,#ec4899)"
+                            : `hsl(${260 - i * 20},70%,${60 - i * 3}%)`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                {!isLast && (
+                  <div className="flex items-center ml-8 my-0.5">
+                    <ArrowRight size={10} className="text-gray-300" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FunnelsView({ siteId }: { siteId: string }) {
+  const [funnels, setFunnels] = useState<Funnel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(`/api/web-analytics/sites/${siteId}/funnels`)
+      .then(r => r.json()).then(d => setFunnels(Array.isArray(d) ? d : [])).finally(() => setLoading(false));
+  }, [siteId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-500">{funnels.length} funnel{funnels.length !== 1 ? "s" : ""}</p>
+        <button onClick={() => setShowCreate(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors">
+          <Plus size={12} /> New funnel
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-300" size={24} /></div>
+      ) : funnels.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+          <Filter size={28} className="text-gray-200 mx-auto mb-3" />
+          <p className="text-sm font-medium text-gray-600 mb-1">No funnels yet</p>
+          <p className="text-xs text-gray-400 mb-4">Track how users move through key steps on your site</p>
+          <button onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+            <Plus size={12} /> Create your first funnel
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {funnels.map(f => (
+            <FunnelDetail key={f.id} funnel={f} siteId={siteId} onDelete={() => setFunnels(fs => fs.filter(x => x.id !== f.id))} />
+          ))}
+        </div>
+      )}
+
+      {showCreate && (
+        <CreateFunnelModal
+          siteId={siteId}
+          onClose={() => setShowCreate(false)}
+          onCreated={f => { setFunnels(fs => [f, ...fs]); }}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Dashboard view for a single site ────────────────────────────────────────
 
 function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
@@ -508,7 +755,7 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
   const [showScript, setShowScript] = useState(false);
-  const [tab, setTab] = useState<"overview" | "sessions" | "events">("overview");
+  const [tab, setTab] = useState<"overview" | "sessions" | "events" | "funnels">("overview");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -570,6 +817,7 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
           { key: "overview", label: "Overview", icon: <BarChart2 size={11} /> },
           { key: "sessions", label: "Sessions",  icon: <List size={11} /> },
           { key: "events",   label: "Events",    icon: <Zap size={11} /> },
+          { key: "funnels",  label: "Funnels",   icon: <Filter size={11} /> },
         ] as const).map(({ key, label, icon }) => (
           <button
             key={key}
@@ -591,6 +839,8 @@ function SiteDashboard({ site, onBack }: { site: Site; onBack: () => void }) {
         ) : (
           <EventsView events={stats?.custom_events ?? []} siteKey={site.script_key} />
         )
+      ) : tab === "funnels" ? (
+        <FunnelsView siteId={site.id} />
       ) : loading ? (
         <div className="flex items-center justify-center py-24">
           <Loader2 className="animate-spin text-gray-300" size={32} />
