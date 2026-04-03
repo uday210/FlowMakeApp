@@ -4,36 +4,33 @@ import { createServerClient } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 // Simple text extraction from PDF byte stream — works for text-based PDFs
-// without any native dependencies. Finds BT/ET blocks and string operands.
 function extractTextFromPdf(buffer: Buffer): string {
-  const str = buffer.toString("latin1");
-  const chunks: string[] = [];
+  try {
+    const str = buffer.toString("latin1");
+    const chunks: string[] = [];
 
-  // Extract strings between BT (begin text) and ET (end text) markers
-  const btEt = /BT[\s\S]*?ET/g;
-  let block: RegExpExecArray | null;
-  while ((block = btEt.exec(str)) !== null) {
-    // Match PDF string literals: (text) and hex strings <hex>
-    const strLit = /\(([^)\\]*(?:\\.[^)\\]*)*)\)|<([0-9A-Fa-f]+)>/g;
+    // Find all literal strings inside parentheses — simplest reliable approach
+    // Skips BT/ET parsing entirely to avoid regex catastrophic backtracking
+    const re = /\(([^)]{1,500})\)/g;
     let m: RegExpExecArray | null;
-    while ((m = strLit.exec(block[0])) !== null) {
-      if (m[1] !== undefined) {
-        // Decode common PDF escape sequences
-        chunks.push(m[1].replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\t/g, "\t").replace(/\\\\/g, "\\").replace(/\\(.)/g, "$1"));
-      } else if (m[2]) {
-        // Hex string — decode pairs of hex digits to chars
-        const hex = m[2];
-        let decoded = "";
-        for (let i = 0; i < hex.length - 1; i += 2) {
-          const code = parseInt(hex.slice(i, i + 2), 16);
-          if (code > 31) decoded += String.fromCharCode(code);
-        }
-        if (decoded) chunks.push(decoded);
-      }
+    while ((m = re.exec(str)) !== null) {
+      try {
+        // Replace only safe escape sequences, drop anything unusual
+        const text = m[1]
+          .replace(/\\n/g, " ")
+          .replace(/\\r/g, " ")
+          .replace(/\\t/g, " ")
+          .replace(/\\\\/g, "\\")
+          .replace(/\\[^\\nrt]/g, "") // drop unknown escapes
+          .replace(/[^\x20-\x7E]/g, ""); // keep only printable ASCII
+        if (text.trim().length > 1) chunks.push(text.trim());
+      } catch { /* skip malformed string */ }
     }
-  }
 
-  return chunks.join(" ").replace(/\s+/g, " ").trim();
+    return chunks.join(" ").replace(/\s+/g, " ").trim();
+  } catch {
+    return "";
+  }
 }
 
 export async function POST(request: Request) {
