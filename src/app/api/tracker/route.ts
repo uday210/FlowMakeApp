@@ -100,34 +100,14 @@ export async function GET(request: Request) {
   history.pushState=function(){sendDuration();_push.apply(this,arguments);resetTimer();send("pageview");};
   window.addEventListener("popstate",function(){sendDuration();resetTimer();send("pageview");});
 
-  // Click tracking — capture phase, walks up to 6 ancestors, tracks any clickable element
+  // Click tracking — fire on every click, no filtering
   document.addEventListener("click",function(e){
     try{
-      var cur=e.target;
-      for(var i=0;i<6;i++){
-        if(!cur||cur===document||cur===document.body)break;
-        var tag=(cur.tagName||"").toLowerCase();
-        // Outbound link
-        if(tag==="a"){
-          if(cur.href&&cur.hostname&&cur.hostname!==location.hostname){
-            send("click",{element:"link",name:((cur.innerText||"").trim()||cur.href).slice(0,100),target:cur.href,page:location.pathname});
-          }
-          return;
-        }
-        // Any element — pick best available name
-        var dt=cur.getAttribute?cur.getAttribute("data-track")||"":"";
-        var al=cur.getAttribute?cur.getAttribute("aria-label")||cur.getAttribute("title")||"":"";
-        var tx=(cur.innerText||cur.value||"").trim().replace(/\s+/g," ").slice(0,80);
-        var eid=cur.id||"";
-        var role=cur.getAttribute?cur.getAttribute("role")||"":"";
-        var isBtn=tag==="button"||(tag==="input"&&(cur.type==="button"||cur.type==="submit"))||role==="button";
-        var name=dt||al||(isBtn?tx||eid||"button":"")||(tx.length>0&&tx.length<40?tx:"");
-        if(name){
-          send("click",{element:tag,name:name,page:location.pathname});
-          return;
-        }
-        cur=cur.parentElement;
-      }
+      var el=e.target;
+      var tag=el&&el.tagName?el.tagName.toLowerCase():"unknown";
+      var txt=(el&&(el.innerText||el.value||el.alt||el.getAttribute&&el.getAttribute("aria-label"))||"").toString().trim().replace(/\s+/g," ").slice(0,80);
+      var eid=el&&el.id?el.id:"";
+      send("click",{element:tag,name:txt||eid||tag,page:location.pathname});
     }catch(err){}
   },true);
 
