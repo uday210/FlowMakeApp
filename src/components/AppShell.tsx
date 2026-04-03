@@ -176,7 +176,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {sections.map((section) => (
             <div key={section.label}>
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/30 px-2 mb-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-white/55 px-2 mb-1.5">
                 {section.label}
               </p>
               <div className="space-y-0.5">
