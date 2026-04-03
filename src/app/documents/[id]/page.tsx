@@ -82,6 +82,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
   const [watermarkText, setWatermarkText] = useState<string | null>(null);
   const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
   const [watermarking, setWatermarking]   = useState(false);
+  const [pdfKey, setPdfKey]               = useState(0);
   const [showStatus, setShowStatus]       = useState(false);
   const [sendSuccess, setSendSuccess]     = useState<{ email: string; url: string | null; order: number }[]>([]);
   const [copiedId, setCopiedId]           = useState<string | null>(null);
@@ -288,8 +289,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     if (res.ok) {
       const data = await res.json();
       setWatermarkText(data.watermark_text);
-      // Reload doc so PDF viewer picks up new file_url
-      load();
+      setPdfKey(k => k + 1);
     }
     setWatermarking(false);
   };
@@ -299,7 +299,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
     const res = await fetch(`/api/documents/${id}/watermark`, { method: "DELETE" });
     if (res.ok) {
       setWatermarkText(null);
-      load();
+      setPdfKey(k => k + 1);
     }
     setWatermarking(false);
   };
@@ -934,7 +934,7 @@ export default function DocumentEditor({ params }: { params: Promise<{ id: strin
           {!showStatus && (
             <div className="flex-1 overflow-auto">
               <PDFEditorCanvas
-                fileUrl={`/api/documents/${id}/pdf`}
+                fileUrl={`/api/documents/${id}/pdf?v=${pdfKey}`}
                 fields={fields}
                 activeTool={activeTool}
                 selectedField={selectedField}

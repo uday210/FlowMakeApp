@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     headers: {
       "Content-Type": "application/pdf",
       "Content-Length": String(buffer.byteLength),
-      "Cache-Control": "private, max-age=300",
+      "Cache-Control": "private, no-cache",
     },
   });
 }
