@@ -176,6 +176,28 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
+    type: "trigger_mqtt",
+    label: "MQTT Subscribe",
+    description: "Trigger when a message is published to an MQTT topic",
+    category: "trigger",
+    color: "#660066",
+    icon: "Wifi",
+    defaultConfig: {
+      broker_url: "", client_id: "", username: "", password: "",
+      topic: "", qos: "0", poll_interval: "1", timeout: "5000",
+    },
+    configFields: [
+      { key: "broker_url", label: "Broker URL", type: "text", placeholder: "mqtt://broker.example.com:1883", required: true },
+      { key: "topic",      label: "Topic",      type: "text", placeholder: "sensors/temperature", required: true },
+      { key: "qos",        label: "QoS",        type: "select", options: [{ label: "0 — At most once", value: "0" }, { label: "1 — At least once", value: "1" }, { label: "2 — Exactly once", value: "2" }] },
+      { key: "client_id",  label: "Client ID (optional)",  type: "text", placeholder: "flowmake-trigger" },
+      { key: "username",   label: "Username (optional)",   type: "text", placeholder: "" },
+      { key: "password",   label: "Password (optional)",   type: "password", placeholder: "" },
+      { key: "poll_interval", label: "Poll every (minutes)", type: "number", placeholder: "1" },
+      { key: "timeout",    label: "Subscribe timeout (ms)", type: "number", placeholder: "5000" },
+    ],
+  },
+  {
     type: "trigger_salesforce",
     label: "Salesforce Trigger",
     description: "Trigger when a record is created or updated in Salesforce",

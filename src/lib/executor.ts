@@ -89,6 +89,8 @@ async function executeNodeOnce(
       // Salesforce streaming — worker delivers payload via /api/execute, pass straight through
       "trigger_salesforce_cdc",
       "trigger_salesforce_platform_event",
+      // MQTT — scheduler polls broker and delivers payload directly
+      "trigger_mqtt",
     ]);
 
     if (passThroughTriggers.has(type)) {

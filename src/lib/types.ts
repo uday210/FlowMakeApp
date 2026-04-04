@@ -9,6 +9,7 @@ export type NodeType =
   | "trigger_form"
   | "trigger_email_inbound"
   | "trigger_rss_poll"
+  | "trigger_mqtt"
   | "action_http"
   | "action_email"
   | "action_slack"
