@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import AppShell, { PageHeader } from "@/components/AppShell";
 import type { UserTable, UserTableColumn } from "@/lib/types";
+import { useRouter } from "next/navigation";
 import {
   Plus, Trash2, Table2, Loader2, ChevronRight, ChevronDown,
   Settings2, X, Check, RefreshCw, Copy, Database,
@@ -615,10 +616,10 @@ function TableCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function TablesPage() {
+  const router = useRouter();
   const [tables, setTables] = useState<UserTable[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ mode: "create" | "edit"; table?: UserTable } | null>(null);
-  const [viewingRows, setViewingRows] = useState<UserTable | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -703,7 +704,7 @@ export default function TablesPage() {
                 table={table}
                 onEdit={() => setModal({ mode: "edit", table })}
                 onDelete={() => handleDelete(table.id)}
-                onViewRows={() => setViewingRows(table)}
+                onViewRows={() => router.push(`/tables/${table.id}`)}
               />
             ))}
             <button
@@ -725,12 +726,6 @@ export default function TablesPage() {
         />
       )}
 
-      {viewingRows && (
-        <TableRows
-          table={viewingRows}
-          onClose={() => setViewingRows(null)}
-        />
-      )}
     </AppShell>
   );
 }

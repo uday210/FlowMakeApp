@@ -51,6 +51,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json(data, { status: 201 });
 }
 
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const owned = await verifyTableOwnership(id, ctx.orgId, ctx.admin);
+  if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const url = new URL(req.url);
+  const rowId = url.searchParams.get("rowId");
+  if (!rowId) return NextResponse.json({ error: "rowId required" }, { status: 400 });
+
+  const body = await req.json();
+  const { data, error } = await ctx.admin
+    .from("user_table_rows")
+    .update({ data: body.data })
+    .eq("id", rowId)
+    .eq("table_id", id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const ctx = await getOrgContext();

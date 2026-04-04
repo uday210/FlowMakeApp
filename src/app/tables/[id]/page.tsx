@@ -1,0 +1,930 @@
+"use client";
+
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import AppShell from "@/components/AppShell";
+import type { UserTable, UserTableColumn } from "@/lib/types";
+import {
+  ArrowLeft, Plus, Trash2, Search, Download, Upload,
+  ChevronUp, ChevronDown, X, Loader2, Settings2,
+  Maximize2, Check, AlertCircle, Filter, SortAsc,
+  Type, Hash, Calendar, ToggleLeft, Braces, Link2,
+  ChevronsUpDown, RefreshCw,
+} from "lucide-react";
+
+// ─── Types ───���────────────────────────────────────────────────────────────────
+
+type Row = { id: string; data: Record<string, unknown>; created_at: string };
+
+type SortConfig = { col: string; dir: "asc" | "desc" } | null;
+type FilterConfig = { col: string; op: "contains" | "equals" | "not_empty" | "empty"; value: string } | null;
+
+// ─── Column type icon ─────────────────────────────────────────────────────────
+
+function ColTypeIcon({ type }: { type: string }) {
+  const cls = "text-gray-400 flex-shrink-0";
+  const props = { size: 12, className: cls };
+  switch (type) {
+    case "number":  return <Hash {...props} />;
+    case "boolean": return <ToggleLeft {...props} />;
+    case "date":    return <Calendar {...props} />;
+    case "json":    return <Braces {...props} />;
+    case "url":     return <Link2 {...props} />;
+    default:        return <Type {...props} />;
+  }
+}
+
+const COL_WIDTHS: Record<string, number> = {
+  text: 200, number: 120, boolean: 100, date: 140, json: 220, url: 180,
+};
+
+// ─── Cell display value ──���────────────────────────────────────────────────────
+
+function CellDisplay({ value, type }: { value: unknown; type: string }) {
+  if (value === null || value === undefined || value === "") {
+    return <span className="text-gray-300">—</span>;
+  }
+  if (type === "boolean") {
+    return (
+      <span className={`inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded ${value ? "bg-green-50 text-green-600" : "bg-red-50 text-red-400"}`}>
+        {value ? <Check size={10} /> : <X size={10} />}
+        {String(value)}
+      </span>
+    );
+  }
+  if (type === "json") {
+    return <span className="font-mono text-xs text-gray-500 truncate">{JSON.stringify(value)}</span>;
+  }
+  return <span className="truncate">{String(value)}</span>;
+}
+
+// ─── Cell editor ─────────────────────────────────────────────────────────────
+
+function CellEditor({
+  value, type, onCommit, onCancel,
+}: {
+  value: unknown; type: string;
+  onCommit: (v: unknown) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState(
+    type === "json" ? JSON.stringify(value ?? "") : String(value ?? "")
+  );
+  const ref = useRef<HTMLInputElement & HTMLSelectElement & HTMLTextAreaElement>(null);
+
+  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+
+  const commit = () => {
+    let parsed: unknown = draft;
+    if (type === "number")  parsed = draft === "" ? null : Number(draft);
+    if (type === "boolean") parsed = draft === "true";
+    if (type === "json") { try { parsed = JSON.parse(draft); } catch { parsed = draft; } }
+    if (type === "date" && draft === "") parsed = null;
+    onCommit(parsed);
+  };
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && type !== "json") { e.preventDefault(); commit(); }
+    if (e.key === "Escape") onCancel();
+  };
+
+  if (type === "boolean") {
+    return (
+      <select
+        ref={ref as React.RefObject<HTMLSelectElement>}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={onKey}
+        className="w-full h-full px-2 text-xs outline-none bg-white"
+      >
+        <option value="true">true</option>
+        <option value="false">false</option>
+      </select>
+    );
+  }
+  if (type === "json") {
+    return (
+      <textarea
+        ref={ref as React.RefObject<HTMLTextAreaElement>}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={onKey}
+        rows={3}
+        className="w-full px-2 py-1 text-xs font-mono outline-none bg-white resize-none"
+      />
+    );
+  }
+  return (
+    <input
+      ref={ref as React.RefObject<HTMLInputElement>}
+      type={type === "number" ? "number" : type === "date" ? "date" : "text"}
+      value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={onKey}
+      className="w-full h-full px-2 text-xs outline-none bg-white"
+    />
+  );
+}
+
+// ─── Row expand panel ─────────────────────────────────────────────────────────
+
+function ExpandPanel({
+  row, columns, onClose, onSave,
+}: {
+  row: Row; columns: UserTableColumn[];
+  onClose: () => void;
+  onSave: (rowId: string, data: Record<string, unknown>) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<Record<string, string>>(() =>
+    Object.fromEntries(columns.map(c => [c.name, c.type === "json"
+      ? JSON.stringify(row.data[c.name] ?? "")
+      : String(row.data[c.name] ?? "")
+    ]))
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const typed: Record<string, unknown> = {};
+    for (const col of columns) {
+      const raw = draft[col.name];
+      if (raw === "" || raw === undefined) { typed[col.name] = null; continue; }
+      if (col.type === "number")  typed[col.name] = Number(raw);
+      else if (col.type === "boolean") typed[col.name] = raw === "true";
+      else if (col.type === "json") { try { typed[col.name] = JSON.parse(raw); } catch { typed[col.name] = raw; } }
+      else typed[col.name] = raw;
+    }
+    await onSave(row.id, typed);
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 flex">
+      <div className="flex-1 bg-black/20" onClick={onClose} />
+      <div className="w-[420px] bg-white shadow-2xl flex flex-col border-l border-gray-200 h-full">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <p className="text-xs text-gray-400 font-mono">{row.id.slice(0, 8)}…</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {new Date(row.created_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {columns.map(col => (
+            <div key={col.name}>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-1.5">
+                <ColTypeIcon type={col.type} />
+                <span className="font-mono">{col.name}</span>
+                {col.required && <span className="text-red-400">*</span>}
+              </label>
+              {col.type === "boolean" ? (
+                <select
+                  value={draft[col.name]}
+                  onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400"
+                >
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              ) : col.type === "json" ? (
+                <textarea
+                  value={draft[col.name]}
+                  onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                  rows={4}
+                  className="w-full text-sm font-mono border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 resize-none"
+                />
+              ) : (
+                <input
+                  type={col.type === "number" ? "number" : col.type === "date" ? "date" : "text"}
+                  value={draft[col.name]}
+                  onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400"
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 font-medium">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50"
+          >
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+            Save changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Schema editor modal (reused from tables page) ───────────────────────���───
+
+function SchemaModal({
+  table, onSave, onClose,
+}: {
+  table: UserTable;
+  onSave: (cols: UserTableColumn[]) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [columns, setColumns] = useState<UserTableColumn[]>(table.columns);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const TYPES = ["text", "number", "boolean", "date", "json"] as const;
+
+  const handleSave = async () => {
+    if (columns.some(c => !c.name.trim())) { setError("All columns must have a name"); return; }
+    setSaving(true);
+    try { await onSave(columns); onClose(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-bold text-gray-900">Edit schema — {table.name}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+          {columns.map((col, i) => (
+            <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 group">
+              <input
+                value={col.name}
+                onChange={e => setColumns(c => c.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                placeholder="column_name"
+                className="flex-1 text-xs font-mono bg-transparent outline-none text-gray-700"
+              />
+              <select
+                value={col.type}
+                onChange={e => setColumns(c => c.map((x, j) => j === i ? { ...x, type: e.target.value as UserTableColumn["type"] } : x))}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white outline-none"
+              >
+                {TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+              <label className="flex items-center gap-1 text-xs text-gray-400 cursor-pointer">
+                <input type="checkbox" checked={col.required}
+                  onChange={e => setColumns(c => c.map((x, j) => j === i ? { ...x, required: e.target.checked } : x))}
+                  className="accent-violet-600 w-3 h-3"
+                />req
+              </label>
+              <button onClick={() => setColumns(c => c.filter((_, j) => j !== i))}
+                className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-all">
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+          <button onClick={() => setColumns(c => [...c, { name: "", type: "text", required: false }])}
+            className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold hover:text-violet-800 mt-1">
+            <Plus size={12} /> Add column
+          </button>
+          {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={11} />{error}</p>}
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 font-medium">Cancel</button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-50">
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+            Save schema
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Filter / Sort bar ────────────────────────────────────────────────────────
+
+function FilterBar({
+  columns, sort, filter, onSort, onFilter, onClear,
+}: {
+  columns: UserTableColumn[];
+  sort: SortConfig; filter: FilterConfig;
+  onSort: (s: SortConfig) => void;
+  onFilter: (f: FilterConfig) => void;
+  onClear: () => void;
+}) {
+  const [tab, setTab] = useState<"sort" | "filter">("sort");
+  const OPS = ["contains", "equals", "not_empty", "empty"] as const;
+
+  return (
+    <div className="absolute top-10 left-0 z-30 bg-white border border-gray-200 rounded-2xl shadow-xl p-4 w-80">
+      <div className="flex gap-1 mb-4 bg-gray-100 rounded-xl p-1">
+        {(["sort", "filter"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-all capitalize ${tab === t ? "bg-white shadow-sm text-gray-900" : "text-gray-500"}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {tab === "sort" && (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <select
+              value={sort?.col ?? ""}
+              onChange={e => onSort(e.target.value ? { col: e.target.value, dir: sort?.dir ?? "asc" } : null)}
+              className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400"
+            >
+              <option value="">— no sort —</option>
+              {columns.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+            </select>
+            <select
+              value={sort?.dir ?? "asc"}
+              onChange={e => sort && onSort({ ...sort, dir: e.target.value as "asc" | "desc" })}
+              disabled={!sort}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 disabled:opacity-40"
+            >
+              <option value="asc">↑ Asc</option>
+              <option value="desc">↓ Desc</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {tab === "filter" && (
+        <div className="space-y-2">
+          <select
+            value={filter?.col ?? ""}
+            onChange={e => onFilter(e.target.value ? { col: e.target.value, op: filter?.op ?? "contains", value: filter?.value ?? "" } : null)}
+            className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400"
+          >
+            <option value="">— no filter —</option>
+            {columns.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
+          {filter?.col && (
+            <>
+              <select
+                value={filter.op}
+                onChange={e => onFilter({ ...filter, op: e.target.value as "contains" | "equals" | "not_empty" | "empty" })}
+                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400"
+              >
+                {OPS.map(o => <option key={o} value={o}>{o.replace("_", " ")}</option>)}
+              </select>
+              {filter.op !== "not_empty" && filter.op !== "empty" && (
+                <input
+                  value={filter.value}
+                  onChange={e => onFilter({ ...filter, value: e.target.value })}
+                  placeholder="value…"
+                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400"
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {(sort || filter) && (
+        <button onClick={onClear} className="mt-3 w-full text-xs text-red-400 hover:text-red-600 font-medium text-center">
+          Clear all
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Main grid page ───────────────────────────────────────────────────────────
+
+export default function TableGridPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+
+  const [table, setTable]     = useState<UserTable | null>(null);
+  const [rows, setRows]       = useState<Row[]>([]);
+  const [total, setTotal]     = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage]       = useState(0);
+  const PAGE_SIZE = 100;
+
+  // editing state
+  const [editCell, setEditCell]   = useState<{ rowId: string; col: string } | null>(null);
+  const [expandRow, setExpandRow] = useState<Row | null>(null);
+  const [selected, setSelected]   = useState<Set<string>>(new Set());
+  const [newRowDraft, setNewRowDraft] = useState<Record<string, string> | null>(null);
+
+  // toolbar state
+  const [search, setSearch]       = useState("");
+  const [sort, setSort]           = useState<SortConfig>(null);
+  const [filter, setFilter]       = useState<FilterConfig>(null);
+  const [showFilterBar, setShowFilterBar] = useState(false);
+  const [showSchema, setShowSchema]       = useState(false);
+
+  // ── Load table + rows ────────────────────────────────────────────────────────
+
+  const loadRows = useCallback(async (p = 0) => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tables/${id}/rows?limit=${PAGE_SIZE}&offset=${p * PAGE_SIZE}`);
+      const d = await res.json();
+      setRows(d.rows ?? []);
+      setTotal(d.total ?? 0);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/tables/${id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setTable(d); else router.push("/tables"); });
+    loadRows(0);
+  }, [id, loadRows, router]);
+
+  // ── Computed rows (search + filter + sort) ───────────────────────────────────
+
+  const displayed = (() => {
+    let result = [...rows];
+
+    // search across all columns
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(row =>
+        Object.values(row.data).some(v => String(v ?? "").toLowerCase().includes(q))
+      );
+    }
+
+    // filter
+    if (filter?.col) {
+      result = result.filter(row => {
+        const v = String(row.data[filter.col] ?? "").toLowerCase();
+        if (filter.op === "empty")     return v === "" || v === "null";
+        if (filter.op === "not_empty") return v !== "" && v !== "null";
+        if (filter.op === "equals")    return v === filter.value.toLowerCase();
+        return v.includes(filter.value.toLowerCase()); // contains
+      });
+    }
+
+    // sort
+    if (sort?.col) {
+      result.sort((a, b) => {
+        const av = a.data[sort.col] ?? "";
+        const bv = b.data[sort.col] ?? "";
+        const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
+        return sort.dir === "asc" ? cmp : -cmp;
+      });
+    }
+
+    return result;
+  })();
+
+  // ── CRUD operations ──────────────────────────────────────────────────────────
+
+  const commitCellEdit = async (rowId: string, colName: string, value: unknown) => {
+    setEditCell(null);
+    const row = rows.find(r => r.id === rowId);
+    if (!row) return;
+    const newData = { ...row.data, [colName]: value };
+    // optimistic update
+    setRows(prev => prev.map(r => r.id === rowId ? { ...r, data: newData } : r));
+    await fetch(`/api/tables/${id}/rows?rowId=${rowId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: newData }),
+    });
+  };
+
+  const saveExpandRow = async (rowId: string, data: Record<string, unknown>) => {
+    setRows(prev => prev.map(r => r.id === rowId ? { ...r, data } : r));
+    await fetch(`/api/tables/${id}/rows?rowId=${rowId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data }),
+    });
+  };
+
+  const deleteRows = async (ids: string[]) => {
+    setRows(prev => prev.filter(r => !ids.includes(r.id)));
+    setTotal(t => t - ids.length);
+    setSelected(new Set());
+    await Promise.all(ids.map(rid =>
+      fetch(`/api/tables/${id}/rows?rowId=${rid}`, { method: "DELETE" })
+    ));
+  };
+
+  const commitNewRow = async () => {
+    if (!newRowDraft || !table) return;
+    const typed: Record<string, unknown> = {};
+    for (const col of table.columns) {
+      const raw = newRowDraft[col.name] ?? "";
+      if (raw === "") continue;
+      if (col.type === "number")  typed[col.name] = Number(raw);
+      else if (col.type === "boolean") typed[col.name] = raw === "true";
+      else if (col.type === "json") { try { typed[col.name] = JSON.parse(raw); } catch { typed[col.name] = raw; } }
+      else typed[col.name] = raw;
+    }
+    const res = await fetch(`/api/tables/${id}/rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: typed }),
+    });
+    if (res.ok) {
+      const newRow = await res.json();
+      setRows(prev => [newRow, ...prev]);
+      setTotal(t => t + 1);
+    }
+    setNewRowDraft(null);
+  };
+
+  const saveSchema = async (cols: UserTableColumn[]) => {
+    if (!table) return;
+    const res = await fetch(`/api/tables/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: table.name, description: table.description, columns: cols }),
+    });
+    if (!res.ok) throw new Error("Failed to save schema");
+    const updated = await res.json();
+    setTable(updated);
+  };
+
+  const exportCSV = () => {
+    if (!table || rows.length === 0) return;
+    const cols = table.columns.map(c => c.name);
+    const header = ["id", ...cols, "created_at"].join(",");
+    const csvRows = rows.map(r =>
+      [r.id, ...cols.map(c => JSON.stringify(r.data[c] ?? "")), r.created_at].join(",")
+    );
+    const blob = new Blob([[header, ...csvRows].join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `${table.name}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !table) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const text = ev.target?.result as string;
+      const lines = text.trim().split("\n");
+      if (lines.length < 2) return;
+      const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+      const cols = table.columns.map(c => c.name);
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(",").map(v => v.trim().replace(/^"|"$/g, ""));
+        const data: Record<string, unknown> = {};
+        headers.forEach((h, idx) => { if (cols.includes(h)) data[h] = vals[idx] ?? ""; });
+        await fetch(`/api/tables/${id}/rows`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data }),
+        });
+      }
+      loadRows(page);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const toggleSelect = (rowId: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(rowId) ? next.delete(rowId) : next.add(rowId);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setSelected(prev => prev.size === displayed.length ? new Set() : new Set(displayed.map(r => r.id)));
+  };
+
+  if (!table) {
+    return (
+      <AppShell>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin text-gray-300" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const hasActiveFilters = !!(sort || filter || search);
+
+  return (
+    <AppShell>
+      <div className="flex flex-col h-full overflow-hidden">
+
+        {/* ── Top bar ──────────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0">
+          <Link href="/tables" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
+            <ArrowLeft size={16} />
+          </Link>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-bold text-gray-900 truncate">{table.name}</span>
+            {table.description && (
+              <span className="text-xs text-gray-400 truncate hidden sm:block">— {table.description}</span>
+            )}
+          </div>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">
+            {total} row{total !== 1 ? "s" : ""}
+          </span>
+
+          <div className="flex-1" />
+
+          {/* Toolbar actions */}
+          <div className="flex items-center gap-1.5">
+            {/* Search */}
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search…"
+                className="text-xs border border-gray-200 rounded-lg pl-7 pr-3 py-1.5 outline-none focus:border-violet-400 w-36"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+                  <X size={11} />
+                </button>
+              )}
+            </div>
+
+            {/* Filter/Sort */}
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterBar(o => !o)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${hasActiveFilters ? "border-violet-400 bg-violet-50 text-violet-600" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+              >
+                <Filter size={12} />
+                {sort ? `Sort: ${sort.col}` : filter ? `Filter: ${filter.col}` : "Filter & Sort"}
+                {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
+              </button>
+              {showFilterBar && (
+                <FilterBar
+                  columns={table.columns}
+                  sort={sort} filter={filter}
+                  onSort={setSort} onFilter={setFilter}
+                  onClear={() => { setSort(null); setFilter(null); setShowFilterBar(false); }}
+                />
+              )}
+            </div>
+
+            <button onClick={() => loadRows(page)}
+              className="p-1.5 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-50 transition-colors">
+              <RefreshCw size={13} />
+            </button>
+
+            {/* Import CSV */}
+            <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-all">
+              <Upload size={12} /> Import
+              <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
+            </label>
+
+            <button onClick={exportCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">
+              <Download size={12} /> Export
+            </button>
+
+            <button onClick={() => setShowSchema(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">
+              <Settings2 size={12} /> Schema
+            </button>
+
+            <button
+              onClick={() => setNewRowDraft(Object.fromEntries((table.columns ?? []).map(c => [c.name, ""])))}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-all"
+            >
+              <Plus size={12} /> Add row
+            </button>
+          </div>
+        </div>
+
+        {/* ── Bulk action bar ───────────────────────────────────────────────── */}
+        {selected.size > 0 && (
+          <div className="flex items-center gap-3 px-5 py-2 bg-violet-50 border-b border-violet-100 flex-shrink-0">
+            <span className="text-xs font-semibold text-violet-700">{selected.size} selected</span>
+            <button
+              onClick={() => deleteRows(Array.from(selected))}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 transition-colors"
+            >
+              <Trash2 size={12} /> Delete selected
+            </button>
+            <button onClick={() => setSelected(new Set())} className="text-xs text-violet-400 hover:text-violet-600 ml-auto">
+              Clear selection
+            </button>
+          </div>
+        )}
+
+        {/* ── Grid ─────────────────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-auto" onClick={() => { if (showFilterBar) setShowFilterBar(false); }}>
+          {loading ? (
+            <div className="flex justify-center py-24"><Loader2 size={24} className="animate-spin text-gray-300" /></div>
+          ) : (
+            <table className="w-full border-collapse text-xs" style={{ minWidth: `${80 + 48 + table.columns.reduce((a, c) => a + (COL_WIDTHS[c.type] ?? 200), 0) + 48}px` }}>
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-gray-50 border-b-2 border-gray-200">
+                  {/* Checkbox */}
+                  <th className="w-10 px-3 py-2.5 border-r border-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={displayed.length > 0 && selected.size === displayed.length}
+                      onChange={toggleAll}
+                      className="accent-violet-600 w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </th>
+                  {/* Row # */}
+                  <th className="w-12 px-3 py-2.5 text-gray-400 font-medium text-right border-r border-gray-200">#</th>
+                  {/* Column headers */}
+                  {table.columns.map(col => (
+                    <th
+                      key={col.name}
+                      style={{ width: COL_WIDTHS[col.type] ?? 200 }}
+                      className="px-3 py-2.5 text-left border-r border-gray-200 cursor-pointer select-none group"
+                      onClick={() => setSort(s =>
+                        s?.col === col.name
+                          ? s.dir === "asc" ? { col: col.name, dir: "desc" } : null
+                          : { col: col.name, dir: "asc" }
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <ColTypeIcon type={col.type} />
+                        <span className="font-semibold text-gray-600 text-xs truncate">{col.name}</span>
+                        {sort?.col === col.name ? (
+                          sort.dir === "asc" ? <ChevronUp size={11} className="text-violet-500" /> : <ChevronDown size={11} className="text-violet-500" />
+                        ) : (
+                          <ChevronsUpDown size={11} className="text-gray-300 opacity-0 group-hover:opacity-100" />
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                  {/* Expand col */}
+                  <th className="w-12 border-r border-gray-200" />
+                </tr>
+              </thead>
+
+              <tbody className="bg-white divide-y divide-gray-100">
+                {/* New row draft */}
+                {newRowDraft && (
+                  <tr className="bg-violet-50/60">
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2 text-gray-300 text-right font-mono">new</td>
+                    {table.columns.map(col => (
+                      <td key={col.name} className="border-r border-gray-100 p-0 h-9">
+                        <CellEditor
+                          value={newRowDraft[col.name]}
+                          type={col.type}
+                          onCommit={v => setNewRowDraft(d => ({ ...d!, [col.name]: String(v ?? "") }))}
+                          onCancel={() => setNewRowDraft(null)}
+                        />
+                      </td>
+                    ))}
+                    <td className="px-2">
+                      <div className="flex items-center gap-1">
+                        <button onClick={commitNewRow} className="p-1 text-green-500 hover:text-green-700"><Check size={13} /></button>
+                        <button onClick={() => setNewRowDraft(null)} className="p-1 text-gray-300 hover:text-red-400"><X size={13} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {displayed.length === 0 ? (
+                  <tr>
+                    <td colSpan={table.columns.length + 3} className="py-20 text-center text-gray-400">
+                      <div className="flex flex-col items-center gap-2">
+                        <SortAsc size={28} className="text-gray-200" />
+                        <p>{search || filter ? "No rows match your filter" : "No rows yet"}</p>
+                        {!search && !filter && (
+                          <button
+                            onClick={() => setNewRowDraft(Object.fromEntries((table.columns ?? []).map(c => [c.name, ""])))}
+                            className="mt-1 flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700"
+                          >
+                            <Plus size={12} /> Add first row
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  displayed.map((row, i) => {
+                    const isSelected = selected.has(row.id);
+                    return (
+                      <tr
+                        key={row.id}
+                        className={`group hover:bg-gray-50/80 transition-colors ${isSelected ? "bg-violet-50/60" : ""}`}
+                      >
+                        {/* Checkbox */}
+                        <td className="px-3 py-0 border-r border-gray-100 w-10">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(row.id)}
+                            className="accent-violet-600 w-3.5 h-3.5 cursor-pointer"
+                          />
+                        </td>
+                        {/* Row # */}
+                        <td className="px-3 py-2 text-gray-300 text-right font-mono border-r border-gray-100 w-12 select-none">
+                          {page * PAGE_SIZE + i + 1}
+                        </td>
+                        {/* Data cells */}
+                        {table.columns.map(col => {
+                          const isEditing = editCell?.rowId === row.id && editCell?.col === col.name;
+                          return (
+                            <td
+                              key={col.name}
+                              style={{ width: COL_WIDTHS[col.type] ?? 200, maxWidth: COL_WIDTHS[col.type] ?? 200 }}
+                              className={`border-r border-gray-100 p-0 h-9 relative ${isEditing ? "ring-2 ring-violet-400 ring-inset z-10" : "cursor-cell"}`}
+                              onClick={() => !isEditing && setEditCell({ rowId: row.id, col: col.name })}
+                            >
+                              {isEditing ? (
+                                <CellEditor
+                                  value={row.data[col.name]}
+                                  type={col.type}
+                                  onCommit={v => commitCellEdit(row.id, col.name, v)}
+                                  onCancel={() => setEditCell(null)}
+                                />
+                              ) : (
+                                <div className="px-3 py-2 h-full flex items-center overflow-hidden">
+                                  <CellDisplay value={row.data[col.name]} type={col.type} />
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                        {/* Expand + delete */}
+                        <td className="px-1 border-r border-gray-100 w-12">
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => setExpandRow(row)}
+                              className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                              title="Expand row"
+                            >
+                              <Maximize2 size={11} />
+                            </button>
+                            <button
+                              onClick={() => deleteRows([row.id])}
+                              className="p-1.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-400"
+                              title="Delete row"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+
+                {/* Add row inline button */}
+                {displayed.length > 0 && !newRowDraft && (
+                  <tr className="hover:bg-gray-50/50 cursor-pointer" onClick={() => setNewRowDraft(Object.fromEntries((table.columns ?? []).map(c => [c.name, ""])))}>
+                    <td colSpan={table.columns.length + 3} className="px-5 py-2.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                      <span className="flex items-center gap-1.5"><Plus size={12} /> Add row</span>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* ── Pagination ────────────────────────────────────────────────────── */}
+        {total > PAGE_SIZE && (
+          <div className="flex items-center justify-between px-5 py-2.5 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-500">
+            <span>Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}</span>
+            <div className="flex gap-2">
+              <button disabled={page === 0} onClick={() => { setPage(p => p - 1); loadRows(page - 1); }}
+                className="px-3 py-1 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">← Prev</button>
+              <button disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => { setPage(p => p + 1); loadRows(page + 1); }}
+                className="px-3 py-1 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">Next →</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Modals / panels ───────────────────────────────────────────────── */}
+      {expandRow && (
+        <ExpandPanel
+          row={expandRow}
+          columns={table.columns}
+          onClose={() => setExpandRow(null)}
+          onSave={saveExpandRow}
+        />
+      )}
+      {showSchema && (
+        <SchemaModal
+          table={table}
+          onSave={saveSchema}
+          onClose={() => setShowSchema(false)}
+        />
+      )}
+    </AppShell>
+  );
+}
