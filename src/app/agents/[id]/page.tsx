@@ -92,6 +92,7 @@ type ConversationRecord = {
   started_at: string;
   ended_at: string | null;
   session_id?: string;
+  tool_invocations?: { tool: string; at: string }[];
   metadata?: {
     user_agent?: string;
     language?: string;
@@ -199,6 +200,9 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
   const [streamingText, setStreamingText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Track conversation record so all messages in one session update the same row
+  const conversationIdRef = useRef<string | null>(null);
+  const toolInvocationsRef = useRef<{ tool: string; at: string }[]>([]);
 
   const appearance = chatbot?.appearance ?? DEFAULT_APPEARANCE;
   const primaryColor = appearance.primaryColor ?? "#7c3aed";
@@ -220,6 +224,8 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
       },
     ]);
     setStreamingText("");
+    conversationIdRef.current = null;
+    toolInvocationsRef.current = [];
   }, [chatbot?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -282,26 +288,45 @@ function ChatPreview({ chatbot }: { chatbot: Chatbot | null }) {
       setMessages(finalMessages);
       setStreamingText("");
 
-      // Save conversation to history (only if there's at least one user + assistant exchange)
+      // Track tool invocations in this session
+      if (finalContent.includes("Invoking connected workflow")) {
+        toolInvocationsRef.current.push({ tool: "workflow", at: new Date().toISOString() });
+      }
+
+      // Save / update conversation history — one record per session
       const saveMsgs = finalMessages.filter(m => m.role !== "assistant" || m.content !== (chatbot.appearance?.greetingMessage ?? "Hi! How can I help you today?"));
       if (saveMsgs.some(m => m.role === "user")) {
-        const sessionMeta = {
-          user_agent: navigator.userAgent,
-          language: navigator.language,
-          screen: `${screen.width}x${screen.height}`,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          referrer: document.referrer || undefined,
+        const payload = {
+          messages: saveMsgs.map(m => ({ role: m.role, content: m.content })),
+          message_count: saveMsgs.length,
+          tool_invocations: toolInvocationsRef.current,
         };
-        fetch(`/api/agents/${chatbot.id}/conversations`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: saveMsgs.map(m => ({ role: m.role, content: m.content })),
-            message_count: saveMsgs.length,
-            source: "preview",
-            metadata: sessionMeta,
-          }),
-        }).catch(() => { /* non-critical */ });
+
+        if (!conversationIdRef.current) {
+          // First exchange — create new record and save the ID
+          const sessionMeta = {
+            user_agent: navigator.userAgent,
+            language: navigator.language,
+            screen: `${screen.width}x${screen.height}`,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            referrer: document.referrer || undefined,
+          };
+          fetch(`/api/agents/${chatbot.id}/conversations`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...payload, source: "preview", metadata: sessionMeta }),
+          })
+            .then(r => r.json())
+            .then(d => { if (d.id) conversationIdRef.current = d.id; })
+            .catch(() => { /* non-critical */ });
+        } else {
+          // Subsequent exchanges — update the same record
+          fetch(`/api/agents/${chatbot.id}/conversations`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ conversation_id: conversationIdRef.current, ...payload }),
+          }).catch(() => { /* non-critical */ });
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
@@ -1021,40 +1046,49 @@ function ToolsTab({
                       ) : (
                         <div className="space-y-2">
                           {params.map((p, idx) => (
-                            <div key={idx} className="bg-white border border-gray-200 rounded-lg p-2.5 space-y-2">
-                              <div className="flex gap-2">
+                            <div key={idx} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                              {/* Header row: name + type + delete */}
+                              <div className="flex items-center gap-0 border-b border-gray-100">
                                 <input
                                   value={p.name}
                                   onChange={e => updateParam(wf.id, idx, { name: e.target.value })}
                                   placeholder="param_name"
-                                  className="flex-1 text-xs border border-gray-200 rounded-md px-2 py-1 outline-none focus:border-violet-400 font-mono bg-gray-50"
+                                  className="flex-1 text-xs px-2.5 py-2 outline-none font-mono bg-transparent placeholder-gray-300 min-w-0"
                                 />
+                                <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
                                 <select
                                   value={p.type}
                                   onChange={e => updateParam(wf.id, idx, { type: e.target.value as WorkflowParam["type"] })}
-                                  className="text-xs border border-gray-200 rounded-md px-2 py-1 outline-none focus:border-violet-400 bg-white"
+                                  className="text-xs px-2 py-2 outline-none bg-transparent text-gray-500 flex-shrink-0"
                                 >
                                   {PARAM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
-                                <button onClick={() => removeParam(wf.id, idx)} className="text-gray-300 hover:text-red-400 flex-shrink-0">
-                                  <X size={13} />
+                                <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
+                                <button
+                                  onClick={() => removeParam(wf.id, idx)}
+                                  className="px-2.5 py-2 text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0"
+                                >
+                                  <X size={12} />
                                 </button>
                               </div>
-                              <input
-                                value={p.description}
-                                onChange={e => updateParam(wf.id, idx, { description: e.target.value })}
-                                placeholder="Description (tells the AI what this param is for)"
-                                className="w-full text-xs border border-gray-200 rounded-md px-2 py-1 outline-none focus:border-violet-400"
-                              />
-                              <label className="flex items-center gap-1.5 cursor-pointer">
+                              {/* Description + required */}
+                              <div className="px-2.5 py-2 space-y-1.5">
                                 <input
-                                  type="checkbox"
-                                  checked={p.required}
-                                  onChange={e => updateParam(wf.id, idx, { required: e.target.checked })}
-                                  className="accent-violet-600 w-3 h-3"
+                                  value={p.description}
+                                  onChange={e => updateParam(wf.id, idx, { description: e.target.value })}
+                                  placeholder="Description — tell the AI what to collect"
+                                  className="w-full text-xs outline-none text-gray-600 placeholder-gray-300 bg-transparent"
                                 />
-                                <span className="text-[11px] text-gray-500">Required</span>
-                              </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={p.required}
+                                    onChange={e => updateParam(wf.id, idx, { required: e.target.checked })}
+                                    className="accent-violet-600 w-3 h-3"
+                                  />
+                                  <span className="text-[10px] text-gray-400 font-medium">Required</span>
+                                </label>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1922,12 +1956,18 @@ function HistoryTab({ agentId }: { agentId: string }) {
                 <p className="text-xs font-medium text-gray-800 truncate">
                   {firstUserMsg?.content ?? "No messages"}
                 </p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-gray-400">{dateStr} · {timeStr}</span>
-                  <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <span className="text-[11px] text-gray-400">{dateStr} · {timeStr}</span>
+                  <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
                     {userCount} msg{userCount !== 1 ? "s" : ""}
                   </span>
-                  <span className="text-xs bg-violet-50 text-violet-500 px-1.5 py-0.5 rounded-full capitalize">
+                  {(conv.tool_invocations?.length ?? 0) > 0 && (
+                    <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                      <Zap size={8} />
+                      {conv.tool_invocations!.length} tool call{conv.tool_invocations!.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <span className="text-[10px] bg-violet-50 text-violet-500 px-1.5 py-0.5 rounded-full capitalize">
                     {conv.source}
                   </span>
                 </div>
@@ -1978,29 +2018,42 @@ function HistoryTab({ agentId }: { agentId: string }) {
                 )}
 
                 {/* Messages */}
-                <div className="space-y-2 max-h-56 overflow-y-auto">
-                  {conv.messages.map((msg, i) => (
-                    <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                      {msg.role === "assistant" && (
-                        <div className="w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Bot size={10} className="text-violet-600" />
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {conv.messages.map((msg, i) => {
+                    const isToolCall = msg.role === "assistant" && msg.content.includes("Invoking connected workflow");
+                    if (isToolCall) {
+                      return (
+                        <div key={i} className="flex items-center justify-center">
+                          <span className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 border border-amber-100 px-2 py-1 rounded-full">
+                            <Zap size={9} />
+                            Workflow invoked
+                          </span>
                         </div>
-                      )}
-                      <div
-                        className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-xs leading-relaxed ${msg.role === "user"
-                            ? "bg-violet-600 text-white rounded-br-sm"
-                            : "bg-white border border-gray-200 text-gray-700 rounded-bl-sm"
-                          }`}
-                      >
-                        {msg.content}
+                      );
+                    }
+                    return (
+                      <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        {msg.role === "assistant" && (
+                          <div className="w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Bot size={10} className="text-violet-600" />
+                          </div>
+                        )}
+                        <div
+                          className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-xs leading-relaxed ${msg.role === "user"
+                              ? "bg-violet-600 text-white rounded-br-sm"
+                              : "bg-white border border-gray-200 text-gray-700 rounded-bl-sm"
+                            }`}
+                        >
+                          {msg.content}
+                        </div>
+                        {msg.role === "user" && (
+                          <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <User size={10} className="text-gray-600" />
+                          </div>
+                        )}
                       </div>
-                      {msg.role === "user" && (
-                        <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <User size={10} className="text-gray-600" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
