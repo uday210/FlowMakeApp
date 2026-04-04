@@ -96,7 +96,8 @@ interface McpAlert {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function StatusDot({ status }: { status: McpServer["status"] }) {
+function StatusDot({ status, enabled }: { status: McpServer["status"]; enabled: boolean }) {
+  if (!enabled) return <span className="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0" />;
   if (status === "connected" || status === "active")
     return <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />;
   if (status === "error")
@@ -1684,9 +1685,9 @@ function ServerCard({
             {isHosted ? "My MCP Server" : "External MCP Server"}
           </span>
           <div className="flex-1" />
-          <StatusDot status={server.status} />
+          <StatusDot status={server.status} enabled={server.enabled} />
           <span className={`text-xs font-medium ${server.enabled ? "text-green-600" : "text-gray-400"}`}>
-            {server.enabled ? "enabled" : "disabled"}
+            {server.enabled ? "active" : "disabled"}
           </span>
         </div>
 
@@ -1704,19 +1705,22 @@ function ServerCard({
               </div>
             </div>
 
-            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+            <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+              {/* Enable/disable pill toggle */}
+              <button
+                onClick={toggleServer}
+                title={server.enabled ? "Disable server" : "Enable server"}
+                className={`relative w-10 h-5 rounded-full flex-shrink-0 transition-colors duration-200 ${server.enabled ? "bg-green-500" : "bg-gray-300"}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${server.enabled ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
               {/* SDK button for hosted servers */}
               {isHosted && server.slug && (
-                <button onClick={() => setShowSdk(true)} title="SDK Code Export"
+                <button onClick={() => setShowSdk(true)} title="SDK / Config"
                   className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
                   <Code2 size={14} />
                 </button>
               )}
-              {/* Enable/disable toggle */}
-              <button onClick={toggleServer} title={server.enabled ? "Disable" : "Enable"}
-                className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
-                {server.enabled ? <ToggleRight size={16} className="text-green-500" /> : <ToggleLeft size={16} />}
-              </button>
               {/* Edit */}
               <button onClick={() => setShowEdit(true)} title="Edit server"
                 className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
