@@ -1084,7 +1084,7 @@ function EmailConfigsPanel() {
         {/* Info banner */}
         <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 text-xs text-violet-700 flex items-start gap-2">
           <Mail size={13} className="mt-0.5 flex-shrink-0" />
-          <span>Only one provider can be <strong>active</strong> at a time. The active provider is used for all outgoing emails from your org. If none is active, the app default (Resend) is used.</span>
+          <span>Only one provider can be <strong>active</strong> at a time. The active provider is used for all outgoing emails from your org. If none is active, the platform default is used.</span>
         </div>
 
         {loading ? (
