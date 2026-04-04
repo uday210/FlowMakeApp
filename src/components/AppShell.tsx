@@ -29,6 +29,8 @@ import {
   Moon,
   ChevronDown,
   Phone,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -113,6 +115,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -154,13 +157,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <NavigationProgress />
 
       {/* ── Sidebar ── */}
-      <aside className="w-52 bg-[#1a0a2e] flex flex-col flex-shrink-0">
+      <aside
+        className="bg-[#1a0a2e] flex flex-col flex-shrink-0 transition-all duration-300"
+        style={{ width: collapsed ? "56px" : "208px" }}
+      >
 
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-4 py-4 flex-shrink-0 border-b border-white/10">
+        <div className="flex items-center gap-2.5 px-3 py-4 flex-shrink-0 border-b border-white/10 min-h-[57px]">
           <button
             onClick={() => navigate(isSuperAdmin ? "/admin" : "/workflows")}
-            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity flex-shrink-0"
           >
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -168,7 +174,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Zap size={15} className="text-white" />
             </div>
-            <span className="text-sm font-bold text-white tracking-tight">FlowMake</span>
+          </button>
+          {!collapsed && (
+            <span className="text-sm font-bold text-white tracking-tight flex-1 truncate">FlowMake</span>
+          )}
+          <button
+            onClick={() => setCollapsed(c => !c)}
+            className="p-1 rounded-md text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors flex-shrink-0"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
           </button>
         </div>
 
@@ -181,9 +196,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {sections.map((section) => (
             <div key={section.label}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-white/55 px-2 mb-1.5">
-                {section.label}
-              </p>
+              {!collapsed && (
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/55 px-2 mb-1.5">
+                  {section.label}
+                </p>
+              )}
+              {collapsed && <div className="h-px bg-white/10 mb-1.5 mx-1" />}
               <div className="space-y-0.5">
                 {section.items.map(({ href, icon: Icon, label }) => {
                   const active = pathname.startsWith(href);
@@ -191,7 +209,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <button
                       key={href}
                       onClick={() => navigate(href)}
-                      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left transition-all text-xs font-medium ${
+                      title={collapsed ? label : undefined}
+                      className={`w-full flex items-center gap-2.5 rounded-lg text-left transition-all text-xs font-medium ${
+                        collapsed ? "justify-center px-0 py-2" : "px-2.5 py-1.5"
+                      } ${
                         active
                           ? "text-white"
                           : isSuperAdmin
@@ -201,7 +222,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       style={active ? { background: "var(--gradient-brand)" } : undefined}
                     >
                       <Icon size={14} className="flex-shrink-0" />
-                      <span className="truncate">{label}</span>
+                      {!collapsed && <span className="truncate">{label}</span>}
                     </button>
                   );
                 })}
