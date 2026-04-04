@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +9,14 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: Request, { params }: Params) {
   const { id } = await params;
-  const supabase = createServerClient();
+
+  // Use service-role client when a request_id is present (signer download — no session)
+  // Use session-based client for authenticated org users
+  const reqUrl = new URL(req.url);
+  const hasRequestId = !!reqUrl.searchParams.get("request_id");
+  const supabase = hasRequestId
+    ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    : createServerClient();
 
   // Optional: limit to signatures up to a specific signing_order
   const url = new URL(req.url);
