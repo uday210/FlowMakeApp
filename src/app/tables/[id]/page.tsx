@@ -11,7 +11,8 @@ import {
   Maximize2, Check, AlertCircle, Filter, SortAsc,
   Type, Hash, Calendar, ToggleLeft, Braces, Link2,
   ChevronsUpDown, RefreshCw, AlignLeft, Mail, Phone,
-  Clock, ListOrdered, ChevronRight,
+  Clock, ListOrdered, ChevronRight, Terminal, Play,
+  ChevronUp as PanelClose, Minus,
 } from "lucide-react";
 
 // ─── Types ───���────────────────────────────────────────────────────────────────
@@ -492,6 +493,270 @@ function FilterBar({
   );
 }
 
+// ─── Query Builder panel ──────────────────────────────────────────────────────
+
+type Condition = {
+  field: string;
+  op: string;
+  value: string;
+  logic: "AND" | "OR";
+};
+
+type QueryResult = {
+  rows: Record<string, unknown>[];
+  total_matched: number;
+  total_scanned: number;
+  elapsed?: number;
+};
+
+const OPS = [
+  { value: "=",            label: "equals" },
+  { value: "!=",           label: "not equals" },
+  { value: "contains",     label: "contains" },
+  { value: "not_contains", label: "not contains" },
+  { value: "starts_with",  label: "starts with" },
+  { value: "ends_with",    label: "ends with" },
+  { value: ">",            label: ">" },
+  { value: "<",            label: "<" },
+  { value: ">=",           label: ">=" },
+  { value: "<=",           label: "<=" },
+  { value: "is_empty",     label: "is empty" },
+  { value: "is_not_empty", label: "is not empty" },
+];
+
+function QueryBuilder({
+  tableId, columns, onClose,
+}: {
+  tableId: string;
+  columns: UserTableColumn[];
+  onClose: () => void;
+}) {
+  const [conditions, setConditions] = useState<Condition[]>([
+    { field: columns[0]?.name ?? "", op: "contains", value: "", logic: "AND" },
+  ]);
+  const [selectedCols, setSelectedCols] = useState<string[]>([]);
+  const [orderBy, setOrderBy]   = useState("");
+  const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
+  const [limit, setLimit]       = useState(100);
+  const [running, setRunning]   = useState(false);
+  const [result, setResult]     = useState<QueryResult | null>(null);
+  const [error, setError]       = useState("");
+
+  const allColNames = ["id", ...columns.map(c => c.name), "created_at"];
+
+  const addCondition = () =>
+    setConditions(c => [...c, { field: columns[0]?.name ?? "", op: "contains", value: "", logic: "AND" }]);
+
+  const updateCondition = (i: number, patch: Partial<Condition>) =>
+    setConditions(c => c.map((x, j) => j === i ? { ...x, ...patch } : x));
+
+  const runQuery = async () => {
+    setRunning(true);
+    setError("");
+    setResult(null);
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`/api/tables/${tableId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          columns: selectedCols.length ? selectedCols : undefined,
+          conditions: conditions.filter(c => c.field),
+          orderBy: orderBy || undefined,
+          orderDir,
+          limit,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Query failed"); return; }
+      setResult({ ...data, elapsed: Date.now() - t0 });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const resultCols = result?.rows[0] ? Object.keys(result.rows[0]) : [];
+
+  return (
+    <div className="border-t-2 border-violet-200 bg-white flex flex-col" style={{ height: 360 }}>
+      {/* Panel header */}
+      <div className="flex items-center gap-3 px-4 py-2 bg-violet-50 border-b border-violet-100 flex-shrink-0">
+        <Terminal size={14} className="text-violet-500" />
+        <span className="text-xs font-bold text-violet-700">Query Builder</span>
+        <div className="flex-1" />
+        <button
+          onClick={runQuery}
+          disabled={running}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+        >
+          {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+          Run
+        </button>
+        <button onClick={onClose} className="p-1 rounded hover:bg-violet-100 text-violet-400">
+          <X size={14} />
+        </button>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* ── Left: query config ─────────────────────────────────────────── */}
+        <div className="w-80 flex-shrink-0 border-r border-gray-100 overflow-y-auto px-4 py-3 space-y-4">
+
+          {/* SELECT */}
+          <div>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">SELECT</p>
+            <div className="flex flex-wrap gap-1.5">
+              {allColNames.map(c => {
+                const active = selectedCols.includes(c) || selectedCols.length === 0;
+                return (
+                  <button key={c}
+                    onClick={() => setSelectedCols(prev =>
+                      prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
+                    )}
+                    className={`text-xs px-2 py-0.5 rounded-md border font-mono transition-all ${active ? "bg-violet-50 border-violet-300 text-violet-700" : "bg-gray-50 border-gray-200 text-gray-400"}`}
+                  >
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              {selectedCols.length === 0 ? "All columns selected" : `${selectedCols.length} column${selectedCols.length > 1 ? "s" : ""} selected`}
+            </p>
+          </div>
+
+          {/* WHERE */}
+          <div>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">WHERE</p>
+            <div className="space-y-2">
+              {conditions.map((cond, i) => (
+                <div key={i} className="space-y-1">
+                  {i > 0 && (
+                    <select value={cond.logic} onChange={e => updateCondition(i, { logic: e.target.value as "AND" | "OR" })}
+                      className="text-xs border border-gray-200 rounded px-1.5 py-0.5 text-violet-600 font-bold outline-none bg-white w-14">
+                      <option>AND</option>
+                      <option>OR</option>
+                    </select>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <select value={cond.field} onChange={e => updateCondition(i, { field: e.target.value })}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 bg-white flex-1 min-w-0 font-mono">
+                      {columns.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    </select>
+                    <button onClick={() => setConditions(c => c.filter((_, j) => j !== i))}
+                      className="p-1 text-gray-300 hover:text-red-400 flex-shrink-0">
+                      <X size={11} />
+                    </button>
+                  </div>
+                  <select value={cond.op} onChange={e => updateCondition(i, { op: e.target.value })}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 bg-white">
+                    {OPS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  {cond.op !== "is_empty" && cond.op !== "is_not_empty" && (
+                    <input value={cond.value} onChange={e => updateCondition(i, { value: e.target.value })}
+                      placeholder="value…"
+                      className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <button onClick={addCondition}
+              className="flex items-center gap-1 text-xs text-violet-600 font-medium mt-2 hover:text-violet-800">
+              <Plus size={11} /> Add condition
+            </button>
+          </div>
+
+          {/* ORDER BY + LIMIT */}
+          <div>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">ORDER BY / LIMIT</p>
+            <div className="flex gap-2 mb-2">
+              <select value={orderBy} onChange={e => setOrderBy(e.target.value)}
+                className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 bg-white font-mono min-w-0">
+                <option value="">— none —</option>
+                {allColNames.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select value={orderDir} onChange={e => setOrderDir(e.target.value as "asc" | "desc")}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 bg-white">
+                <option value="asc">ASC</option>
+                <option value="desc">DESC</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">LIMIT</span>
+              <input type="number" value={limit} onChange={e => setLimit(Number(e.target.value))} min={1} max={5000}
+                className="w-20 text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400"
+              />
+              <span className="text-xs text-gray-400">rows (max 5000)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right: results ─────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-auto">
+          {error && (
+            <div className="m-4 p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 flex items-center gap-2">
+              <AlertCircle size={13} /> {error}
+            </div>
+          )}
+          {!result && !running && !error && (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
+              <Terminal size={28} className="text-gray-200" />
+              <p className="text-sm">Configure and run a query</p>
+              <p className="text-xs">Results will appear here</p>
+            </div>
+          )}
+          {result && (
+            <>
+              <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 flex-shrink-0">
+                <span className="font-semibold text-gray-700">{result.total_matched} row{result.total_matched !== 1 ? "s" : ""}</span>
+                <span>matched</span>
+                <span className="text-gray-300">·</span>
+                <span>{result.total_scanned} scanned</span>
+                <span className="text-gray-300">·</span>
+                <span>{result.elapsed}ms</span>
+              </div>
+              {result.rows.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-xs text-gray-400">No rows match your query</div>
+              ) : (
+                <table className="w-full text-xs border-collapse">
+                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      {resultCols.map(c => (
+                        <th key={c} className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wider text-[10px] border-r border-gray-100 font-mono whitespace-nowrap">
+                          {c}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {result.rows.map((row, i) => (
+                      <tr key={i} className="hover:bg-gray-50/60">
+                        {resultCols.map(c => (
+                          <td key={c} className="px-3 py-2 border-r border-gray-50 max-w-[200px]">
+                            <span className="truncate block text-gray-700">
+                              {row[c] === null || row[c] === undefined ? (
+                                <span className="text-gray-300 italic">null</span>
+                              ) : typeof row[c] === "object" ? (
+                                <span className="font-mono text-gray-500">{JSON.stringify(row[c])}</span>
+                              ) : String(row[c])}
+                            </span>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main grid page ───────────────────────────────────────────────────────────
 
 export default function TableGridPage() {
@@ -517,6 +782,7 @@ export default function TableGridPage() {
   const [filter, setFilter]       = useState<FilterConfig>(null);
   const [showFilterBar, setShowFilterBar] = useState(false);
   const [showSchema, setShowSchema]       = useState(false);
+  const [showQuery, setShowQuery]         = useState(false);
 
   // ── Load table + rows ────────────────────────────────────────────────────────
 
@@ -792,6 +1058,13 @@ export default function TableGridPage() {
             </button>
 
             <button
+              onClick={() => setShowQuery(q => !q)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${showQuery ? "bg-violet-600 text-white border-violet-600 hover:bg-violet-700" : "text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+            >
+              <Terminal size={12} /> Query
+            </button>
+
+            <button
               onClick={() => setNewRowDraft(Object.fromEntries((table.columns ?? []).map(c => [c.name, ""])))}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-all"
             >
@@ -989,6 +1262,15 @@ export default function TableGridPage() {
             </table>
           )}
         </div>
+
+        {/* ── Query Builder panel ──────────────────────────────────────────── */}
+        {showQuery && table.columns.length > 0 && (
+          <QueryBuilder
+            tableId={id}
+            columns={table.columns}
+            onClose={() => setShowQuery(false)}
+          />
+        )}
 
         {/* ── Pagination ────────────────────────────────────────────────────── */}
         {total > PAGE_SIZE && (

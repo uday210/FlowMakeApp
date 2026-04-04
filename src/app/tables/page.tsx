@@ -537,19 +537,17 @@ function TableCard({
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all group relative">
       {/* Icon + name */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-teal-100">
-            <Table2 size={18} className="text-teal-600" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-gray-900 truncate">{table.name}</h3>
-            {table.description && (
-              <p className="text-xs text-gray-400 truncate mt-0.5">{table.description}</p>
-            )}
-          </div>
+      <div className="flex items-start gap-3 mb-3">
+        <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-teal-100">
+          <Table2 size={18} className="text-teal-600" />
         </div>
-        <div className="relative">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-gray-900 truncate">{table.name}</h3>
+          {table.description && (
+            <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-relaxed">{table.description}</p>
+          )}
+        </div>
+        <div className="relative flex-shrink-0">
           <button
             onClick={() => setMenuOpen(o => !o)}
             className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-gray-100 text-gray-400 transition-all"
