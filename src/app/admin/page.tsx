@@ -660,6 +660,7 @@ function SuperAdminsTab({ users, orgs, onUserCreated }: { users: UserProfile[]; 
 // ─── Platform Email Tab ───────────────────────────────────────────────────────
 
 const PROVIDERS = [
+  { value: "brevo",     label: "Brevo (recommended)" },
   { value: "resend",    label: "Resend" },
   { value: "sendgrid",  label: "SendGrid" },
   { value: "mailgun",   label: "Mailgun" },
@@ -744,7 +745,7 @@ function PlatformEmailTab() {
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-300" size={24} /></div>;
 
   const provider = config.provider;
-  const needsApiKey = ["resend", "sendgrid", "postmark", "mailgun", "mailtrap"].includes(provider);
+  const needsApiKey = ["brevo", "resend", "sendgrid", "postmark", "mailgun", "mailtrap"].includes(provider);
   const isMailgun = provider === "mailgun";
   const isSmtp = provider === "smtp";
   const isMailtrap = provider === "mailtrap";

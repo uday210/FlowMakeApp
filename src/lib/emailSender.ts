@@ -167,6 +167,31 @@ async function sendViaSmtp(config: OrgEmailConfig, opts: SendEmailOptions) {
   });
 }
 
+async function sendViaBrevo(config: OrgEmailConfig, opts: SendEmailOptions) {
+  const from = config.from_name
+    ? { name: config.from_name, email: config.from_email }
+    : { email: config.from_email };
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": config.api_key!,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: from,
+      to: [{ email: opts.to, name: opts.toName ?? opts.to }],
+      subject: opts.subject,
+      htmlContent: opts.htmlBody,
+      textContent: opts.plainBody,
+      replyTo: opts.replyTo ? { email: opts.replyTo } : undefined,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Brevo error: ${err}`);
+  }
+}
+
 async function sendViaMailtrap(config: OrgEmailConfig, opts: SendEmailOptions) {
   // Uses Mailtrap Email Testing API (HTTP) — works on Railway where SMTP ports are blocked
   // api_key = "Bearer <token>" or just "<token>", mailgun_domain field holds the inbox ID
@@ -217,6 +242,9 @@ export async function sendEmailWithConfig(config: OrgEmailConfig, opts: SendEmai
       case "mailtrap":
         await sendViaMailtrap(config, opts);
         return true;
+      case "brevo":
+        await sendViaBrevo(config, opts);
+        return true;
       default:
         return false;
     }
@@ -253,6 +281,9 @@ export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
           return true;
         case "mailtrap":
           await sendViaMailtrap(orgConfig, opts);
+          return true;
+        case "brevo":
+          await sendViaBrevo(orgConfig, opts);
           return true;
       }
     }

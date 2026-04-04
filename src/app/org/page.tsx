@@ -885,6 +885,7 @@ interface EmailConfig {
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
+  brevo: "Brevo",
   resend: "Resend",
   sendgrid: "SendGrid",
   mailgun: "Mailgun",
@@ -894,6 +895,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 const PROVIDER_COLORS: Record<string, string> = {
+  brevo: "bg-blue-500 text-white",
   resend: "bg-black text-white",
   sendgrid: "bg-blue-600 text-white",
   mailgun: "bg-red-600 text-white",
@@ -905,7 +907,7 @@ const PROVIDER_COLORS: Record<string, string> = {
 function blankForm() {
   return {
     name: "",
-    provider: "resend",
+    provider: "brevo",
     from_email: "",
     from_name: "",
     api_key: "",
@@ -1238,12 +1240,14 @@ function EmailConfigsPanel() {
               </div>
 
               {/* Provider-specific fields */}
-              {(form.provider === "resend" || form.provider === "sendgrid" || form.provider === "postmark") && (
+              {(form.provider === "brevo" || form.provider === "resend" || form.provider === "sendgrid" || form.provider === "postmark") && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {form.provider === "brevo" ? "Brevo API Key" : "API Key"}
+                  </label>
                   <input
                     type="password"
-                    placeholder={editId ? "Leave blank to keep existing key" : "API key…"}
+                    placeholder={editId ? "Leave blank to keep existing key" : form.provider === "brevo" ? "xkeysib-..." : "API key…"}
                     value={form.api_key}
                     onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
                     className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400"
