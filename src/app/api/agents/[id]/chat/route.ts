@@ -84,6 +84,76 @@ function buildToolSchema(wf: ConnectedWorkflow): { type: "object"; properties: R
   return { type: "object", properties, required };
 }
 
+type MCPDiscoveredTool = {
+  name: string;
+  description: string;
+  input_schema?: Record<string, unknown>;
+  enabled: boolean;
+};
+
+type MCPTool = {
+  id: string;
+  name: string;
+  server_url: string;
+  auth_key?: string;
+  enabled: boolean;
+  discovered_tools?: MCPDiscoveredTool[];
+};
+
+// Call a tool on an MCP server via JSON-RPC tools/call
+async function callMCPTool(
+  serverUrl: string,
+  authKey: string | undefined,
+  toolName: string,
+  args: Record<string, unknown>
+): Promise<string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (authKey?.trim()) headers["Authorization"] = `Bearer ${authKey.trim()}`;
+  try {
+    const res = await fetch(serverUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "tools/call", params: { name: toolName, arguments: args } }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return `Tool call failed: HTTP ${res.status}`;
+    const json = await res.json();
+    const content = json?.result?.content;
+    if (Array.isArray(content)) {
+      return content.map((c: { type: string; text?: string }) => c.text ?? JSON.stringify(c)).filter(Boolean).join("\n") || "No result";
+    }
+    if (json?.result !== undefined) return typeof json.result === "string" ? json.result : JSON.stringify(json.result);
+    if (json?.error) return `MCP error: ${json.error.message ?? JSON.stringify(json.error)}`;
+    return "Tool returned no result";
+  } catch (err) {
+    return `MCP tool error: ${err instanceof Error ? err.message : "Unknown error"}`;
+  }
+}
+
+// Build LLM tool defs + a name→server lookup from the enabled MCP servers
+function buildMCPToolDefs(mcpTools: MCPTool[]): {
+  defs: { name: string; description: string; input_schema: Record<string, unknown> }[];
+  lookup: Map<string, { serverUrl: string; authKey?: string; originalName: string }>;
+} {
+  const defs: { name: string; description: string; input_schema: Record<string, unknown> }[] = [];
+  const lookup = new Map<string, { serverUrl: string; authKey?: string; originalName: string }>();
+  for (let si = 0; si < mcpTools.length; si++) {
+    const server = mcpTools[si];
+    if (!server.enabled || !server.discovered_tools?.length) continue;
+    for (const tool of server.discovered_tools) {
+      if (!tool.enabled) continue;
+      const safeName = `mcp_${si}_${tool.name.replace(/[^a-z0-9_]/gi, "_")}`;
+      defs.push({
+        name: safeName,
+        description: `[${server.name}] ${tool.description || tool.name}`,
+        input_schema: (tool.input_schema ?? { type: "object", properties: {}, required: [] }) as Record<string, unknown>,
+      });
+      lookup.set(safeName, { serverUrl: server.server_url, authKey: server.auth_key, originalName: tool.name });
+    }
+  }
+  return { defs, lookup };
+}
+
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 function getApiKey(provider: string, agentKey: string): string {
@@ -194,6 +264,7 @@ async function streamAnthropic(
     system_prompt: string;
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
+    mcp_tools?: MCPTool[];
     _retrievedContext?: string;
     behavior?: BehaviorConfig;
   },
@@ -217,12 +288,20 @@ async function streamAnthropic(
   );
 
   const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
+  const { defs: mcpDefs, lookup: mcpLookup } = buildMCPToolDefs(chatbot.mcp_tools ?? []);
 
-  const tools: import("@anthropic-ai/sdk/resources").Tool[] = enabledWorkflows.map(wf => ({
-    name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
-    description: wf.whenToUse || wf.description || wf.name,
-    input_schema: buildToolSchema(wf) as import("@anthropic-ai/sdk/resources").Tool["input_schema"],
-  }));
+  const tools: import("@anthropic-ai/sdk/resources").Tool[] = [
+    ...enabledWorkflows.map(wf => ({
+      name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
+      description: wf.whenToUse || wf.description || wf.name,
+      input_schema: buildToolSchema(wf) as import("@anthropic-ai/sdk/resources").Tool["input_schema"],
+    })),
+    ...mcpDefs.map(d => ({
+      name: d.name,
+      description: d.description,
+      input_schema: d.input_schema as import("@anthropic-ai/sdk/resources").Tool["input_schema"],
+    })),
+  ];
 
   const encoder = new TextEncoder();
 
@@ -332,17 +411,18 @@ async function streamAnthropic(
             { role: "assistant", content: assistantContent },
           ] as import("@anthropic-ai/sdk/resources").MessageParam[];
 
-          // Execute each workflow tool and collect results
+          // Execute each tool — workflow or MCP
           const toolResults: import("@anthropic-ai/sdk/resources").ToolResultBlockParam[] = [];
           for (const tb of toolUseBlocks) {
-            // Extract workflowId from tool name: workflow_<uuid_with_underscores>
-            const workflowId = tb.name.replace(/^workflow_/, "").replace(/_/g, "-");
-            const result = await executeWorkflow(workflowId, tb.input, origin);
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: tb.id,
-              content: result,
-            });
+            let result: string;
+            if (mcpLookup.has(tb.name)) {
+              const { serverUrl, authKey, originalName } = mcpLookup.get(tb.name)!;
+              result = await callMCPTool(serverUrl, authKey, originalName, tb.input);
+            } else {
+              const workflowId = tb.name.replace(/^workflow_/, "").replace(/_/g, "-");
+              result = await executeWorkflow(workflowId, tb.input, origin);
+            }
+            toolResults.push({ type: "tool_result", tool_use_id: tb.id, content: result });
           }
 
           currentMessages = [
@@ -374,6 +454,7 @@ async function streamOpenAI(
     system_prompt: string;
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
+    mcp_tools?: MCPTool[];
     _retrievedContext?: string;
     behavior?: BehaviorConfig;
   },
@@ -386,12 +467,11 @@ async function streamOpenAI(
   const OpenAI = (await import("openai")).default;
   const client = new OpenAI({ apiKey });
 
-  // Use clean system prompt without INVOKE_WORKFLOW injection
   const behavior = chatbot.behavior ?? {};
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
-    [],   // pass empty — tools are declared natively below
+    [],
     "openai",
     chatbot._retrievedContext,
     behavior
@@ -400,15 +480,22 @@ async function streamOpenAI(
   type OAIMessage = import("openai/resources").ChatCompletionMessageParam;
 
   const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
+  const { defs: mcpDefs, lookup: mcpLookup } = buildMCPToolDefs(chatbot.mcp_tools ?? []);
 
-  const tools: import("openai/resources").ChatCompletionTool[] = enabledWorkflows.map(wf => ({
-    type: "function" as const,
-    function: {
-      name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
-      description: wf.whenToUse || wf.description || wf.name,
-      parameters: buildToolSchema(wf),
-    },
-  }));
+  const tools: import("openai/resources").ChatCompletionTool[] = [
+    ...enabledWorkflows.map(wf => ({
+      type: "function" as const,
+      function: {
+        name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
+        description: wf.whenToUse || wf.description || wf.name,
+        parameters: buildToolSchema(wf),
+      },
+    })),
+    ...mcpDefs.map(d => ({
+      type: "function" as const,
+      function: { name: d.name, description: d.description, parameters: d.input_schema },
+    })),
+  ];
 
   const encoder = new TextEncoder();
 
@@ -485,17 +572,19 @@ async function streamOpenAI(
             })),
           });
 
-          // Execute each workflow and append tool results
+          // Execute each tool — workflow or MCP
           for (const tc of toolCalls) {
-            const workflowId = tc.name.replace(/^workflow_/, "").replace(/_/g, "-");
             let args: Record<string, unknown> = {};
             try { args = JSON.parse(tc.arguments || "{}"); } catch { /**/ }
-            const result = await executeWorkflow(workflowId, args, origin);
-            currentMessages.push({
-              role: "tool",
-              tool_call_id: tc.id,
-              content: result,
-            });
+            let result: string;
+            if (mcpLookup.has(tc.name)) {
+              const { serverUrl, authKey, originalName } = mcpLookup.get(tc.name)!;
+              result = await callMCPTool(serverUrl, authKey, originalName, args);
+            } else {
+              const workflowId = tc.name.replace(/^workflow_/, "").replace(/_/g, "-");
+              result = await executeWorkflow(workflowId, args, origin);
+            }
+            currentMessages.push({ role: "tool", tool_call_id: tc.id, content: result });
           }
         }
 
@@ -522,6 +611,7 @@ async function streamGroq(
     system_prompt: string;
     knowledge_base: string;
     connected_workflows: ConnectedWorkflow[];
+    mcp_tools?: MCPTool[];
     _retrievedContext?: string;
     behavior?: BehaviorConfig;
   },
@@ -547,16 +637,23 @@ async function streamGroq(
   type GroqMessage = import("groq-sdk/resources/chat/completions").ChatCompletionMessageParam;
 
   const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
+  const { defs: mcpDefs, lookup: mcpLookup } = buildMCPToolDefs(chatbot.mcp_tools ?? []);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tools: any[] = enabledWorkflows.map(wf => ({
-    type: "function",
-    function: {
-      name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
-      description: wf.whenToUse || wf.description || wf.name,
-      parameters: buildToolSchema(wf),
-    },
-  }));
+  const tools: any[] = [
+    ...enabledWorkflows.map(wf => ({
+      type: "function",
+      function: {
+        name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
+        description: wf.whenToUse || wf.description || wf.name,
+        parameters: buildToolSchema(wf),
+      },
+    })),
+    ...mcpDefs.map(d => ({
+      type: "function",
+      function: { name: d.name, description: d.description, parameters: d.input_schema },
+    })),
+  ];
 
   const encoder = new TextEncoder();
 
@@ -626,15 +723,17 @@ async function streamGroq(
           });
 
           for (const tc of toolCalls) {
-            const workflowId = tc.name.replace(/^workflow_/, "").replace(/_/g, "-");
             let args: Record<string, unknown> = {};
             try { args = JSON.parse(tc.arguments || "{}"); } catch { /**/ }
-            const result = await executeWorkflow(workflowId, args, origin);
-            (currentMessages as unknown[]).push({
-              role: "tool",
-              tool_call_id: tc.id,
-              content: result,
-            });
+            let result: string;
+            if (mcpLookup.has(tc.name)) {
+              const { serverUrl, authKey, originalName } = mcpLookup.get(tc.name)!;
+              result = await callMCPTool(serverUrl, authKey, originalName, args);
+            } else {
+              const workflowId = tc.name.replace(/^workflow_/, "").replace(/_/g, "-");
+              result = await executeWorkflow(workflowId, args, origin);
+            }
+            (currentMessages as unknown[]).push({ role: "tool", tool_call_id: tc.id, content: result });
           }
         }
 

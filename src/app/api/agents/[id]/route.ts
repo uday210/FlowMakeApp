@@ -50,6 +50,7 @@ export async function PUT(
   if (body.is_active !== undefined) updateData.is_active = body.is_active;
   if (body.agent_type !== undefined) updateData.agent_type = body.agent_type;
   if (body.intents !== undefined) updateData.intents = body.intents;
+  if (body.mcp_tools !== undefined) updateData.mcp_tools = body.mcp_tools;
 
   const { data, error } = await ctx.admin
     .from("chatbots")
