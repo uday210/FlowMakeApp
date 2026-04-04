@@ -110,12 +110,21 @@ type BehaviorConfig = {
   max_response_words: number;
 };
 
+type MCPDiscoveredTool = {
+  name: string;
+  description: string;
+  input_schema?: Record<string, unknown>;
+  enabled: boolean;
+};
+
 type MCPTool = {
   id: string;
-  name: string;
+  name: string;         // server display name
   server_url: string;
+  auth_key?: string;
   description: string;
   enabled: boolean;
+  discovered_tools?: MCPDiscoveredTool[];
 };
 
 type Intent = {
@@ -1784,109 +1793,231 @@ function MCPTab({
   chatbot: Chatbot;
   onChange: (updates: Partial<Chatbot>) => void;
 }) {
-  const tools: MCPTool[] = chatbot.mcp_tools ?? [];
-  const [form, setForm] = useState({ name: "", server_url: "", description: "" });
+  const servers: MCPTool[] = chatbot.mcp_tools ?? [];
   const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ name: "", server_url: "", auth_key: "" });
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverError, setDiscoverError] = useState("");
+  const [discovered, setDiscovered] = useState<MCPDiscoveredTool[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const addTool = () => {
-    if (!form.name.trim() || !form.server_url.trim()) return;
-    const newTool: MCPTool = {
+  const discover = async () => {
+    if (!form.server_url.trim()) return;
+    setDiscovering(true);
+    setDiscoverError("");
+    setDiscovered([]);
+    try {
+      const res = await fetch("/api/mcp-discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: form.server_url.trim(), auth_key: form.auth_key.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setDiscoverError(data.error ?? "Discovery failed"); return; }
+      const tools: MCPDiscoveredTool[] = (data.tools ?? []).map((t: { name: string; description?: string; inputSchema?: Record<string, unknown> }) => ({
+        name: t.name,
+        description: t.description ?? "",
+        input_schema: t.inputSchema,
+        enabled: true,
+      }));
+      if (tools.length === 0) { setDiscoverError("Server reachable but returned no tools."); return; }
+      setDiscovered(tools);
+      if (!form.name.trim()) setForm(f => ({ ...f, name: new URL(form.server_url.trim()).hostname }));
+    } catch {
+      setDiscoverError("Could not reach server. Check the URL.");
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
+  const addServer = () => {
+    if (!form.server_url.trim()) return;
+    const newServer: MCPTool = {
       id: crypto.randomUUID(),
-      name: form.name.trim(),
+      name: form.name.trim() || new URL(form.server_url.trim()).hostname,
       server_url: form.server_url.trim(),
-      description: form.description.trim(),
+      auth_key: form.auth_key.trim() || undefined,
+      description: "",
       enabled: true,
+      discovered_tools: discovered.length > 0 ? discovered : undefined,
     };
-    onChange({ mcp_tools: [...tools, newTool] });
-    setForm({ name: "", server_url: "", description: "" });
+    onChange({ mcp_tools: [...servers, newServer] });
+    setForm({ name: "", server_url: "", auth_key: "" });
+    setDiscovered([]);
+    setDiscoverError("");
     setAdding(false);
   };
 
-  const toggleTool = (id: string) =>
-    onChange({ mcp_tools: tools.map(t => t.id === id ? { ...t, enabled: !t.enabled } : t) });
+  const removeServer = (id: string) =>
+    onChange({ mcp_tools: servers.filter(s => s.id !== id) });
 
-  const removeTool = (id: string) =>
-    onChange({ mcp_tools: tools.filter(t => t.id !== id) });
+  const toggleServer = (id: string) =>
+    onChange({ mcp_tools: servers.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s) });
+
+  const toggleDiscoveredTool = (serverIdx: number, toolName: string) => {
+    const updated = servers.map((s, i) => {
+      if (i !== serverIdx) return s;
+      return {
+        ...s,
+        discovered_tools: (s.discovered_tools ?? []).map(t =>
+          t.name === toolName ? { ...t, enabled: !t.enabled } : t
+        ),
+      };
+    });
+    onChange({ mcp_tools: updated });
+  };
 
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-xs font-semibold text-gray-900 mb-0.5">External MCP Tools</h3>
-        <p className="text-xs text-gray-400">
-          Connect MCP (Model Context Protocol) servers to extend your agent with external tools like search, code execution, or custom APIs.
-        </p>
+        <h3 className="text-xs font-semibold text-gray-900 mb-0.5">External MCP Servers</h3>
+        <p className="text-xs text-gray-400">Connect MCP servers — the agent will use their tools automatically during conversations.</p>
       </div>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-2">
-        <Server size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
-        <p className="text-xs text-blue-700 leading-relaxed">
-          The agent will call MCP tools as needed during conversations. Each tool call is executed server-side.
-        </p>
-      </div>
-
-      {tools.length === 0 && !adding ? (
-        <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
-          <Server size={24} className="text-gray-300 mx-auto mb-2" />
-          <p className="text-xs font-medium text-gray-500">No MCP tools configured</p>
-          <p className="text-xs text-gray-400 mt-1">Add an MCP server to extend your agent&apos;s capabilities.</p>
-        </div>
-      ) : (
+      {/* Server list */}
+      {servers.length > 0 && (
         <div className="space-y-2">
-          {tools.map(tool => (
-            <div key={tool.id} className={`border rounded-xl p-3 transition-all ${tool.enabled ? "border-violet-200 bg-violet-50" : "border-gray-200 bg-white"}`}>
-              <div className="flex items-start gap-2">
-                <button onClick={() => toggleTool(tool.id)} className={`flex-shrink-0 mt-0.5 transition-colors ${tool.enabled ? "text-violet-600" : "text-gray-300"}`}>
-                  {tool.enabled ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-900">{tool.name}</p>
-                  <p className="text-xs text-gray-400 font-mono truncate">{tool.server_url}</p>
-                  {tool.description && <p className="text-xs text-gray-500 mt-0.5">{tool.description}</p>}
+          {servers.map((server, idx) => {
+            const isExpanded = expandedId === server.id;
+            const enabledTools = (server.discovered_tools ?? []).filter(t => t.enabled).length;
+            const totalTools = server.discovered_tools?.length ?? 0;
+            return (
+              <div key={server.id} className={`border rounded-xl transition-all ${server.enabled ? "border-violet-200 bg-violet-50/30" : "border-gray-200 bg-white"}`}>
+                <div className="flex items-center gap-2 px-3 py-2.5">
+                  <button
+                    onClick={() => toggleServer(server.id)}
+                    className={`relative flex-shrink-0 w-8 h-4 rounded-full transition-colors ${server.enabled ? "bg-violet-600" : "bg-gray-200"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${server.enabled ? "translate-x-4" : "translate-x-0"}`} />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-gray-900 truncate">{server.name}</p>
+                      {totalTools > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 flex-shrink-0">
+                          {enabledTools}/{totalTools} tools
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-mono truncate">{server.server_url}</p>
+                  </div>
+                  {totalTools > 0 && (
+                    <button onClick={() => setExpandedId(isExpanded ? null : server.id)} className="text-gray-400 hover:text-gray-600">
+                      <ChevronDown size={13} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                    </button>
+                  )}
+                  <button onClick={() => removeServer(server.id)} className="text-gray-300 hover:text-red-400 flex-shrink-0">
+                    <Trash2 size={12} />
+                  </button>
                 </div>
-                <button onClick={() => removeTool(tool.id)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
-                  <Trash2 size={12} />
-                </button>
+
+                {isExpanded && server.discovered_tools && server.discovered_tools.length > 0 && (
+                  <div className="border-t border-violet-100 px-3 py-2 space-y-1">
+                    <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1.5">Available Tools</p>
+                    {server.discovered_tools.map(tool => (
+                      <label key={tool.name} className="flex items-start gap-2 cursor-pointer py-1 hover:bg-white/60 rounded-lg px-1 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={tool.enabled}
+                          onChange={() => toggleDiscoveredTool(idx, tool.name)}
+                          className="accent-violet-600 mt-0.5 flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-800 font-mono">{tool.name}</p>
+                          {tool.description && <p className="text-[10px] text-gray-400 leading-tight">{tool.description}</p>}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
+      {/* Add form */}
       {adding ? (
-        <div className="border border-violet-200 rounded-xl p-3 space-y-2 bg-violet-50/50">
+        <div className="border border-violet-200 rounded-xl p-3 space-y-2.5 bg-violet-50/40">
+          <div>
+            <label className="text-[11px] font-medium text-gray-500 block mb-1">Server URL *</label>
+            <div className="flex gap-2">
+              <input
+                value={form.server_url}
+                onChange={e => { setForm(f => ({ ...f, server_url: e.target.value })); setDiscovered([]); setDiscoverError(""); }}
+                placeholder="https://mcp.example.com or .../sse"
+                className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-2 outline-none focus:border-violet-400 bg-white font-mono"
+              />
+              <button
+                onClick={discover}
+                disabled={discovering || !form.server_url.trim()}
+                className="flex items-center gap-1 px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-40 flex-shrink-0"
+              >
+                {discovering ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
+                Discover
+              </button>
+            </div>
+            {discoverError && <p className="text-[11px] text-red-500 mt-1">{discoverError}</p>}
+          </div>
+
+          {discovered.length > 0 && (
+            <div className="bg-white border border-violet-100 rounded-lg p-2.5">
+              <p className="text-[11px] font-semibold text-gray-600 mb-1.5">
+                {discovered.length} tool{discovered.length !== 1 ? "s" : ""} found — select which to enable:
+              </p>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {discovered.map((t, i) => (
+                  <label key={t.name} className="flex items-start gap-2 cursor-pointer hover:bg-violet-50 rounded px-1 py-0.5">
+                    <input
+                      type="checkbox"
+                      checked={t.enabled}
+                      onChange={() => setDiscovered(prev => prev.map((d, j) => j === i ? { ...d, enabled: !d.enabled } : d))}
+                      className="accent-violet-600 mt-0.5 flex-shrink-0"
+                    />
+                    <div>
+                      <p className="text-xs font-medium font-mono text-gray-800">{t.name}</p>
+                      {t.description && <p className="text-[10px] text-gray-400">{t.description}</p>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <input
+            value={form.auth_key}
+            onChange={e => setForm(f => ({ ...f, auth_key: e.target.value }))}
+            placeholder="API key / Bearer token (if required)"
+            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 outline-none focus:border-violet-400 bg-white"
+          />
           <input
             value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            placeholder="Tool name (e.g. web_search)"
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 bg-white"
-          />
-          <input
-            value={form.server_url}
-            onChange={e => setForm(f => ({ ...f, server_url: e.target.value }))}
-            placeholder="MCP server URL (e.g. https://mcp.example.com)"
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 bg-white font-mono text-xs"
-          />
-          <input
-            value={form.description}
-            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Description (optional)"
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 bg-white"
+            placeholder="Display name (optional)"
+            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 outline-none focus:border-violet-400 bg-white"
           />
           <div className="flex gap-2">
-            <button onClick={addTool} disabled={!form.name.trim() || !form.server_url.trim()}
-              className="flex-1 py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-40">
-              Add Tool
+            <button
+              onClick={addServer}
+              disabled={!form.server_url.trim()}
+              className="flex-1 py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-40"
+            >
+              Add Server
             </button>
-            <button onClick={() => { setAdding(false); setForm({ name: "", server_url: "", description: "" }); }}
-              className="px-3 py-2 border border-gray-200 text-gray-500 text-xs rounded-lg hover:bg-gray-50">
+            <button
+              onClick={() => { setAdding(false); setForm({ name: "", server_url: "", auth_key: "" }); setDiscovered([]); setDiscoverError(""); }}
+              className="px-3 py-2 border border-gray-200 text-gray-500 text-xs rounded-lg hover:bg-gray-50"
+            >
               Cancel
             </button>
           </div>
         </div>
       ) : (
-        <button onClick={() => setAdding(true)}
-          className="w-full flex items-center justify-center gap-1.5 py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-500 hover:border-violet-300 hover:text-violet-600 transition-colors">
-          <Plus size={13} /> Add MCP Tool
+        <button
+          onClick={() => setAdding(true)}
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-500 hover:border-violet-300 hover:text-violet-600 transition-colors"
+        >
+          <Plus size={13} /> Add MCP Server
         </button>
       )}
     </div>
@@ -1903,6 +2034,8 @@ function HistoryTab({ agentId }: { agentId: string }) {
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [clearingAll, setClearingAll] = useState(false);
 
   useEffect(() => {
     fetch(`/api/agents/${agentId}/conversations`)
@@ -1911,6 +2044,21 @@ function HistoryTab({ agentId }: { agentId: string }) {
       .catch(() => setConversations([]))
       .finally(() => setLoading(false));
   }, [agentId]);
+
+  const deleteOne = async (convId: string) => {
+    setDeletingId(convId);
+    await fetch(`/api/agents/${agentId}/conversations?id=${convId}`, { method: "DELETE" }).catch(() => {});
+    setConversations(prev => prev.filter(c => c.id !== convId));
+    setDeletingId(null);
+  };
+
+  const clearAll = async () => {
+    if (!confirm("Delete all conversation history for this agent?")) return;
+    setClearingAll(true);
+    await fetch(`/api/agents/${agentId}/conversations?all=true`, { method: "DELETE" }).catch(() => {});
+    setConversations([]);
+    setClearingAll(false);
+  };
 
   if (loading) {
     return (
@@ -1934,9 +2082,19 @@ function HistoryTab({ agentId }: { agentId: string }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-3">
-        {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
-      </p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+          {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
+        </p>
+        <button
+          onClick={clearAll}
+          disabled={clearingAll}
+          className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors disabled:opacity-40"
+        >
+          {clearingAll ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+          Clear all
+        </button>
+      </div>
       {conversations.map(conv => {
         const isOpen = expanded === conv.id;
         const firstUserMsg = conv.messages.find(m => m.role === "user");
@@ -1947,9 +2105,10 @@ function HistoryTab({ agentId }: { agentId: string }) {
 
         return (
           <div key={conv.id} className="border border-gray-200 rounded-xl overflow-hidden">
+            <div className="flex items-start">
             <button
               onClick={() => setExpanded(isOpen ? null : conv.id)}
-              className="w-full text-left px-3 py-2.5 flex items-start gap-2.5 hover:bg-gray-50 transition-colors"
+              className="flex-1 text-left px-3 py-2.5 flex items-start gap-2.5 hover:bg-gray-50 transition-colors min-w-0"
             >
               <MessageSquare size={13} className="text-violet-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
@@ -1977,6 +2136,14 @@ function HistoryTab({ agentId }: { agentId: string }) {
                 className={`text-gray-400 flex-shrink-0 mt-1 transition-transform ${isOpen ? "rotate-180" : ""}`}
               />
             </button>
+            <button
+              onClick={() => deleteOne(conv.id)}
+              disabled={deletingId === conv.id}
+              className="px-2.5 py-2.5 text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 self-stretch flex items-center"
+            >
+              {deletingId === conv.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+            </button>
+            </div>
 
             {isOpen && (
               <div className="border-t border-gray-100 bg-gray-50 px-3 py-3 space-y-3">

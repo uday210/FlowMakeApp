@@ -85,3 +85,33 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
+
+// DELETE /api/agents/[id]/conversations?id=<convId>  — delete one
+// DELETE /api/agents/[id]/conversations?all=true      — clear all
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const ctx = await getOrgContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: agent } = await ctx.admin.from("chatbots").select("id").eq("id", id).eq("org_id", ctx.orgId).single();
+  if (!agent) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const url = new URL(req.url);
+  const convId = url.searchParams.get("id");
+  const all = url.searchParams.get("all") === "true";
+
+  if (convId) {
+    const { error } = await ctx.admin.from("agent_conversations").delete().eq("id", convId).eq("agent_id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  } else if (all) {
+    const { error } = await ctx.admin.from("agent_conversations").delete().eq("agent_id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  } else {
+    return NextResponse.json({ error: "Provide ?id=<convId> or ?all=true" }, { status: 400 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
