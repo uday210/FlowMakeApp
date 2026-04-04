@@ -14,6 +14,26 @@ const COLUMN_TYPES = ["text", "textarea", "number", "boolean", "select", "date",
 
 // ─── Column type badge ────────────────────────────────────────────────────────
 
+const TYPE_PILL: Record<string, string> = {
+  text:     "bg-blue-50 text-blue-600 border-blue-100",
+  textarea: "bg-blue-50 text-blue-500 border-blue-100",
+  number:   "bg-orange-50 text-orange-600 border-orange-100",
+  boolean:  "bg-green-50 text-green-600 border-green-100",
+  select:   "bg-violet-50 text-violet-600 border-violet-100",
+  date:     "bg-pink-50 text-pink-600 border-pink-100",
+  datetime: "bg-pink-50 text-pink-600 border-pink-100",
+  email:    "bg-cyan-50 text-cyan-600 border-cyan-100",
+  url:      "bg-indigo-50 text-indigo-600 border-indigo-100",
+  phone:    "bg-yellow-50 text-yellow-700 border-yellow-100",
+  json:     "bg-gray-100 text-gray-500 border-gray-200",
+};
+
+const TYPE_SHORT: Record<string, string> = {
+  text: "TXT", textarea: "AREA", number: "NUM", boolean: "BOOL",
+  select: "SEL", date: "DATE", datetime: "DT", email: "EMAIL",
+  url: "URL", phone: "TEL", json: "JSON",
+};
+
 function TypeBadge({ type }: { type: string }) {
   const colors: Record<string, string> = {
     text: "bg-blue-50 text-blue-600",
@@ -516,96 +536,127 @@ function TableRows({ table, onClose }: { table: UserTable; onClose: () => void }
 
 // ─── Table card ───────────────────────────────────────────────────────────────
 
+const CARD_ACCENTS = [
+  { bar: "bg-violet-500", icon: "bg-violet-50 border-violet-100 text-violet-600" },
+  { bar: "bg-blue-500",   icon: "bg-blue-50 border-blue-100 text-blue-600" },
+  { bar: "bg-emerald-500",icon: "bg-emerald-50 border-emerald-100 text-emerald-600" },
+  { bar: "bg-orange-500", icon: "bg-orange-50 border-orange-100 text-orange-600" },
+  { bar: "bg-pink-500",   icon: "bg-pink-50 border-pink-100 text-pink-600" },
+  { bar: "bg-teal-500",   icon: "bg-teal-50 border-teal-100 text-teal-600" },
+  { bar: "bg-indigo-500", icon: "bg-indigo-50 border-indigo-100 text-indigo-600" },
+  { bar: "bg-rose-500",   icon: "bg-rose-50 border-rose-100 text-rose-600" },
+];
+
 function TableCard({
   table,
+  index,
   onEdit,
   onDelete,
   onViewRows,
 }: {
   table: UserTable;
+  index: number;
   onEdit: () => void;
   onDelete: () => void;
   onViewRows: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const accent = CARD_ACCENTS[index % CARD_ACCENTS.length];
 
   const copyId = () => {
     navigator.clipboard.writeText(table.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
     setMenuOpen(false);
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all group relative">
-      {/* Icon + name */}
-      <div className="flex items-start gap-3 mb-3">
-        <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-teal-100">
-          <Table2 size={18} className="text-teal-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-gray-900 truncate">{table.name}</h3>
-          {table.description && (
-            <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-relaxed">{table.description}</p>
-          )}
-        </div>
-        <div className="relative flex-shrink-0">
-          <button
-            onClick={() => setMenuOpen(o => !o)}
-            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-gray-100 text-gray-400 transition-all"
-          >
-            <MoreHorizontal size={14} />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 w-40 z-10">
-              <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50">
-                <Settings2 size={12} /> Edit schema
-              </button>
-              <button onClick={copyId} className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50">
-                <Copy size={12} /> Copy table ID
-              </button>
-              <div className="border-t border-gray-100 my-1" />
-              <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-red-500 hover:bg-red-50">
-                <Trash2 size={12} /> Delete table
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+    <div
+      className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all group flex flex-col"
+    >
+      {/* Accent strip */}
+      <div className={`h-1 w-full ${accent.bar}`} />
 
-      {/* Columns preview */}
-      <div className="flex flex-wrap gap-1.5 mb-4 min-h-[24px]">
-        {table.columns.slice(0, 5).map(col => (
-          <span key={col.name} className="flex items-center gap-1 text-xs bg-gray-50 border border-gray-100 rounded-lg px-2 py-0.5 text-gray-600 font-mono">
-            {col.name}
-            <TypeBadge type={col.type} />
+      <div className="p-5 flex flex-col flex-1">
+        {/* Header row */}
+        <div className="flex items-start gap-3 mb-4">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${accent.icon}`}>
+            <Table2 size={18} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-bold text-gray-900 truncate leading-tight">{table.name}</h3>
+            <p className="text-xs text-gray-400 mt-0.5 line-clamp-1 leading-relaxed">
+              {table.description || <span className="italic">No description</span>}
+            </p>
+          </div>
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={e => { e.stopPropagation(); setMenuOpen(o => !o); }}
+              className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-gray-100 text-gray-400 transition-all"
+            >
+              <MoreHorizontal size={14} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 w-44 z-20">
+                  <button onClick={() => { onEdit(); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50">
+                    <Settings2 size={12} /> Edit schema
+                  </button>
+                  <button onClick={copyId}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50">
+                    {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                    {copied ? "Copied!" : "Copy table ID"}
+                  </button>
+                  <div className="border-t border-gray-100 my-1" />
+                  <button onClick={() => { onDelete(); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-red-500 hover:bg-red-50">
+                    <Trash2 size={12} /> Delete table
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Column pills */}
+        <div className="flex flex-wrap gap-1.5 flex-1">
+          {table.columns.slice(0, 6).map(col => (
+            <span
+              key={col.name}
+              className={`inline-flex items-center gap-1 text-xs border rounded-lg px-2 py-1 ${TYPE_PILL[col.type] ?? "bg-gray-50 text-gray-500 border-gray-100"}`}
+            >
+              <span className="font-medium truncate max-w-[72px]">{col.name}</span>
+              <span className="font-bold text-[9px] opacity-60 uppercase tracking-wide">
+                {TYPE_SHORT[col.type] ?? col.type}
+              </span>
+            </span>
+          ))}
+          {table.columns.length > 6 && (
+            <span className="inline-flex items-center text-xs px-2 py-1 bg-gray-50 border border-gray-100 rounded-lg text-gray-400">
+              +{table.columns.length - 6} more
+            </span>
+          )}
+          {table.columns.length === 0 && (
+            <span className="text-xs text-gray-300 italic py-1">No columns defined</span>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between mt-4 pt-3.5 border-t border-gray-100">
+          <span className="text-xs text-gray-400 font-medium">
+            {table.columns.length} column{table.columns.length !== 1 ? "s" : ""}
           </span>
-        ))}
-        {table.columns.length > 5 && (
-          <span className="text-xs text-gray-400">+{table.columns.length - 5} more</span>
-        )}
-        {table.columns.length === 0 && (
-          <span className="text-xs text-gray-300 italic">No columns defined</span>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-        <p className="text-xs text-gray-400">
-          {table.columns.length} column{table.columns.length !== 1 ? "s" : ""}
-        </p>
-        <button
-          onClick={onViewRows}
-          className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors"
-        >
-          <Rows3 size={12} /> View rows
-        </button>
-      </div>
-
-      {/* Table ID snippet */}
-      <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2 flex items-center gap-2">
-        <span className="text-xs text-gray-400 font-mono truncate flex-1 select-all">{table.id}</span>
-        <button onClick={copyId} className="text-gray-300 hover:text-gray-500 flex-shrink-0">
-          <Copy size={10} />
-        </button>
+          <button
+            onClick={onViewRows}
+            className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors group/btn"
+          >
+            Open table
+            <ChevronRight size={12} className="transition-transform group-hover/btn:translate-x-0.5" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -666,7 +717,7 @@ export default function TablesPage() {
         action={
           <button
             onClick={() => setModal({ mode: "create" })}
-            className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors shadow-sm"
           >
             <Plus size={14} /> New table
           </button>
@@ -676,43 +727,77 @@ export default function TablesPage() {
       <main className="flex-1 overflow-auto px-8 py-6">
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => <div key={i} className="h-52 bg-white border border-gray-200 rounded-2xl animate-pulse" />)}
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white border border-gray-200 rounded-2xl overflow-hidden animate-pulse">
+                <div className="h-1 bg-gray-200" />
+                <div className="p-5 space-y-3">
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl" />
+                    <div className="flex-1 space-y-2 pt-1">
+                      <div className="h-3 bg-gray-100 rounded w-2/3" />
+                      <div className="h-2.5 bg-gray-100 rounded w-1/2" />
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[1,2,3].map(j => <div key={j} className="h-6 w-20 bg-gray-100 rounded-lg" />)}
+                  </div>
+                  <div className="h-px bg-gray-100 mt-4" />
+                  <div className="flex justify-between">
+                    <div className="h-2.5 w-16 bg-gray-100 rounded" />
+                    <div className="h-2.5 w-20 bg-gray-100 rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : tables.length === 0 ? (
-          <div className="text-center py-24">
-            <div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-teal-100">
-              <Table2 size={28} className="text-teal-500" />
+          <div className="flex flex-col items-center justify-center py-32 text-center">
+            <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center mb-5 border border-violet-100 shadow-sm">
+              <Table2 size={28} className="text-violet-500" />
             </div>
-            <h2 className="text-base font-semibold text-gray-700 mb-2">No tables yet</h2>
-            <p className="text-sm text-gray-400 mb-2 max-w-sm mx-auto">
-              Create a table with custom columns, then use the <strong>My Tables</strong> node in your workflows to insert, query, and manage data.
+            <h2 className="text-base font-bold text-gray-800 mb-2">No tables yet</h2>
+            <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
+              Create a table with custom columns, then use the <strong className="text-gray-600">My Tables</strong> node in your workflows to read and write data.
             </p>
             <button
               onClick={() => setModal({ mode: "create" })}
-              className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors mx-auto"
+              className="mt-6 flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors shadow-sm"
             >
               <Plus size={14} /> Create your first table
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tables.map(table => (
-              <TableCard
-                key={table.id}
-                table={table}
-                onEdit={() => setModal({ mode: "edit", table })}
-                onDelete={() => handleDelete(table.id)}
-                onViewRows={() => router.push(`/tables/${table.id}`)}
-              />
-            ))}
-            <button
-              onClick={() => setModal({ mode: "create" })}
-              className="border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-teal-300 hover:bg-teal-50/50 transition-all text-gray-400 hover:text-teal-500 min-h-[200px]"
-            >
-              <Plus size={22} />
-              <span className="text-xs font-medium">New table</span>
-            </button>
-          </div>
+          <>
+            {/* Summary bar */}
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-xs text-gray-400 font-medium">
+                {tables.length} table{tables.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tables.map((table, i) => (
+                <TableCard
+                  key={table.id}
+                  table={table}
+                  index={i}
+                  onEdit={() => setModal({ mode: "edit", table })}
+                  onDelete={() => handleDelete(table.id)}
+                  onViewRows={() => router.push(`/tables/${table.id}`)}
+                />
+              ))}
+              {/* New table card */}
+              <button
+                onClick={() => setModal({ mode: "create" })}
+                className="border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-2.5 hover:border-violet-300 hover:bg-violet-50/40 transition-all text-gray-400 hover:text-violet-500 min-h-[180px] group"
+              >
+                <div className="w-10 h-10 rounded-xl border-2 border-dashed border-gray-200 group-hover:border-violet-300 flex items-center justify-center transition-colors">
+                  <Plus size={18} />
+                </div>
+                <span className="text-xs font-semibold">New table</span>
+              </button>
+            </div>
+          </>
         )}
       </main>
 
