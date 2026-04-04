@@ -1,14 +1,22 @@
 import type { NodeHandler } from "./types";
 
 export const handlers: Record<string, NodeHandler> = {
-  "action_email": async ({ config, interpolate }) => {
-    // Legacy stub — use action_smtp, action_sendgrid, action_resend, etc. for real sending
-    const to = interpolate(config.to as string);
+  "action_email": async ({ config, ctx, interpolate }) => {
+    const { sendEmail } = await import("../emailSender");
+    const to      = interpolate(config.to as string);
     const subject = interpolate(config.subject as string);
-    const body = interpolate(config.body as string);
+    const body    = interpolate((config.body as string) || "");
     if (!to || !subject) throw new Error("To and Subject are required");
-    console.log(`[Email stub] To: ${to}, Subject: ${subject}\n${body}`);
-    return { sent: true, to, subject, simulated: true };
+    const isHtml  = body.trim().startsWith("<");
+    const sent = await sendEmail({
+      orgId:     ctx.orgId || "",
+      to,
+      subject,
+      htmlBody:  isHtml ? body : `<p>${body.replace(/\n/g, "<br>")}</p>`,
+      plainBody: isHtml ? body.replace(/<[^>]+>/g, "") : body,
+    });
+    if (!sent) throw new Error("Failed to send email — no email provider configured for this org");
+    return { sent: true, to, subject };
   },
 
   "action_sendgrid": async ({ config, interpolate }) => {
