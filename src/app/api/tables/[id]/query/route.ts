@@ -105,8 +105,14 @@ export async function POST(
   // ── Project columns ──────────────────────────────────────────────────────────
   const cols = body.columns?.length ? body.columns : null;
   const projected = limited.map(row => {
-    const data = cols ? Object.fromEntries(cols.map(c => [c, row.data[c]])) : row.data;
-    return { id: row.id, ...data, created_at: row.created_at };
+    if (!cols) return { id: row.id, ...row.data, created_at: row.created_at };
+    const out: Record<string, unknown> = {};
+    for (const c of cols) {
+      if (c === "id") out.id = row.id;
+      else if (c === "created_at") out.created_at = row.created_at;
+      else out[c] = row.data[c];
+    }
+    return out;
   });
 
   return NextResponse.json({
