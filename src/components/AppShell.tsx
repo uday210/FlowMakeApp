@@ -194,10 +194,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex-1" />
           <button
             onClick={() => setCollapsed(c => !c)}
-            className="p-1 rounded-md text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors flex-shrink-0"
+            className={`p-1.5 rounded-md transition-colors flex-shrink-0 ${collapsed ? "text-white hover:bg-white/20 bg-white/10" : "text-white/40 hover:text-white/80 hover:bg-white/10"}`}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {collapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
+            {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={14} />}
           </button>
         </div>
 
