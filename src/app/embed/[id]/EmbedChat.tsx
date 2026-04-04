@@ -107,6 +107,7 @@ export default function EmbedChat({ agent }: { agent: AgentConfig }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const conversationIdRef = useRef<string | null>(null);
 
   const primaryColor = agent.appearance?.primaryColor ?? "#7c3aed";
   const headerBg = agent.appearance?.headerBg ?? primaryColor;
@@ -202,11 +203,23 @@ export default function EmbedChat({ agent }: { agent: AgentConfig }) {
       playNotificationSound();
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
-      fetch(`/api/agents/${agent.id}/conversations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: finalMessages.map(m => ({ role: m.role, content: m.content })), message_count: finalMessages.length, source: "embed" }),
-      }).catch(() => {});
+      // Save conversation: POST once per session, PATCH thereafter
+      const msgPayload = finalMessages.map(m => ({ role: m.role, content: m.content }));
+      if (!conversationIdRef.current) {
+        fetch(`/api/agents/${agent.id}/conversations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: msgPayload, message_count: finalMessages.length, source: "embed" }),
+        }).then(r => r.ok ? r.json() : null).then(data => {
+          if (data?.id) conversationIdRef.current = data.id;
+        }).catch(() => {});
+      } else {
+        fetch(`/api/agents/${agent.id}/conversations`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversation_id: conversationIdRef.current, messages: msgPayload, message_count: finalMessages.length }),
+        }).catch(() => {});
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
       setMessages(prev => [...prev, { role: "assistant", content: `Error: ${msg}`, timestamp: new Date() }]);
