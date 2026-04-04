@@ -10,3 +10,13 @@ healthcheckPath = "/"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+
+[[crons]]
+name = "scheduler"
+schedule = "* * * * *"
+command = "curl -s $NEXT_PUBLIC_APP_URL/api/scheduler/run"
+
+[[crons]]
+name = "mqtt-listener"
+schedule = "*/2 * * * *"
+command = "curl -s $NEXT_PUBLIC_APP_URL/api/mqtt-listener"
