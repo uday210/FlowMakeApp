@@ -323,15 +323,26 @@ export async function renderEmailTemplate(
   const admin = createClient(supabaseUrl, supabaseServiceKey);
   const { data } = await admin
     .from("email_templates")
-    .select("subject, html_body, plain_body")
+    .select("subject, html_body, plain_body, blocks, settings")
     .eq("id", templateId)
     .single();
 
   if (!data) return null;
 
+  let htmlBody  = data.html_body  || "";
+  let plainBody = data.plain_body || "";
+
+  // If html_body is empty (template never saved after editing), render from blocks on the fly
+  if (!htmlBody && Array.isArray(data.blocks) && data.blocks.length > 0) {
+    const { renderTemplateHtml, renderTemplatePlain, DEFAULT_SETTINGS } = await import("./emailTemplateRenderer");
+    const settings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
+    htmlBody  = renderTemplateHtml(data.blocks, settings);
+    plainBody = renderTemplatePlain(data.blocks);
+  }
+
   return {
-    subject:   interpolateVariables(data.subject   || "", variables),
-    htmlBody:  interpolateVariables(data.html_body  || "", variables),
-    plainBody: interpolateVariables(data.plain_body || "", variables),
+    subject:   interpolateVariables(data.subject  || "", variables),
+    htmlBody:  interpolateVariables(htmlBody,          variables),
+    plainBody: interpolateVariables(plainBody,         variables),
   };
 }
