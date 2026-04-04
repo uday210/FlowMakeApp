@@ -59,11 +59,33 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const owned = await verifyTableOwnership(id, ctx.orgId, ctx.admin);
   if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const body = await req.json();
+
+  // Bulk edit: { rowIds: string[], patch: Record<string, unknown> }
+  if (Array.isArray(body.rowIds) && body.rowIds.length > 0) {
+    const { data: existing, error: fetchErr } = await ctx.admin
+      .from("user_table_rows")
+      .select("id, data")
+      .in("id", body.rowIds)
+      .eq("table_id", id);
+    if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+
+    const updates = (existing ?? []).map(row => ({
+      id: row.id,
+      data: { ...row.data, ...body.patch },
+    }));
+    const { error: upsertErr } = await ctx.admin
+      .from("user_table_rows")
+      .upsert(updates, { onConflict: "id" });
+    if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
+    return NextResponse.json({ updated: updates.length });
+  }
+
+  // Single-row edit: ?rowId=...
   const url = new URL(req.url);
   const rowId = url.searchParams.get("rowId");
   if (!rowId) return NextResponse.json({ error: "rowId required" }, { status: 400 });
 
-  const body = await req.json();
   const { data, error } = await ctx.admin
     .from("user_table_rows")
     .update({ data: body.data })

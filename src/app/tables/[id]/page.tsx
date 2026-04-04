@@ -108,7 +108,11 @@ function CellEditor({
   );
   const ref = useRef<HTMLInputElement & HTMLSelectElement & HTMLTextAreaElement>(null);
 
-  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  useEffect(() => {
+    ref.current?.focus();
+    // select() exists on input/textarea but NOT on <select> — use optional call to avoid crash
+    ref.current?.select?.();
+  }, []);
 
   const commit = () => {
     let parsed: unknown = draft;
@@ -396,6 +400,133 @@ function SchemaModal({
             className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-50">
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
             Save schema
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bulk Edit Modal ──────────────────────────────────────────────────────────
+
+function BulkEditModal({
+  columns, selectedCount, onSave, onClose,
+}: {
+  columns: UserTableColumn[];
+  selectedCount: number;
+  onSave: (patch: Record<string, unknown>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [enabled, setEnabled] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const toggle = (name: string) =>
+    setEnabled(prev => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+
+  const handleSave = async () => {
+    if (enabled.size === 0) { setError("Enable at least one field to edit"); return; }
+    setSaving(true);
+    const patch: Record<string, unknown> = {};
+    for (const col of columns) {
+      if (!enabled.has(col.name)) continue;
+      const raw = draft[col.name] ?? "";
+      if (col.type === "number")  patch[col.name] = raw === "" ? null : Number(raw);
+      else if (col.type === "boolean") patch[col.name] = raw === "true";
+      else if (col.type === "json") { try { patch[col.name] = JSON.parse(raw); } catch { patch[col.name] = raw; } }
+      else patch[col.name] = raw;
+    }
+    try { await onSave(patch); onClose(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[80vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-sm font-bold text-gray-900">Bulk edit</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Apply changes to {selectedCount} selected row{selectedCount !== 1 ? "s" : ""}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          <p className="text-xs text-gray-500 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 flex items-start gap-2">
+            <AlertCircle size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            Toggle a field on to include it in the update. Fields left off are not changed.
+          </p>
+          {columns.map(col => {
+            const on = enabled.has(col.name);
+            return (
+              <div key={col.name} className={`rounded-xl border transition-all ${on ? "border-violet-300 bg-violet-50/50" : "border-gray-100 bg-gray-50 opacity-60"}`}>
+                <div className="flex items-center gap-3 px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => toggle(col.name)}
+                    className="accent-violet-600 w-3.5 h-3.5 cursor-pointer flex-shrink-0"
+                  />
+                  <ColTypeIcon type={col.type} />
+                  <span className="text-xs font-semibold text-gray-700 font-mono flex-1">{col.name}</span>
+                  <span className="text-[10px] text-gray-400">{col.type}</span>
+                </div>
+                {on && (
+                  <div className="px-3 pb-3">
+                    {col.type === "boolean" ? (
+                      <select
+                        value={draft[col.name] ?? ""}
+                        onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 bg-white"
+                      >
+                        <option value="">— keep original —</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                      </select>
+                    ) : col.type === "select" && col.options?.length ? (
+                      <select
+                        value={draft[col.name] ?? ""}
+                        onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 bg-white"
+                      >
+                        <option value="">— none —</option>
+                        {col.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : col.type === "textarea" || col.type === "json" ? (
+                      <textarea
+                        value={draft[col.name] ?? ""}
+                        onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                        placeholder={col.type === "json" ? '{"key": "value"}' : "Enter value…"}
+                        rows={3}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 resize-none font-mono"
+                      />
+                    ) : (
+                      <input
+                        type={col.type === "number" ? "number" : col.type === "date" ? "date" : col.type === "datetime" ? "datetime-local" : col.type === "email" ? "email" : col.type === "url" ? "url" : "text"}
+                        value={draft[col.name] ?? ""}
+                        onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                        placeholder="Enter value…"
+                        className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={11} />{error}</p>}
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 font-medium">Cancel</button>
+          <button onClick={handleSave} disabled={saving || enabled.size === 0}
+            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-50">
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+            Apply to {selectedCount} row{selectedCount !== 1 ? "s" : ""}
           </button>
         </div>
       </div>
@@ -783,6 +914,7 @@ export default function TableGridPage() {
   const [showFilterBar, setShowFilterBar] = useState(false);
   const [showSchema, setShowSchema]       = useState(false);
   const [showQuery, setShowQuery]         = useState(false);
+  const [showBulkEdit, setShowBulkEdit]   = useState(false);
 
   // ── Load table + rows ────────────────────────────────────────────────────────
 
@@ -876,6 +1008,24 @@ export default function TableGridPage() {
     await Promise.all(ids.map(rid =>
       fetch(`/api/tables/${id}/rows?rowId=${rid}`, { method: "DELETE" })
     ));
+  };
+
+  const bulkEdit = async (patch: Record<string, unknown>) => {
+    const rowIds = Array.from(selected);
+    const res = await fetch(`/api/tables/${id}/rows`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rowIds, patch }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error ?? "Bulk update failed");
+    }
+    // optimistic: merge patch into all selected rows in local state
+    setRows(prev => prev.map(r =>
+      selected.has(r.id) ? { ...r, data: { ...r.data, ...patch } } : r
+    ));
+    setSelected(new Set());
   };
 
   const commitNewRow = async () => {
@@ -1094,7 +1244,13 @@ export default function TableGridPage() {
         {/* ── Bulk action bar ───────────────────────────────────────────────── */}
         {selected.size > 0 && (
           <div className="flex items-center gap-3 px-5 py-2 bg-violet-50 border-b border-violet-100 flex-shrink-0">
-            <span className="text-xs font-semibold text-violet-700">{selected.size} selected</span>
+            <span className="text-xs font-semibold text-violet-700">{selected.size} row{selected.size !== 1 ? "s" : ""} selected</span>
+            <button
+              onClick={() => setShowBulkEdit(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-violet-700 bg-white border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors"
+            >
+              <Settings2 size={12} /> Bulk edit
+            </button>
             <button
               onClick={() => deleteRows(Array.from(selected))}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 transition-colors"
@@ -1318,6 +1474,14 @@ export default function TableGridPage() {
           table={table}
           onSave={saveSchema}
           onClose={() => setShowSchema(false)}
+        />
+      )}
+      {showBulkEdit && table && (
+        <BulkEditModal
+          columns={table.columns}
+          selectedCount={selected.size}
+          onSave={bulkEdit}
+          onClose={() => setShowBulkEdit(false)}
         />
       )}
     </AppShell>
