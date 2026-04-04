@@ -94,7 +94,7 @@ function formatSize(bytes: number) {
   return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function EmbedChat({ agent }: { agent: AgentConfig }) {
+export default function EmbedChat({ agent, appUrl = "" }: { agent: AgentConfig; appUrl?: string }) {
   const greeting = agent.appearance?.greetingMessage ?? "Hi! How can I help you today?";
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: greeting, timestamp: new Date() },
@@ -169,7 +169,7 @@ export default function EmbedChat({ agent }: { agent: AgentConfig }) {
     let serverError = "";
 
     try {
-      const res = await fetch(`/api/agents/${agent.id}/chat`, {
+      const res = await fetch(`${appUrl}/api/agents/${agent.id}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: apiMessages }),
@@ -206,7 +206,7 @@ export default function EmbedChat({ agent }: { agent: AgentConfig }) {
       // Save conversation: POST once per session, PATCH thereafter
       const msgPayload = finalMessages.map(m => ({ role: m.role, content: m.content }));
       if (!conversationIdRef.current) {
-        fetch(`/api/agents/${agent.id}/conversations`, {
+        fetch(`${appUrl}/api/agents/${agent.id}/conversations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: msgPayload, message_count: finalMessages.length, source: "embed" }),
@@ -214,7 +214,7 @@ export default function EmbedChat({ agent }: { agent: AgentConfig }) {
           if (data?.id) conversationIdRef.current = data.id;
         }).catch(() => {});
       } else {
-        fetch(`/api/agents/${agent.id}/conversations`, {
+        fetch(`${appUrl}/api/agents/${agent.id}/conversations`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ conversation_id: conversationIdRef.current, messages: msgPayload, message_count: finalMessages.length }),

@@ -31,5 +31,9 @@ export default async function EmbedPage({
     );
   }
 
-  return <EmbedChat agent={data as AgentConfig} />;
+  // Pass the public app URL so EmbedChat can make absolute API calls.
+  // This avoids relative-URL resolution issues when the page is in a cross-origin iframe.
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+
+  return <EmbedChat agent={data as AgentConfig} appUrl={appUrl} />;
 }
