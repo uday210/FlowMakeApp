@@ -105,7 +105,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ agentId
     const userTurns = transcript.filter(t => t.role === "user").length;
     if (userTurns > agent.max_turns) {
       if (call) {
-        await admin.from("voice_calls").update({ transcript }).eq("id", call.id).then(() => {}).catch(() => {});
+        await admin.from("voice_calls").update({ transcript }).eq("id", call.id).then(() => {}, () => {});
       }
       return twiml(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -156,7 +156,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ agentId
     // Append assistant turn & save
     transcript.push({ role: "assistant", text: agentReply, ts: new Date().toISOString() });
     if (call) {
-      await admin.from("voice_calls").update({ transcript }).eq("id", call.id).then(() => {}).catch(() => {});
+      await admin.from("voice_calls").update({ transcript }).eq("id", call.id).then(() => {}, () => {});
     }
 
     return twiml(`<?xml version="1.0" encoding="UTF-8"?>

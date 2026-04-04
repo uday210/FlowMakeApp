@@ -93,7 +93,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ agentId
       to_number:   to,
       status:      "in-progress",
       transcript:  [],
-    }).then(() => {}).catch(() => {});
+    }).then(() => {}, () => {});
 
     const base = getBaseUrl(req);
     const gatherUrl = `${base}/api/voice/gather/${agentId}`;
