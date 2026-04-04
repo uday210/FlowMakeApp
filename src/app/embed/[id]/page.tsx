@@ -123,8 +123,8 @@ export default function EmbedPage({ params }: { params: Promise<{ id: string }> 
   // Load chatbot config
   useEffect(() => {
     if (!agentId) return;
-    fetch(`/api/agents/${agentId}`)
-      .then(r => { if (!r.ok) throw new Error("Agent not found"); return r.json(); })
+    fetch(`/api/embed/agents/${agentId}`)
+      .then(r => { if (!r.ok) throw new Error("Agent not found or inactive"); return r.json(); })
       .then((bot: Chatbot) => {
         setChatbot(bot);
         const greeting = bot.appearance?.greetingMessage ?? "Hi! How can I help you today?";
