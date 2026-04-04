@@ -39,7 +39,7 @@ export async function PUT(req: Request, { params }: Params) {
     "name", "description", "system_prompt", "greeting", "voice", "language",
     "llm_provider", "llm_model", "llm_api_key",
     "twilio_account_sid", "twilio_auth_token", "twilio_phone_number",
-    "max_turns", "is_active",
+    "max_turns", "is_active", "tools",
   ];
   const patch: Record<string, unknown> = {};
   for (const k of allowed) {
