@@ -6,11 +6,12 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import type { UserTable, UserTableColumn } from "@/lib/types";
 import {
-  ArrowLeft, Plus, Trash2, Search, Download, Upload,
+  ArrowLeft, Plus, Trash2, Search, FileInput, FileOutput,
   ChevronUp, ChevronDown, X, Loader2, Settings2,
   Maximize2, Check, AlertCircle, Filter, SortAsc,
   Type, Hash, Calendar, ToggleLeft, Braces, Link2,
-  ChevronsUpDown, RefreshCw,
+  ChevronsUpDown, RefreshCw, AlignLeft, Mail, Phone,
+  Clock, ListOrdered, ChevronRight,
 } from "lucide-react";
 
 // ─── Types ───���────────────────────────────────────────────────────────────────
@@ -26,17 +27,24 @@ function ColTypeIcon({ type }: { type: string }) {
   const cls = "text-gray-400 flex-shrink-0";
   const props = { size: 12, className: cls };
   switch (type) {
-    case "number":  return <Hash {...props} />;
-    case "boolean": return <ToggleLeft {...props} />;
-    case "date":    return <Calendar {...props} />;
-    case "json":    return <Braces {...props} />;
-    case "url":     return <Link2 {...props} />;
-    default:        return <Type {...props} />;
+    case "number":   return <Hash {...props} />;
+    case "boolean":  return <ToggleLeft {...props} />;
+    case "date":     return <Calendar {...props} />;
+    case "datetime": return <Clock {...props} />;
+    case "json":     return <Braces {...props} />;
+    case "url":      return <Link2 {...props} />;
+    case "email":    return <Mail {...props} />;
+    case "phone":    return <Phone {...props} />;
+    case "textarea": return <AlignLeft {...props} />;
+    case "select":   return <ListOrdered {...props} />;
+    default:         return <Type {...props} />;
   }
 }
 
 const COL_WIDTHS: Record<string, number> = {
-  text: 200, number: 120, boolean: 100, date: 140, json: 220, url: 180,
+  text: 200, textarea: 240, number: 120, boolean: 100,
+  date: 140, datetime: 180, json: 220, url: 200,
+  email: 200, phone: 150, select: 160,
 };
 
 // ─── Cell display value ──���────────────────────────────────────────────────────
@@ -56,15 +64,41 @@ function CellDisplay({ value, type }: { value: unknown; type: string }) {
   if (type === "json") {
     return <span className="font-mono text-xs text-gray-500 truncate">{JSON.stringify(value)}</span>;
   }
+  if (type === "url") {
+    return (
+      <a href={String(value)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+        className="text-violet-600 hover:underline truncate flex items-center gap-1">
+        <Link2 size={10} className="flex-shrink-0" />{String(value)}
+      </a>
+    );
+  }
+  if (type === "email") {
+    return (
+      <a href={`mailto:${value}`} onClick={e => e.stopPropagation()}
+        className="text-violet-600 hover:underline truncate flex items-center gap-1">
+        <Mail size={10} className="flex-shrink-0" />{String(value)}
+      </a>
+    );
+  }
+  if (type === "select") {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 truncate">
+        {String(value)}
+      </span>
+    );
+  }
+  if (type === "textarea") {
+    return <span className="truncate text-gray-600 italic text-xs">{String(value).slice(0, 60)}{String(value).length > 60 ? "…" : ""}</span>;
+  }
   return <span className="truncate">{String(value)}</span>;
 }
 
 // ─── Cell editor ─────────────────────────────────────────────────────────────
 
 function CellEditor({
-  value, type, onCommit, onCancel,
+  value, type, col, onCommit, onCancel,
 }: {
-  value: unknown; type: string;
+  value: unknown; type: string; col?: UserTableColumn;
   onCommit: (v: unknown) => void;
   onCancel: () => void;
 }) {
@@ -80,51 +114,56 @@ function CellEditor({
     if (type === "number")  parsed = draft === "" ? null : Number(draft);
     if (type === "boolean") parsed = draft === "true";
     if (type === "json") { try { parsed = JSON.parse(draft); } catch { parsed = draft; } }
-    if (type === "date" && draft === "") parsed = null;
+    if ((type === "date" || type === "datetime") && draft === "") parsed = null;
     onCommit(parsed);
   };
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && type !== "json") { e.preventDefault(); commit(); }
+    if (e.key === "Enter" && type !== "json" && type !== "textarea") { e.preventDefault(); commit(); }
     if (e.key === "Escape") onCancel();
   };
 
   if (type === "boolean") {
     return (
-      <select
-        ref={ref as React.RefObject<HTMLSelectElement>}
-        value={draft}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={onKey}
-        className="w-full h-full px-2 text-xs outline-none bg-white"
-      >
+      <select ref={ref as React.RefObject<HTMLSelectElement>} value={draft}
+        onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey}
+        className="w-full h-full px-2 text-xs outline-none bg-white">
         <option value="true">true</option>
         <option value="false">false</option>
       </select>
     );
   }
-  if (type === "json") {
+  if (type === "select" && col?.options?.length) {
     return (
-      <textarea
-        ref={ref as React.RefObject<HTMLTextAreaElement>}
-        value={draft}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={onKey}
-        rows={3}
-        className="w-full px-2 py-1 text-xs font-mono outline-none bg-white resize-none"
+      <select ref={ref as React.RefObject<HTMLSelectElement>} value={draft}
+        onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey}
+        className="w-full h-full px-2 text-xs outline-none bg-white">
+        <option value="">— none —</option>
+        {col.options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
+  if (type === "json" || type === "textarea") {
+    return (
+      <textarea ref={ref as React.RefObject<HTMLTextAreaElement>} value={draft}
+        onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey}
+        rows={type === "json" ? 3 : 2}
+        className={`w-full px-2 py-1 text-xs outline-none bg-white resize-none ${type === "json" ? "font-mono" : ""}`}
       />
     );
   }
+  const inputType =
+    type === "number" ? "number" :
+    type === "date" ? "date" :
+    type === "datetime" ? "datetime-local" :
+    type === "email" ? "email" :
+    type === "url" ? "url" :
+    type === "phone" ? "tel" : "text";
+
   return (
-    <input
-      ref={ref as React.RefObject<HTMLInputElement>}
-      type={type === "number" ? "number" : type === "date" ? "date" : "text"}
-      value={draft}
-      onChange={e => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={onKey}
+    <input ref={ref as React.RefObject<HTMLInputElement>}
+      type={inputType} value={draft}
+      onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey}
       className="w-full h-full px-2 text-xs outline-none bg-white"
     />
   );
@@ -188,24 +227,25 @@ function ExpandPanel({
                 {col.required && <span className="text-red-400">*</span>}
               </label>
               {col.type === "boolean" ? (
-                <select
-                  value={draft[col.name]}
-                  onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400"
-                >
+                <select value={draft[col.name]} onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400">
                   <option value="true">true</option>
                   <option value="false">false</option>
                 </select>
-              ) : col.type === "json" ? (
-                <textarea
-                  value={draft[col.name]}
-                  onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
-                  rows={4}
-                  className="w-full text-sm font-mono border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 resize-none"
+              ) : col.type === "select" ? (
+                <select value={draft[col.name]} onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400">
+                  <option value="">— none —</option>
+                  {(col.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ) : col.type === "json" || col.type === "textarea" ? (
+                <textarea value={draft[col.name]} onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
+                  rows={col.type === "json" ? 4 : 3}
+                  className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 resize-none ${col.type === "json" ? "font-mono" : ""}`}
                 />
               ) : (
                 <input
-                  type={col.type === "number" ? "number" : col.type === "date" ? "date" : "text"}
+                  type={col.type === "number" ? "number" : col.type === "date" ? "date" : col.type === "datetime" ? "datetime-local" : col.type === "email" ? "email" : col.type === "url" ? "url" : col.type === "phone" ? "tel" : "text"}
                   value={draft[col.name]}
                   onChange={e => setDraft(d => ({ ...d, [col.name]: e.target.value }))}
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400"
@@ -245,7 +285,24 @@ function SchemaModal({
   const [columns, setColumns] = useState<UserTableColumn[]>(table.columns);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const TYPES = ["text", "number", "boolean", "date", "json"] as const;
+  const [expandedCol, setExpandedCol] = useState<number | null>(null);
+
+  const TYPES: { value: UserTableColumn["type"]; label: string; icon: React.ReactNode }[] = [
+    { value: "text",     label: "Text",      icon: <Type size={12} /> },
+    { value: "textarea", label: "Long text", icon: <AlignLeft size={12} /> },
+    { value: "number",   label: "Number",    icon: <Hash size={12} /> },
+    { value: "boolean",  label: "Checkbox",  icon: <ToggleLeft size={12} /> },
+    { value: "select",   label: "Select",    icon: <ListOrdered size={12} /> },
+    { value: "date",     label: "Date",      icon: <Calendar size={12} /> },
+    { value: "datetime", label: "Date & time", icon: <Clock size={12} /> },
+    { value: "email",    label: "Email",     icon: <Mail size={12} /> },
+    { value: "url",      label: "URL",       icon: <Link2 size={12} /> },
+    { value: "phone",    label: "Phone",     icon: <Phone size={12} /> },
+    { value: "json",     label: "JSON",      icon: <Braces size={12} /> },
+  ];
+
+  const updateCol = (i: number, patch: Partial<UserTableColumn>) =>
+    setColumns(c => c.map((x, j) => j === i ? { ...x, ...patch } : x));
 
   const handleSave = async () => {
     if (columns.some(c => !c.name.trim())) { setError("All columns must have a name"); return; }
@@ -257,44 +314,80 @@ function SchemaModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-sm font-bold text-gray-900">Edit schema — {table.name}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
           {columns.map((col, i) => (
-            <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 group">
-              <input
-                value={col.name}
-                onChange={e => setColumns(c => c.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
-                placeholder="column_name"
-                className="flex-1 text-xs font-mono bg-transparent outline-none text-gray-700"
-              />
-              <select
-                value={col.type}
-                onChange={e => setColumns(c => c.map((x, j) => j === i ? { ...x, type: e.target.value as UserTableColumn["type"] } : x))}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white outline-none"
-              >
-                {TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
-              <label className="flex items-center gap-1 text-xs text-gray-400 cursor-pointer">
-                <input type="checkbox" checked={col.required}
-                  onChange={e => setColumns(c => c.map((x, j) => j === i ? { ...x, required: e.target.checked } : x))}
-                  className="accent-violet-600 w-3 h-3"
-                />req
-              </label>
-              <button onClick={() => setColumns(c => c.filter((_, j) => j !== i))}
-                className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-all">
-                <X size={11} />
-              </button>
+            <div key={i} className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+              {/* Row */}
+              <div className="flex items-center gap-2 px-3 py-2.5 group">
+                <input
+                  value={col.name}
+                  onChange={e => updateCol(i, { name: e.target.value })}
+                  placeholder="column_name"
+                  className="flex-1 text-xs font-mono bg-transparent outline-none text-gray-700 min-w-0"
+                />
+                <select
+                  value={col.type}
+                  onChange={e => {
+                    updateCol(i, { type: e.target.value as UserTableColumn["type"], options: e.target.value === "select" ? (col.options ?? []) : undefined });
+                    setExpandedCol(e.target.value === "select" ? i : null);
+                  }}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white outline-none focus:border-violet-400 flex-shrink-0"
+                >
+                  {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+                <label className="flex items-center gap-1 text-xs text-gray-400 cursor-pointer flex-shrink-0">
+                  <input type="checkbox" checked={col.required}
+                    onChange={e => updateCol(i, { required: e.target.checked })}
+                    className="accent-violet-600 w-3 h-3"
+                  />req
+                </label>
+                {col.type === "select" && (
+                  <button onClick={() => setExpandedCol(expandedCol === i ? null : i)}
+                    className="p-1 text-gray-400 hover:text-violet-500 flex-shrink-0">
+                    <ChevronRight size={12} className={`transition-transform ${expandedCol === i ? "rotate-90" : ""}`} />
+                  </button>
+                )}
+                <button onClick={() => { setColumns(c => c.filter((_, j) => j !== i)); if (expandedCol === i) setExpandedCol(null); }}
+                  className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-all flex-shrink-0">
+                  <X size={11} />
+                </button>
+              </div>
+              {/* Select options editor */}
+              {col.type === "select" && expandedCol === i && (
+                <div className="px-3 pb-3 pt-1 border-t border-gray-100 bg-white space-y-1.5">
+                  <p className="text-xs text-gray-400 font-medium mb-1.5">Options</p>
+                  {(col.options ?? []).map((opt, oi) => (
+                    <div key={oi} className="flex items-center gap-2">
+                      <input value={opt}
+                        onChange={e => updateCol(i, { options: col.options!.map((o, j) => j === oi ? e.target.value : o) })}
+                        className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400"
+                        placeholder={`Option ${oi + 1}`}
+                      />
+                      <button onClick={() => updateCol(i, { options: col.options!.filter((_, j) => j !== oi) })}
+                        className="p-1 text-gray-300 hover:text-red-400">
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => updateCol(i, { options: [...(col.options ?? []), ""] })}
+                    className="flex items-center gap-1 text-xs text-violet-600 font-medium hover:text-violet-800 mt-1">
+                    <Plus size={11} /> Add option
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           <button onClick={() => setColumns(c => [...c, { name: "", type: "text", required: false }])}
             className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold hover:text-violet-800 mt-1">
             <Plus size={12} /> Add column
           </button>
-          {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={11} />{error}</p>}
+          {error && <p className="text-xs text-red-500 flex items-center gap-1 mt-1"><AlertCircle size={11} />{error}</p>}
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 font-medium">Cancel</button>
@@ -684,13 +777,13 @@ export default function TableGridPage() {
 
             {/* Import CSV */}
             <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-all">
-              <Upload size={12} /> Import
+              <FileInput size={12} /> Import CSV
               <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
             </label>
 
             <button onClick={exportCSV}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">
-              <Download size={12} /> Export
+              <FileOutput size={12} /> Export CSV
             </button>
 
             <button onClick={() => setShowSchema(true)}
@@ -781,6 +874,7 @@ export default function TableGridPage() {
                         <CellEditor
                           value={newRowDraft[col.name]}
                           type={col.type}
+                          col={col}
                           onCommit={v => setNewRowDraft(d => ({ ...d!, [col.name]: String(v ?? "") }))}
                           onCancel={() => setNewRowDraft(null)}
                         />
@@ -847,6 +941,7 @@ export default function TableGridPage() {
                                 <CellEditor
                                   value={row.data[col.name]}
                                   type={col.type}
+                                  col={col}
                                   onCommit={v => commitCellEdit(row.id, col.name, v)}
                                   onCancel={() => setEditCell(null)}
                                 />

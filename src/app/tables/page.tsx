@@ -10,7 +10,7 @@ import {
   AlertCircle, MoreHorizontal, Download, Rows3, PenLine,
 } from "lucide-react";
 
-const COLUMN_TYPES = ["text", "number", "boolean", "date", "json"] as const;
+const COLUMN_TYPES = ["text", "textarea", "number", "boolean", "select", "date", "datetime", "email", "url", "phone", "json"] as const;
 
 // ─── Column type badge ────────────────────────────────────────────────────────
 

@@ -232,9 +232,10 @@ export interface UserTable {
 
 export interface UserTableColumn {
   name: string;
-  type: "text" | "number" | "boolean" | "date" | "json";
+  type: "text" | "textarea" | "number" | "boolean" | "date" | "datetime" | "json" | "email" | "url" | "phone" | "select";
   required: boolean;
   default_value?: string;
+  options?: string[]; // for select type — predefined choices
 }
 
 export interface NodeData {
