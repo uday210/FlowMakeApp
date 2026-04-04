@@ -72,6 +72,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const updates = (existing ?? []).map(row => ({
       id: row.id,
+      table_id: id,
       data: { ...row.data, ...body.patch },
     }));
     const { error: upsertErr } = await ctx.admin
