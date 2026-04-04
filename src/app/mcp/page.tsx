@@ -847,12 +847,21 @@ function AddToolPanel({
               <label className="text-xs font-medium text-gray-600 mb-1 block">Linked Scenario *</label>
               <select value={form.workflow_id} onChange={(e) => setForm({ ...form, workflow_id: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400 bg-white">
-                <option value="">Select a scenario…</option>
-                {workflows.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}{!w.is_active ? " (inactive)" : ""}</option>
+                <option value="">Select an active scenario…</option>
+                {workflows.filter((w) => w.is_active).map((w) => (
+                  <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">When this tool is called, the linked scenario executes with the tool arguments as trigger data.</p>
+              {workflows.filter((w) => w.is_active).length === 0 && (
+                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertCircle size={11} /> No active scenarios found. Activate a scenario first, then link it here.
+                </p>
+              )}
+              <div className="mt-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 space-y-1">
+                <p className="text-xs text-blue-700 font-medium">How scenarios work as MCP tools</p>
+                <p className="text-xs text-blue-600">When an AI calls this tool, your scenario runs directly — no webhook needed. The tool arguments are passed as the trigger input, and the last node&apos;s output is returned to the AI.</p>
+                <p className="text-xs text-blue-500">Tip: use an HTTP Request, AI, or any action node — no trigger node required. Just make sure the scenario is <strong>active</strong>.</p>
+              </div>
             </div>
           </div>
 
@@ -1923,8 +1932,16 @@ function ServerCard({
                               </div>
                               {tool.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{tool.description}</p>}
                               <div className="flex items-center gap-1 mt-1">
-                                <Link2 size={10} className="text-violet-400" />
-                                <span className="text-xs text-violet-600">{tool.workflow_id ? workflowName(tool.workflow_id) : "No scenario linked"}</span>
+                                <Link2 size={10} className="text-violet-400 flex-shrink-0" />
+                                {tool.workflow_id ? (() => {
+                                  const wf = workflows.find(w => w.id === tool.workflow_id);
+                                  return wf ? (
+                                    <span className={`text-xs flex items-center gap-1 ${wf.is_active ? "text-violet-600" : "text-amber-500"}`}>
+                                      {wf.name}
+                                      {!wf.is_active && <span className="text-[10px] bg-amber-100 text-amber-600 px-1 rounded">inactive — tool won&apos;t run</span>}
+                                    </span>
+                                  ) : <span className="text-xs text-gray-400">Scenario deleted</span>;
+                                })() : <span className="text-xs text-gray-400">No scenario linked</span>}
                               </div>
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
