@@ -7,8 +7,15 @@ import AppShell from "@/components/AppShell";
 import {
   ArrowLeft, Phone, Save, Loader2, AlertCircle, Check,
   PhoneCall, PhoneOff, Clock, ChevronDown, ChevronUp,
-  Mic, Copy, RefreshCw, X,
+  Mic, Copy, RefreshCw, X, Plus, Trash2, Wrench,
 } from "lucide-react";
+
+type AgentTool = {
+  type: "query_table" | "insert_row" | "trigger_workflow";
+  table_id?: string;
+  workflow_id?: string;
+  description: string;
+};
 
 type VoiceAgent = {
   id: string; org_id: string; name: string; description: string;
@@ -16,6 +23,7 @@ type VoiceAgent = {
   llm_provider: string; llm_model: string; llm_api_key: string;
   twilio_account_sid: string; twilio_auth_token: string; twilio_phone_number: string;
   max_turns: number; is_active: boolean; created_at: string;
+  tools: AgentTool[];
 };
 
 type VoiceCall = {
@@ -142,11 +150,20 @@ export default function VoiceAgentDetailPage() {
   const [callsLoading, setCallsLoading] = useState(true);
   const [tab, setTab]       = useState<"config" | "calls">("config");
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [tables, setTables] = useState<{ id: string; name: string }[]>([]);
+  const [workflows, setWorkflows] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     fetch(`/api/voice-agents/${id}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) { setAgent(d); setDraft(d); } else router.push("/voice-agents"); });
+      .then(d => {
+        if (d) {
+          if (!d.tools) d.tools = [];
+          setAgent(d); setDraft(d);
+        } else router.push("/voice-agents");
+      });
+    fetch("/api/tables").then(r => r.json()).then(d => setTables(Array.isArray(d) ? d : []));
+    fetch("/api/workflows").then(r => r.json()).then(d => setWorkflows(Array.isArray(d) ? d : []));
   }, [id, router]);
 
   const loadCalls = useCallback(() => {
@@ -371,6 +388,129 @@ export default function VoiceAgentDetailPage() {
                       className="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-violet-400 font-mono" />
                   </div>
                 </div>
+              </section>
+
+              {/* Tools */}
+              <section>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tools</h3>
+                  <button
+                    onClick={() => patch("tools", [...(draft.tools ?? []), { type: "query_table", table_id: tables[0]?.id ?? "", description: "" }])}
+                    className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700"
+                  >
+                    <Plus size={12} /> Add tool
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mb-4">Give your agent the ability to look up data, save info, or trigger automations during a call.</p>
+
+                {(draft.tools ?? []).length === 0 ? (
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center py-8 gap-2 text-gray-400">
+                    <Wrench size={20} className="text-gray-200" />
+                    <p className="text-xs font-medium">No tools yet</p>
+                    <button
+                      onClick={() => patch("tools", [{ type: "query_table", table_id: tables[0]?.id ?? "", description: "" }])}
+                      className="text-xs text-violet-600 font-semibold hover:underline"
+                    >+ Add your first tool</button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(draft.tools ?? []).map((tool, i) => (
+                      <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50/40">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Tool type</label>
+                            <select
+                              value={tool.type}
+                              onChange={e => {
+                                const updated = [...(draft.tools ?? [])];
+                                updated[i] = { ...updated[i], type: e.target.value as AgentTool["type"], table_id: undefined, workflow_id: undefined };
+                                patch("tools", updated);
+                              }}
+                              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400 bg-white"
+                            >
+                              <option value="query_table">Query Table — look up data</option>
+                              <option value="insert_row">Insert Row — save data</option>
+                              <option value="trigger_workflow">Trigger Workflow — run automation</option>
+                            </select>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const updated = (draft.tools ?? []).filter((_, j) => j !== i);
+                              patch("tools", updated);
+                            }}
+                            className="mt-5 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+
+                        {(tool.type === "query_table" || tool.type === "insert_row") && (
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Table</label>
+                            {tables.length === 0 ? (
+                              <p className="text-xs text-gray-400 italic">No tables found — create one in My Tables first</p>
+                            ) : (
+                              <select
+                                value={tool.table_id ?? ""}
+                                onChange={e => {
+                                  const updated = [...(draft.tools ?? [])];
+                                  updated[i] = { ...updated[i], table_id: e.target.value };
+                                  patch("tools", updated);
+                                }}
+                                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400 bg-white"
+                              >
+                                <option value="">Select a table…</option>
+                                {tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                              </select>
+                            )}
+                          </div>
+                        )}
+
+                        {tool.type === "trigger_workflow" && (
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Workflow</label>
+                            {workflows.length === 0 ? (
+                              <p className="text-xs text-gray-400 italic">No workflows found — create one in Scenarios first</p>
+                            ) : (
+                              <select
+                                value={tool.workflow_id ?? ""}
+                                onChange={e => {
+                                  const updated = [...(draft.tools ?? [])];
+                                  updated[i] = { ...updated[i], workflow_id: e.target.value };
+                                  patch("tools", updated);
+                                }}
+                                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400 bg-white"
+                              >
+                                <option value="">Select a workflow…</option>
+                                {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                              </select>
+                            )}
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
+                            Description <span className="font-normal text-gray-400">(tells the AI when to use this tool)</span>
+                          </label>
+                          <input
+                            value={tool.description}
+                            onChange={e => {
+                              const updated = [...(draft.tools ?? [])];
+                              updated[i] = { ...updated[i], description: e.target.value };
+                              patch("tools", updated);
+                            }}
+                            placeholder={
+                              tool.type === "query_table" ? "Use this to look up customer info by email or phone number" :
+                              tool.type === "insert_row" ? "Use this to save the caller's name and request" :
+                              "Use this to send a follow-up email after the call"
+                            }
+                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
 
               {/* Webhook URLs */}
