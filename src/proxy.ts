@@ -29,6 +29,7 @@ const PUBLIC_PREFIXES = [
   "/api/embed/",
   "/api/embed-config/",
   "/api/execute/",
+  "/api/voice/",
   "/embed/",
   "/form/",
   "/sign/",

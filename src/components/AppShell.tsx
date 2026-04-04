@@ -28,6 +28,7 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  Phone,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -51,9 +52,10 @@ const USER_NAV_SECTIONS = [
   {
     label: "Automation",
     items: [
-      { href: "/agents",      icon: Bot,  label: "AI Agents" },
-      { href: "/mcp",         icon: Plug, label: "MCP Toolboxes" },
-      { href: "/webhooks",    icon: Globe, label: "Webhooks" },
+      { href: "/agents",        icon: Bot,   label: "AI Agents" },
+      { href: "/voice-agents",  icon: Phone, label: "Voice Agents" },
+      { href: "/mcp",           icon: Plug,  label: "MCP Toolboxes" },
+      { href: "/webhooks",      icon: Globe, label: "Webhooks" },
     ],
   },
   {
