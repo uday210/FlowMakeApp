@@ -95,6 +95,9 @@ function formatSize(bytes: number) {
 }
 
 export default function EmbedChat({ agent, appUrl = "" }: { agent: AgentConfig; appUrl?: string }) {
+  // If appUrl wasn't injected server-side, derive it from the current window origin.
+  // This is always correct because the embed page is served from the same origin as the API.
+  const baseUrl = appUrl || (typeof window !== "undefined" ? window.location.origin : "");
   const greeting = agent.appearance?.greetingMessage ?? "Hi! How can I help you today?";
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: greeting, timestamp: new Date() },
@@ -169,13 +172,16 @@ export default function EmbedChat({ agent, appUrl = "" }: { agent: AgentConfig; 
     let serverError = "";
 
     try {
-      const res = await fetch(`${appUrl}/api/agents/${agent.id}/chat`, {
+      const res = await fetch(`${baseUrl}/api/agents/${agent.id}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: apiMessages }),
       });
 
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? `Request failed (${res.status})`); }
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status} — URL: ${res.url} — Body: ${body.slice(0, 300)}`);
+      }
       if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();
@@ -206,7 +212,7 @@ export default function EmbedChat({ agent, appUrl = "" }: { agent: AgentConfig; 
       // Save conversation: POST once per session, PATCH thereafter
       const msgPayload = finalMessages.map(m => ({ role: m.role, content: m.content }));
       if (!conversationIdRef.current) {
-        fetch(`${appUrl}/api/agents/${agent.id}/conversations`, {
+        fetch(`${baseUrl}/api/agents/${agent.id}/conversations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: msgPayload, message_count: finalMessages.length, source: "embed" }),
@@ -214,7 +220,7 @@ export default function EmbedChat({ agent, appUrl = "" }: { agent: AgentConfig; 
           if (data?.id) conversationIdRef.current = data.id;
         }).catch(() => {});
       } else {
-        fetch(`${appUrl}/api/agents/${agent.id}/conversations`, {
+        fetch(`${baseUrl}/api/agents/${agent.id}/conversations`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ conversation_id: conversationIdRef.current, messages: msgPayload, message_count: finalMessages.length }),
