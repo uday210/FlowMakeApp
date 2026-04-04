@@ -227,6 +227,16 @@ function buildSystemPrompt(
   return prompt;
 }
 
+// Resolve the public base URL, preferring the env var over the request origin.
+// On Railway the request URL can be an internal container address.
+function getPublicOrigin(req: Request): string {
+  const env = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (env) return env;
+  const proto = req.headers.get("x-forwarded-proto") ?? "https";
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "localhost:3000";
+  return `${proto}://${host}`;
+}
+
 async function executeWorkflow(
   workflowId: string,
   args: Record<string, unknown>,
@@ -278,22 +288,23 @@ async function streamAnthropic(
   const client = new Anthropic({ apiKey });
 
   const behavior = chatbot.behavior ?? {};
+  const connectedWorkflows: ConnectedWorkflow[] = chatbot.connected_workflows ?? [];
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
-    chatbot.connected_workflows,
+    connectedWorkflows,
     "anthropic",
     chatbot._retrievedContext,
     behavior
   );
 
-  const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
+  const enabledWorkflows = connectedWorkflows.filter(w => w.enabled);
   const { defs: mcpDefs, lookup: mcpLookup } = buildMCPToolDefs(chatbot.mcp_tools ?? []);
 
   const tools: import("@anthropic-ai/sdk/resources").Tool[] = [
     ...enabledWorkflows.map(wf => ({
       name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
-      description: wf.whenToUse || wf.description || wf.name,
+      description: wf.whenToUse || wf.description || `Invoke the "${wf.name}" workflow`,
       input_schema: buildToolSchema(wf) as import("@anthropic-ai/sdk/resources").Tool["input_schema"],
     })),
     ...mcpDefs.map(d => ({
@@ -479,7 +490,7 @@ async function streamOpenAI(
 
   type OAIMessage = import("openai/resources").ChatCompletionMessageParam;
 
-  const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
+  const enabledWorkflows = (chatbot.connected_workflows ?? []).filter(w => w.enabled);
   const { defs: mcpDefs, lookup: mcpLookup } = buildMCPToolDefs(chatbot.mcp_tools ?? []);
 
   const tools: import("openai/resources").ChatCompletionTool[] = [
@@ -487,7 +498,7 @@ async function streamOpenAI(
       type: "function" as const,
       function: {
         name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
-        description: wf.whenToUse || wf.description || wf.name,
+        description: wf.whenToUse || wf.description || `Invoke the "${wf.name}" workflow`,
         parameters: buildToolSchema(wf),
       },
     })),
@@ -636,7 +647,7 @@ async function streamGroq(
 
   type GroqMessage = import("groq-sdk/resources/chat/completions").ChatCompletionMessageParam;
 
-  const enabledWorkflows = chatbot.connected_workflows.filter(w => w.enabled);
+  const enabledWorkflows = (chatbot.connected_workflows ?? []).filter(w => w.enabled);
   const { defs: mcpDefs, lookup: mcpLookup } = buildMCPToolDefs(chatbot.mcp_tools ?? []);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -645,7 +656,7 @@ async function streamGroq(
       type: "function",
       function: {
         name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
-        description: wf.whenToUse || wf.description || wf.name,
+        description: wf.whenToUse || wf.description || `Invoke the "${wf.name}" workflow`,
         parameters: buildToolSchema(wf),
       },
     })),
@@ -775,7 +786,7 @@ async function streamGemini(
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
-    chatbot.connected_workflows,
+    chatbot.connected_workflows ?? [],
     "gemini",
     chatbot._retrievedContext,
     behavior
@@ -859,7 +870,7 @@ async function streamMistral(
   const systemPrompt = buildSystemPrompt(
     chatbot.system_prompt,
     chatbot.knowledge_base,
-    chatbot.connected_workflows,
+    chatbot.connected_workflows ?? [],
     "mistral",
     chatbot._retrievedContext,
     behavior
@@ -970,7 +981,7 @@ export async function POST(
     });
   }
 
-  const origin = new URL(req.url).origin;
+  const origin = getPublicOrigin(req);
   const provider: string = chatbot.provider ?? "anthropic";
 
   // RAG: retrieve relevant knowledge chunks for the latest user message
