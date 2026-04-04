@@ -26,10 +26,17 @@ const PUBLIC_PREFIXES = [
   "/api/mcp/hosted/",
   "/api/tracker",
   "/api/t",
+  "/api/embed/",
+  "/api/embed-config/",
   "/embed/",
   "/form/",
   "/sign/",
   "/auth/callback",
+];
+
+// Specific path patterns that are public (regex match)
+const PUBLIC_PATTERNS = [
+  /^\/api\/agents\/[^/]+\/chat$/,  // embed chat — unauthenticated iframe calls
 ];
 
 export async function proxy(request: NextRequest) {
@@ -37,6 +44,11 @@ export async function proxy(request: NextRequest) {
 
   // Always allow public prefixes
   if (PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Always allow specific public path patterns
+  if (PUBLIC_PATTERNS.some(re => re.test(pathname))) {
     return NextResponse.next();
   }
 
