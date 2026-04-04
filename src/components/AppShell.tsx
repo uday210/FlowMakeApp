@@ -163,11 +163,33 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       >
 
         {/* Logo */}
-        <div className="flex items-center gap-2 px-3 py-4 flex-shrink-0 border-b border-white/10 min-h-[57px] overflow-hidden">
-          {!collapsed && (
+        {collapsed ? (
+          <div className="flex flex-col items-center py-3 flex-shrink-0 border-b border-white/10 gap-2">
             <button
               onClick={() => navigate(isSuperAdmin ? "/admin" : "/workflows")}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0"
+              className="hover:opacity-80 transition-opacity"
+              title="FlowMake"
+            >
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: "var(--gradient-brand)" }}
+              >
+                <Zap size={16} className="text-white" />
+              </div>
+            </button>
+            <button
+              onClick={() => setCollapsed(false)}
+              className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-4 py-4 flex-shrink-0 border-b border-white/10">
+            <button
+              onClick={() => navigate(isSuperAdmin ? "/admin" : "/workflows")}
+              className="flex items-center gap-2.5 hover:opacity-80 transition-opacity flex-1 min-w-0"
             >
               <div
                 className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -175,31 +197,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <Zap size={15} className="text-white" />
               </div>
-              <span className="text-sm font-bold text-white tracking-tight">FlowMake</span>
+              <span className="text-sm font-bold text-white tracking-tight truncate">FlowMake</span>
             </button>
-          )}
-          {collapsed && (
             <button
-              onClick={() => navigate(isSuperAdmin ? "/admin" : "/workflows")}
-              className="hover:opacity-80 transition-opacity flex-shrink-0"
+              onClick={() => setCollapsed(true)}
+              className="p-1.5 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+              title="Collapse sidebar"
             >
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ background: "var(--gradient-brand)" }}
-              >
-                <Zap size={15} className="text-white" />
-              </div>
+              <PanelLeftClose size={14} />
             </button>
-          )}
-          <div className="flex-1" />
-          <button
-            onClick={() => setCollapsed(c => !c)}
-            className={`p-1.5 rounded-md transition-colors flex-shrink-0 ${collapsed ? "text-white hover:bg-white/20 bg-white/10" : "text-white/40 hover:text-white/80 hover:bg-white/10"}`}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={14} />}
-          </button>
-        </div>
+          </div>
+        )}
 
         {/* Nav */}
         <nav
