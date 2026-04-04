@@ -37,12 +37,20 @@ type Appearance = {
   launcherLabel: string;
 };
 
+type WorkflowParam = {
+  name: string;
+  type: "string" | "number" | "boolean";
+  description: string;
+  required: boolean;
+};
+
 type ConnectedWorkflow = {
   workflowId: string;
   name: string;
   description: string;
   whenToUse: string;
   enabled: boolean;
+  parameters?: WorkflowParam[];
 };
 
 type Chatbot = {
@@ -837,6 +845,8 @@ function ModelTab({
 
 // ─── Tab: Tools ────────────────────────────────────────────────────────────────
 
+const PARAM_TYPES = ["string", "number", "boolean"] as const;
+
 function ToolsTab({
   chatbot,
   onChange,
@@ -846,6 +856,7 @@ function ToolsTab({
 }) {
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
   const [loadingWorkflows, setLoadingWorkflows] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/workflows?agent_callable=true")
@@ -856,42 +867,48 @@ function ToolsTab({
   }, []);
 
   const connected = chatbot.connected_workflows ?? [];
+  const getConnected = (wfId: string) => connected.find(c => c.workflowId === wfId);
 
-  const getConnected = (wfId: string): ConnectedWorkflow | undefined =>
-    connected.find(c => c.workflowId === wfId);
+  const updateConn = (wfId: string, patch: Partial<ConnectedWorkflow>) => {
+    onChange({
+      connected_workflows: connected.map(c =>
+        c.workflowId === wfId ? { ...c, ...patch } : c
+      ),
+    });
+  };
 
   const toggleWorkflow = (wf: WorkflowItem) => {
     const existing = getConnected(wf.id);
     if (existing) {
-      // Toggle enabled
-      onChange({
-        connected_workflows: connected.map(c =>
-          c.workflowId === wf.id ? { ...c, enabled: !c.enabled } : c
-        ),
-      });
+      const next = !existing.enabled;
+      updateConn(wf.id, { enabled: next });
+      if (next) setExpandedId(wf.id);
     } else {
-      // Add new
       onChange({
         connected_workflows: [
           ...connected,
-          {
-            workflowId: wf.id,
-            name: wf.name,
-            description: wf.description ?? "",
-            whenToUse: wf.description ?? "",
-            enabled: true,
-          },
+          { workflowId: wf.id, name: wf.name, description: wf.description ?? "", whenToUse: wf.description ?? "", enabled: true, parameters: [] },
         ],
       });
+      setExpandedId(wf.id);
     }
   };
 
-  const updateWhenToUse = (wfId: string, whenToUse: string) => {
-    onChange({
-      connected_workflows: connected.map(c =>
-        c.workflowId === wfId ? { ...c, whenToUse } : c
-      ),
-    });
+  const addParam = (wfId: string) => {
+    const conn = getConnected(wfId);
+    const params = [...(conn?.parameters ?? []), { name: "", type: "string" as const, description: "", required: false }];
+    updateConn(wfId, { parameters: params });
+  };
+
+  const updateParam = (wfId: string, idx: number, patch: Partial<WorkflowParam>) => {
+    const conn = getConnected(wfId);
+    const params = (conn?.parameters ?? []).map((p, i) => i === idx ? { ...p, ...patch } : p);
+    updateConn(wfId, { parameters: params });
+  };
+
+  const removeParam = (wfId: string, idx: number) => {
+    const conn = getConnected(wfId);
+    updateConn(wfId, { parameters: (conn?.parameters ?? []).filter((_, i) => i !== idx) });
   };
 
   return (
@@ -906,8 +923,7 @@ function ToolsTab({
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-2">
         <Info size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-600 leading-relaxed">
-          When enabled, your agent will automatically invoke the workflow when relevant to the
-          conversation.
+          When enabled, your agent will automatically invoke the workflow when relevant to the conversation. Define parameters so the agent knows what data to collect and pass to the workflow.
         </p>
       </div>
 
@@ -919,54 +935,133 @@ function ToolsTab({
         <div className="text-center py-8 text-gray-400 px-2">
           <p className="text-xs font-medium text-gray-700">No agent-callable workflows found.</p>
           <p className="text-xs mt-1 leading-relaxed">
-            To expose a workflow as a tool, add an{" "}
-            <span className="font-semibold text-violet-600">Agent Invoke</span> trigger node as the
-            first step of your workflow.
+            Add an <span className="font-semibold text-violet-600">Agent Invoke</span> trigger as the first node of your workflow.
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {workflows.map(wf => {
             const conn = getConnected(wf.id);
             const isEnabled = conn?.enabled ?? false;
+            const isExpanded = expandedId === wf.id && isEnabled;
+            const params = conn?.parameters ?? [];
+
             return (
-              <div
-                key={wf.id}
-                className={`border rounded-xl p-3 transition-all ${isEnabled
-                    ? "border-violet-300 bg-violet-50"
-                    : "border-gray-200 bg-white"
-                  }`}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={isEnabled}
-                    onChange={() => toggleWorkflow(wf)}
-                    className="mt-0.5 accent-violet-600 flex-shrink-0"
-                  />
+              <div key={wf.id} className={`border rounded-xl transition-all ${isEnabled ? "border-violet-200 bg-violet-50/40" : "border-gray-200 bg-white"}`}>
+                {/* Header row */}
+                <div className="flex items-center gap-3 px-3 py-2.5">
+                  {/* Toggle */}
+                  <button
+                    onClick={() => toggleWorkflow(wf)}
+                    className={`relative flex-shrink-0 w-9 h-5 rounded-full transition-colors ${isEnabled ? "bg-violet-600" : "bg-gray-200"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${isEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                  </button>
+
+                  {/* Name + badge */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-900 truncate">{wf.name}</p>
-                    {wf.description && (
-                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                        {wf.description}
-                      </p>
-                    )}
-                    {isEnabled && (
-                      <div className="mt-2">
-                        <label className="text-xs text-gray-500 mb-1 block">
-                          When to use this workflow:
-                        </label>
-                        <textarea
-                          value={conn?.whenToUse ?? ""}
-                          onChange={e => updateWhenToUse(wf.id, e.target.value)}
-                          rows={2}
-                          placeholder="Describe when the agent should invoke this workflow..."
-                          className="w-full text-xs border border-violet-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-violet-400 resize-none bg-white"
-                        />
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-gray-900 truncate">{wf.name}</p>
+                      {isEnabled && params.length > 0 && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 flex-shrink-0">
+                          {params.length} param{params.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                    {wf.description && !isExpanded && (
+                      <p className="text-[11px] text-gray-400 truncate mt-0.5">{wf.description}</p>
                     )}
                   </div>
+
+                  {/* Expand toggle */}
+                  {isEnabled && (
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : wf.id)}
+                      className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                    >
+                      <ChevronDown size={14} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                    </button>
+                  )}
                 </div>
+
+                {/* Expanded config */}
+                {isExpanded && (
+                  <div className="px-3 pb-3 space-y-3 border-t border-violet-100 pt-3">
+                    {/* When to use */}
+                    <div>
+                      <label className="text-[11px] font-medium text-gray-500 mb-1 block">When to use this workflow</label>
+                      <textarea
+                        value={conn?.whenToUse ?? ""}
+                        onChange={e => updateConn(wf.id, { whenToUse: e.target.value })}
+                        rows={2}
+                        placeholder="e.g. Use this when the user wants to create a new lead"
+                        className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-violet-400 resize-none bg-white"
+                      />
+                    </div>
+
+                    {/* Parameters */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="text-[11px] font-medium text-gray-700">Input Parameters</p>
+                          <p className="text-[10px] text-gray-400">The agent will collect these values from the conversation and pass them to the workflow.</p>
+                        </div>
+                        <button
+                          onClick={() => addParam(wf.id)}
+                          className="flex items-center gap-1 text-[11px] font-medium text-violet-600 hover:text-violet-800 px-2 py-1 rounded-lg hover:bg-violet-100 transition-colors flex-shrink-0"
+                        >
+                          <Plus size={11} /> Add
+                        </button>
+                      </div>
+
+                      {params.length === 0 ? (
+                        <div className="text-center py-3 border border-dashed border-gray-200 rounded-lg">
+                          <p className="text-[11px] text-gray-400">No parameters defined — the agent will pass the raw conversation context.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {params.map((p, idx) => (
+                            <div key={idx} className="bg-white border border-gray-200 rounded-lg p-2.5 space-y-2">
+                              <div className="flex gap-2">
+                                <input
+                                  value={p.name}
+                                  onChange={e => updateParam(wf.id, idx, { name: e.target.value })}
+                                  placeholder="param_name"
+                                  className="flex-1 text-xs border border-gray-200 rounded-md px-2 py-1 outline-none focus:border-violet-400 font-mono bg-gray-50"
+                                />
+                                <select
+                                  value={p.type}
+                                  onChange={e => updateParam(wf.id, idx, { type: e.target.value as WorkflowParam["type"] })}
+                                  className="text-xs border border-gray-200 rounded-md px-2 py-1 outline-none focus:border-violet-400 bg-white"
+                                >
+                                  {PARAM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                                <button onClick={() => removeParam(wf.id, idx)} className="text-gray-300 hover:text-red-400 flex-shrink-0">
+                                  <X size={13} />
+                                </button>
+                              </div>
+                              <input
+                                value={p.description}
+                                onChange={e => updateParam(wf.id, idx, { description: e.target.value })}
+                                placeholder="Description (tells the AI what this param is for)"
+                                className="w-full text-xs border border-gray-200 rounded-md px-2 py-1 outline-none focus:border-violet-400"
+                              />
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={p.required}
+                                  onChange={e => updateParam(wf.id, idx, { required: e.target.checked })}
+                                  className="accent-violet-600 w-3 h-3"
+                                />
+                                <span className="text-[11px] text-gray-500">Required</span>
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

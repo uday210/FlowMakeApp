@@ -49,13 +49,40 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
+type WorkflowParam = {
+  name: string;
+  type: "string" | "number" | "boolean";
+  description: string;
+  required: boolean;
+};
+
 type ConnectedWorkflow = {
   workflowId: string;
   name: string;
   description: string;
   whenToUse: string;
   enabled: boolean;
+  parameters?: WorkflowParam[];
 };
+
+function buildToolSchema(wf: ConnectedWorkflow): { type: "object"; properties: Record<string, unknown>; required: string[] } {
+  const params = wf.parameters ?? [];
+  if (params.length === 0) {
+    return {
+      type: "object",
+      properties: { query: { type: "string", description: "The user's input or context for this workflow" } },
+      required: [],
+    };
+  }
+  const properties: Record<string, unknown> = {};
+  const required: string[] = [];
+  for (const p of params) {
+    if (!p.name) continue;
+    properties[p.name] = { type: p.type, description: p.description || p.name };
+    if (p.required) required.push(p.name);
+  }
+  return { type: "object", properties, required };
+}
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -194,13 +221,7 @@ async function streamAnthropic(
   const tools: import("@anthropic-ai/sdk/resources").Tool[] = enabledWorkflows.map(wf => ({
     name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
     description: wf.whenToUse || wf.description || wf.name,
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        query: { type: "string", description: "The user's query or context for this workflow" },
-      },
-      required: [],
-    },
+    input_schema: buildToolSchema(wf) as import("@anthropic-ai/sdk/resources").Tool["input_schema"],
   }));
 
   const encoder = new TextEncoder();
@@ -385,13 +406,7 @@ async function streamOpenAI(
     function: {
       name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
       description: wf.whenToUse || wf.description || wf.name,
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "The user input or context to pass to this workflow" },
-        },
-        required: [],
-      },
+      parameters: buildToolSchema(wf),
     },
   }));
 
@@ -539,13 +554,7 @@ async function streamGroq(
     function: {
       name: `workflow_${wf.workflowId.replace(/-/g, "_")}`,
       description: wf.whenToUse || wf.description || wf.name,
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "The user input or context to pass to this workflow" },
-        },
-        required: [],
-      },
+      parameters: buildToolSchema(wf),
     },
   }));
 
