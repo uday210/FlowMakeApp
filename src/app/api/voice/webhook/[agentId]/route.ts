@@ -3,6 +3,23 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
+function getBaseUrl(req: Request): string {
+  // Railway (and most proxies) set x-forwarded-host to the real public domain
+  const fwdHost  = req.headers.get("x-forwarded-host");
+  const fwdProto = req.headers.get("x-forwarded-proto");
+  if (fwdHost) {
+    const proto = (fwdProto ?? "https").split(",")[0].trim();
+    return `${proto}://${fwdHost}`;
+  }
+  // Fallback: env var set in Railway dashboard
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
+  // Last resort (will be localhost in local dev — that's fine)
+  const u = new URL(req.url);
+  return `${u.protocol}//${u.host}`;
+}
+
 function getAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -78,9 +95,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ agentId
       transcript:  [],
     }).then(() => {}).catch(() => {});
 
-    const url = new URL(req.url);
-    const gatherUrl = `${url.protocol}//${url.host}/api/voice/gather/${agentId}`;
-    const statusUrl = `${url.protocol}//${url.host}/api/voice/status/${agentId}`;
+    const base = getBaseUrl(req);
+    const gatherUrl = `${base}/api/voice/gather/${agentId}`;
+    const statusUrl = `${base}/api/voice/status/${agentId}`;
 
     return twiml(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>

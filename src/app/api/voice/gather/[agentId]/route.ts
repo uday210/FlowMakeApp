@@ -3,6 +3,20 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
+function getBaseUrl(req: Request): string {
+  const fwdHost  = req.headers.get("x-forwarded-host");
+  const fwdProto = req.headers.get("x-forwarded-proto");
+  if (fwdHost) {
+    const proto = (fwdProto ?? "https").split(",")[0].trim();
+    return `${proto}://${fwdHost}`;
+  }
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
+  const u = new URL(req.url);
+  return `${u.protocol}//${u.host}`;
+}
+
 function getAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,8 +61,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ agentId
     const callSid    = body.CallSid      ?? "";
     const speechText = (body.SpeechResult ?? "").trim();
 
-    const url        = new URL(req.url);
-    const gatherUrl  = `${url.protocol}//${url.host}/api/voice/gather/${agentId}`;
+    const gatherUrl  = `${getBaseUrl(req)}/api/voice/gather/${agentId}`;
 
     // Load agent
     const { data: agent, error: agentErr } = await admin
