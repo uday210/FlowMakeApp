@@ -982,95 +982,113 @@ export default function TableGridPage() {
       <div className="flex flex-col h-full overflow-hidden">
 
         {/* ── Top bar ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0">
-          <Link href="/tables" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
-            <ArrowLeft size={16} />
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-200 bg-white flex-shrink-0 min-h-[52px]">
+
+          {/* Left: back + title */}
+          <Link href="/tables" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors flex-shrink-0">
+            <ArrowLeft size={15} />
           </Link>
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm font-bold text-gray-900 truncate">{table.name}</span>
+          <div className="flex items-center gap-2 min-w-0 mr-1">
+            <span className="text-sm font-bold text-gray-900 truncate max-w-[140px]">{table.name}</span>
             {table.description && (
-              <span className="text-xs text-gray-400 truncate hidden sm:block">— {table.description}</span>
+              <span className="text-xs text-gray-400 truncate hidden lg:block max-w-[200px]">— {table.description}</span>
             )}
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0 font-medium">
+              {total.toLocaleString()} row{total !== 1 ? "s" : ""}
+            </span>
           </div>
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">
-            {total} row{total !== 1 ? "s" : ""}
-          </span>
 
           <div className="flex-1" />
 
-          {/* Toolbar actions */}
-          <div className="flex items-center gap-1.5">
-            {/* Search */}
-            <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search…"
-                className="text-xs border border-gray-200 rounded-lg pl-7 pr-3 py-1.5 outline-none focus:border-violet-400 w-36"
-              />
-              {search && (
-                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
-                  <X size={11} />
-                </button>
-              )}
-            </div>
-
-            {/* Filter/Sort */}
-            <div className="relative">
-              <button
-                onClick={() => setShowFilterBar(o => !o)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${hasActiveFilters ? "border-violet-400 bg-violet-50 text-violet-600" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-              >
-                <Filter size={12} />
-                {sort ? `Sort: ${sort.col}` : filter ? `Filter: ${filter.col}` : "Filter & Sort"}
-                {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
+          {/* Center: search */}
+          <div className="relative flex-shrink-0">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search rows…"
+              className="text-xs border border-gray-200 rounded-lg pl-7 pr-7 py-1.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 w-44 transition-all"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+                <X size={11} />
               </button>
-              {showFilterBar && (
-                <FilterBar
-                  columns={table.columns}
-                  sort={sort} filter={filter}
-                  onSort={setSort} onFilter={setFilter}
-                  onClear={() => { setSort(null); setFilter(null); setShowFilterBar(false); }}
-                />
-              )}
-            </div>
-
-            <button onClick={() => loadRows(page)}
-              className="p-1.5 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-50 transition-colors">
-              <RefreshCw size={13} />
-            </button>
-
-            {/* Import CSV */}
-            <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-all">
-              <FileInput size={12} /> Import CSV
-              <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
-            </label>
-
-            <button onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">
-              <FileOutput size={12} /> Export CSV
-            </button>
-
-            <button onClick={() => setShowSchema(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">
-              <Settings2 size={12} /> Schema
-            </button>
-
-            <button
-              onClick={() => setShowQuery(q => !q)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${showQuery ? "bg-violet-600 text-white border-violet-600 hover:bg-violet-700" : "text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-            >
-              <Terminal size={12} /> Query
-            </button>
-
-            <button
-              onClick={() => setNewRowDraft(Object.fromEntries((table.columns ?? []).map(c => [c.name, ""])))}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-all"
-            >
-              <Plus size={12} /> Add row
-            </button>
+            )}
           </div>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
+
+          {/* Filter / Sort */}
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => setShowFilterBar(o => !o)}
+              title="Filter & Sort"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-all ${hasActiveFilters ? "border-violet-400 bg-violet-50 text-violet-600" : "border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700"}`}
+            >
+              <Filter size={13} />
+              <span>Filter</span>
+              {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" />}
+            </button>
+            {showFilterBar && (
+              <FilterBar
+                columns={table.columns}
+                sort={sort} filter={filter}
+                onSort={setSort} onFilter={setFilter}
+                onClear={() => { setSort(null); setFilter(null); setShowFilterBar(false); }}
+              />
+            )}
+          </div>
+
+          {/* Refresh */}
+          <button
+            onClick={() => loadRows(page)}
+            title="Refresh"
+            className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all flex-shrink-0"
+          >
+            <RefreshCw size={13} />
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
+
+          {/* Import / Export — icon only with tooltip */}
+          <label title="Import CSV" className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 cursor-pointer transition-all flex-shrink-0">
+            <FileInput size={14} />
+            <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
+          </label>
+
+          <button onClick={exportCSV} title="Export CSV"
+            className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all flex-shrink-0">
+            <FileOutput size={14} />
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
+
+          {/* Schema */}
+          <button onClick={() => setShowSchema(true)}
+            title="Edit schema"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-700 transition-all flex-shrink-0">
+            <Settings2 size={13} /> Schema
+          </button>
+
+          {/* Query */}
+          <button
+            onClick={() => setShowQuery(q => !q)}
+            title="Query Builder"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-all flex-shrink-0 ${showQuery ? "bg-violet-600 text-white border-violet-600 shadow-sm" : "text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700"}`}
+          >
+            <Terminal size={13} /> Query
+          </button>
+
+          {/* Add row — primary CTA */}
+          <button
+            onClick={() => setNewRowDraft(Object.fromEntries((table.columns ?? []).map(c => [c.name, ""])))}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-violet-600 rounded-lg hover:bg-violet-700 active:scale-95 transition-all shadow-sm flex-shrink-0"
+          >
+            <Plus size={13} /> Add row
+          </button>
         </div>
 
         {/* ── Bulk action bar ───────────────────────────────────────────────── */}
