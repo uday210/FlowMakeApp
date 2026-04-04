@@ -30,6 +30,7 @@ const PUBLIC_PREFIXES = [
   "/api/embed-config/",
   "/api/execute/",
   "/api/voice/",
+  "/api/mqtt-listener",
   "/embed/",
   "/form/",
   "/sign/",

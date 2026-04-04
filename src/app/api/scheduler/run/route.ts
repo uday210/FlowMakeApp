@@ -6,44 +6,6 @@ import type { WorkflowNode, WorkflowEdge } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-async function pollMqtt(cfg: Record<string, unknown>): Promise<Record<string, unknown> | null> {
-  try {
-    const mqttLib = await import("mqtt");
-    const brokerUrl = String(cfg.broker_url || "");
-    const topic = String(cfg.topic || "");
-    if (!brokerUrl || !topic) return null;
-
-    const clientOpts: Record<string, unknown> = {};
-    if (cfg.client_id) clientOpts.clientId = String(cfg.client_id);
-    if (cfg.username)  clientOpts.username  = String(cfg.username);
-    if (cfg.password)  clientOpts.password  = String(cfg.password);
-
-    const qos = Number(cfg.qos || 0) as 0 | 1 | 2;
-    const timeout = Number(cfg.timeout || 5000);
-
-    return await new Promise<Record<string, unknown> | null>((resolve) => {
-      const client = mqttLib.connect(brokerUrl, clientOpts as Parameters<typeof mqttLib.connect>[1]);
-      const timer = setTimeout(() => { client.end(true); resolve(null); }, timeout);
-
-      client.on("error", () => { clearTimeout(timer); client.end(true); resolve(null); });
-      client.on("connect", () => {
-        client.subscribe(topic, { qos }, (err) => {
-          if (err) { clearTimeout(timer); client.end(true); resolve(null); return; }
-          client.on("message", (t, msg) => {
-            clearTimeout(timer);
-            client.end();
-            let payload: unknown = msg.toString();
-            try { payload = JSON.parse(msg.toString()); } catch { /* keep as string */ }
-            resolve({ topic: t, payload, raw: msg.toString(), _fired_at: new Date().toISOString() });
-          });
-        });
-      });
-    });
-  } catch {
-    return null;
-  }
-}
-
 export async function POST() {
   const supabase = createServerClient();
   const now = new Date();
@@ -67,7 +29,6 @@ export async function POST() {
     "trigger_monday_item", "trigger_mailchimp_subscriber", "trigger_activecampaign",
     "trigger_rss_poll", "trigger_salesforce", "trigger_salesforce_cdc", "trigger_salesforce_platform_event",
     "trigger_postgres_row", "trigger_mysql_row", "trigger_mongodb_document",
-    "trigger_mqtt",
   ]);
 
   for (const wf of workflows) {
@@ -75,6 +36,7 @@ export async function POST() {
     const triggerNode = nodes.find((n) =>
       n.data?.type === "trigger_schedule" ||
       n.data?.type === "trigger_interval" ||
+      n.data?.type === "trigger_mqtt" ||
       POLLING_TRIGGERS.has(n.data?.type)
     );
 
@@ -84,12 +46,62 @@ export async function POST() {
     }
 
     const cfg = triggerNode.data.config;
-    let cron: string;
 
+    // ── MQTT trigger — read from buffer table instead of connecting live ────
+    if (triggerNode.data.type === "trigger_mqtt") {
+      const { data: buffered } = await supabase
+        .from("mqtt_messages")
+        .select("id, topic, payload, raw, received_at")
+        .eq("workflow_id", wf.id)
+        .eq("processed", false)
+        .order("received_at", { ascending: true })
+        .limit(50);
+
+      if (!buffered?.length) {
+        skipped.push({ id: wf.id, name: wf.name, reason: "MQTT: no buffered messages" });
+        continue;
+      }
+
+      // Mark all as processed immediately to avoid double-firing
+      const ids = buffered.map(m => m.id);
+      await supabase.from("mqtt_messages").update({ processed: true }).in("id", ids);
+
+      // Fire one execution per message
+      const connectionIds = [...new Set(nodes.map(n => n.data?.config?.connectionId as string | undefined).filter(Boolean) as string[])];
+      const connectionsMap: Record<string, Record<string, unknown>> = {};
+      if (connectionIds.length > 0) {
+        const { data: conns } = await supabase.from("connections").select("id, config").in("id", connectionIds);
+        for (const conn of conns ?? []) connectionsMap[conn.id] = conn.config as Record<string, unknown>;
+      }
+
+      for (const msg of buffered) {
+        const triggerData = {
+          topic:       msg.topic,
+          payload:     msg.payload,
+          raw:         msg.raw,
+          _fired_at:   msg.received_at,
+        };
+        const { data: execution } = await supabase.from("executions")
+          .insert({ workflow_id: wf.id, status: "running", trigger_data: triggerData, logs: [] })
+          .select().single();
+        let finalStatus: "success" | "failed" = "success";
+        let ctx;
+        try {
+          ctx = await executeWorkflow(nodes, wf.edges as WorkflowEdge[], triggerData, connectionsMap, wf.id, wf.org_id as string | undefined);
+          if (ctx.logs.some(l => l.status === "error")) finalStatus = "failed";
+        } catch { finalStatus = "failed"; ctx = { logs: [] }; }
+        if (execution) await supabase.from("executions").update({ status: finalStatus, logs: ctx.logs, finished_at: new Date().toISOString() }).eq("id", execution.id);
+      }
+
+      triggered.push({ id: wf.id, name: wf.name });
+      continue;
+    }
+
+    // ── Schedule / interval / polling triggers ──────────────────────────────
+    let cron: string;
     if (triggerNode.data.type === "trigger_interval") {
       cron = intervalToCron(cfg.every as string, cfg.unit as string);
     } else if (POLLING_TRIGGERS.has(triggerNode.data.type)) {
-      // poll_interval is in minutes
       const mins = Number(cfg.poll_interval) || 15;
       cron = mins >= 60 ? `0 */${Math.floor(mins / 60)} * * *` : `*/${mins} * * * *`;
     } else {
@@ -101,40 +113,11 @@ export async function POST() {
       continue;
     }
 
-    // Execute workflow directly (no HTTP self-call — avoids network issues on Railway)
     try {
-      // MQTT trigger: actually subscribe and wait for a message — skip if none arrives
-      if (triggerNode.data.type === "trigger_mqtt") {
-        const mqttTriggerData = await pollMqtt(cfg);
-        if (!mqttTriggerData) {
-          skipped.push({ id: wf.id, name: wf.name, reason: "MQTT: no message received within timeout" });
-          continue;
-        }
-        const nodes = wf.nodes as WorkflowNode[];
-        const connectionIds = [...new Set(nodes.map(n => n.data?.config?.connectionId as string | undefined).filter(Boolean) as string[])];
-        const connectionsMap: Record<string, Record<string, unknown>> = {};
-        if (connectionIds.length > 0) {
-          const { data: conns } = await supabase.from("connections").select("id, config").in("id", connectionIds);
-          for (const conn of conns ?? []) connectionsMap[conn.id] = conn.config as Record<string, unknown>;
-        }
-        const { data: execution } = await supabase.from("executions").insert({ workflow_id: wf.id, status: "running", trigger_data: mqttTriggerData, logs: [] }).select().single();
-        let finalStatus: "success" | "failed" = "success";
-        let ctx;
-        try {
-          ctx = await executeWorkflow(nodes, wf.edges as WorkflowEdge[], mqttTriggerData, connectionsMap, wf.id, wf.org_id as string | undefined);
-          if (ctx.logs.some(l => l.status === "error")) finalStatus = "failed";
-        } catch { finalStatus = "failed"; ctx = { logs: [] }; }
-        if (execution) await supabase.from("executions").update({ status: finalStatus, logs: ctx.logs, finished_at: new Date().toISOString() }).eq("id", execution.id);
-        triggered.push({ id: wf.id, name: wf.name });
-        continue;
-      }
-
       const triggerData = POLLING_TRIGGERS.has(triggerNode.data.type)
         ? { _trigger: "poll", _trigger_type: triggerNode.data.type, _fired_at: now.toISOString() }
         : { _trigger: "schedule", _cron: cron, _fired_at: now.toISOString() };
-      const nodes = wf.nodes as WorkflowNode[];
 
-      // Collect connection IDs referenced by this workflow
       const connectionIds = [...new Set(
         nodes.map(n => n.data?.config?.connectionId as string | undefined).filter(Boolean) as string[]
       )];
@@ -144,14 +127,12 @@ export async function POST() {
         for (const conn of conns ?? []) connectionsMap[conn.id] = conn.config as Record<string, unknown>;
       }
 
-      // Create execution record
       const { data: execution } = await supabase
         .from("executions")
         .insert({ workflow_id: wf.id, status: "running", trigger_data: triggerData, logs: [] })
         .select()
         .single();
 
-      // Run
       let finalStatus: "success" | "failed" = "success";
       let ctx;
       try {
