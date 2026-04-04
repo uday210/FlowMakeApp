@@ -2457,29 +2457,41 @@ export default function AgentEditorPage({
       {/* Main layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
-          {/* Tabs */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Icon nav sidebar */}
           {(() => {
             const isSimple = chatbot.agent_type === "simple";
             const tabs = isSimple ? SIMPLE_BOT_TABS : FULL_AGENT_TABS;
-            const activeColor = isSimple ? "border-emerald-500 text-emerald-600" : "border-violet-500 text-violet-600";
+            const activeTab_ = activeTab;
+            const activeBg = isSimple ? "bg-emerald-50 text-emerald-600" : "bg-violet-50 text-violet-600";
+            const activeTabMeta = tabs.find(t => t.id === activeTab_);
             return (
               <>
-                <div className="flex border-b border-gray-200 flex-shrink-0">
+                {/* Narrow icon-only nav */}
+                <div className="w-14 bg-white border-r border-gray-100 flex flex-col items-center py-3 gap-1 flex-shrink-0">
                   {tabs.map(tab => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id
-                          ? activeColor
-                          : "border-transparent text-gray-400 hover:text-gray-600"
-                        }`}
+                      title={tab.label}
+                      className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all ${activeTab_ === tab.id
+                        ? activeBg + " shadow-sm"
+                        : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"
+                      }`}
                     >
                       {tab.icon}
-                      {tab.label}
+                      <span className="text-[8px] font-medium leading-none">{tab.label.slice(0, 5)}</span>
                     </button>
                   ))}
                 </div>
+
+                {/* Content panel */}
+                <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+                  {/* Section header */}
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 flex-shrink-0">
+                    <span className={`${isSimple ? "text-emerald-500" : "text-violet-500"}`}>{activeTabMeta?.icon}</span>
+                    <span className="text-sm font-semibold text-gray-800">{activeTabMeta?.label}</span>
+                  </div>
 
                 {/* Tab content */}
                 <div className="flex-1 overflow-y-auto p-4">
@@ -2510,6 +2522,7 @@ export default function AgentEditorPage({
                   {activeTab === "history" && agentId && (
                     <HistoryTab agentId={agentId} />
                   )}
+                </div>
                 </div>
               </>
             );
