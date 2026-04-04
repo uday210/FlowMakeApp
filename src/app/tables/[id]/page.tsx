@@ -916,6 +916,10 @@ export default function TableGridPage() {
   const [showQuery, setShowQuery]         = useState(false);
   const [showBulkEdit, setShowBulkEdit]   = useState(false);
 
+  // column widths (resizable)
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
+
   // ── Load table + rows ────────────────────────────────────────────────────────
 
   const loadRows = useCallback(async (p = 0) => {
@@ -935,9 +939,51 @@ export default function TableGridPage() {
     if (!id) return;
     fetch(`/api/tables/${id}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setTable(d); else router.push("/tables"); });
+      .then(d => {
+        if (d) {
+          setTable(d);
+          // initialise widths only for columns not already sized
+          setColWidths(prev => {
+            const next: Record<string, number> = { ...prev };
+            for (const col of (d.columns ?? [])) {
+              if (!(col.name in next)) next[col.name] = COL_WIDTHS[col.type] ?? 200;
+            }
+            return next;
+          });
+        } else {
+          router.push("/tables");
+        }
+      });
     loadRows(0);
   }, [id, loadRows, router]);
+
+  const onResizeStart = useCallback((e: React.MouseEvent, colName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = {
+      col: colName,
+      startX: e.clientX,
+      startWidth: colWidths[colName] ?? 200,
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const delta = ev.clientX - resizingRef.current.startX;
+      const w = Math.max(60, resizingRef.current.startWidth + delta);
+      setColWidths(prev => ({ ...prev, [resizingRef.current!.col]: w }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [colWidths]);
 
   // ── Computed rows (search + filter + sort) ───────────────────────────────────
 
@@ -1268,7 +1314,7 @@ export default function TableGridPage() {
           {loading ? (
             <div className="flex justify-center py-24"><Loader2 size={24} className="animate-spin text-gray-300" /></div>
           ) : (
-            <table className="w-full border-collapse text-xs" style={{ minWidth: `${80 + 48 + table.columns.reduce((a, c) => a + (COL_WIDTHS[c.type] ?? 200), 0) + 48}px` }}>
+            <table className="w-full border-collapse text-xs" style={{ minWidth: `${80 + 48 + table.columns.reduce((a, c) => a + (colWidths[c.name] ?? COL_WIDTHS[c.type] ?? 200), 0) + 48}px` }}>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-gray-50 border-b-2 border-gray-200">
                   {/* Checkbox */}
@@ -1283,28 +1329,39 @@ export default function TableGridPage() {
                   {/* Row # */}
                   <th className="w-12 px-3 py-2.5 text-gray-400 font-medium text-right border-r border-gray-200">#</th>
                   {/* Column headers */}
-                  {table.columns.map(col => (
-                    <th
-                      key={col.name}
-                      style={{ width: COL_WIDTHS[col.type] ?? 200 }}
-                      className="px-3 py-2.5 text-left border-r border-gray-200 cursor-pointer select-none group"
-                      onClick={() => setSort(s =>
-                        s?.col === col.name
-                          ? s.dir === "asc" ? { col: col.name, dir: "desc" } : null
-                          : { col: col.name, dir: "asc" }
-                      )}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <ColTypeIcon type={col.type} />
-                        <span className="font-semibold text-gray-600 text-xs truncate">{col.name}</span>
-                        {sort?.col === col.name ? (
-                          sort.dir === "asc" ? <ChevronUp size={11} className="text-violet-500" /> : <ChevronDown size={11} className="text-violet-500" />
-                        ) : (
-                          <ChevronsUpDown size={11} className="text-gray-300 opacity-0 group-hover:opacity-100" />
+                  {table.columns.map(col => {
+                    const w = colWidths[col.name] ?? COL_WIDTHS[col.type] ?? 200;
+                    return (
+                      <th
+                        key={col.name}
+                        style={{ width: w, minWidth: w }}
+                        className="relative px-3 py-2.5 text-left border-r border-gray-200 cursor-pointer select-none group"
+                        onClick={() => setSort(s =>
+                          s?.col === col.name
+                            ? s.dir === "asc" ? { col: col.name, dir: "desc" } : null
+                            : { col: col.name, dir: "asc" }
                         )}
-                      </div>
-                    </th>
-                  ))}
+                      >
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                          <ColTypeIcon type={col.type} />
+                          <span className="font-semibold text-gray-600 text-xs truncate">{col.name}</span>
+                          {sort?.col === col.name ? (
+                            sort.dir === "asc" ? <ChevronUp size={11} className="text-violet-500 flex-shrink-0" /> : <ChevronDown size={11} className="text-violet-500 flex-shrink-0" />
+                          ) : (
+                            <ChevronsUpDown size={11} className="text-gray-300 flex-shrink-0 opacity-0 group-hover:opacity-100" />
+                          )}
+                        </div>
+                        {/* Resize handle */}
+                        <div
+                          className="absolute right-0 top-0 h-full w-2 cursor-col-resize z-10 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                          onMouseDown={e => onResizeStart(e, col.name)}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <div className="w-0.5 h-4 bg-violet-400 rounded-full" />
+                        </div>
+                      </th>
+                    );
+                  })}
                   {/* Expand col */}
                   <th className="w-12 border-r border-gray-200" />
                 </tr>
@@ -1377,10 +1434,11 @@ export default function TableGridPage() {
                         {/* Data cells */}
                         {table.columns.map(col => {
                           const isEditing = editCell?.rowId === row.id && editCell?.col === col.name;
+                          const w = colWidths[col.name] ?? COL_WIDTHS[col.type] ?? 200;
                           return (
                             <td
                               key={col.name}
-                              style={{ width: COL_WIDTHS[col.type] ?? 200, maxWidth: COL_WIDTHS[col.type] ?? 200 }}
+                              style={{ width: w, maxWidth: w }}
                               className={`border-r border-gray-100 p-0 h-9 relative ${isEditing ? "ring-2 ring-violet-400 ring-inset z-10" : "cursor-cell"}`}
                               onClick={() => !isEditing && setEditCell({ rowId: row.id, col: col.name })}
                             >
