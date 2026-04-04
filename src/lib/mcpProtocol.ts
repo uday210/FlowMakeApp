@@ -72,6 +72,27 @@ async function runWorkflowForTool(workflowId: string, orgId: string, args: Recor
     orgId
   );
 
+  // Save execution record so it appears in the run history for debugging
+  const errorLogs = ctx.logs.filter((l) => l.status === "error");
+  const finalStatus = errorLogs.length > 0 ? "failed" : "success";
+  try {
+    await admin.from("executions").insert({
+      workflow_id: workflowId,
+      status: finalStatus,
+      logs: ctx.logs,
+      trigger_data: { __source: "mcp", ...args },
+      finished_at: new Date().toISOString(),
+    });
+  } catch { /* non-fatal — don't block the tool response */ }
+
+  // Surface node errors to the MCP caller so they're visible rather than silently swallowed
+  if (errorLogs.length > 0) {
+    const errMsg = errorLogs
+      .map((l) => `[${l.node_label ?? l.node_id}] ${l.error ?? "unknown error"}`)
+      .join("; ");
+    throw new Error(`Workflow execution failed: ${errMsg}`);
+  }
+
   // Return agent_reply if present, else last node output as JSON
   const agentReply = ctx.nodeOutputs["__agent_reply__"];
   if (agentReply != null) return String(agentReply);
