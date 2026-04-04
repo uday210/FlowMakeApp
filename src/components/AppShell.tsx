@@ -159,25 +159,39 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* ── Sidebar ── */}
       <aside
         className="bg-[#1a0a2e] flex flex-col flex-shrink-0 transition-all duration-300"
-        style={{ width: collapsed ? "56px" : "208px" }}
+        style={{ width: collapsed ? "64px" : "208px" }}
       >
 
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-3 py-4 flex-shrink-0 border-b border-white/10 min-h-[57px]">
-          <button
-            onClick={() => navigate(isSuperAdmin ? "/admin" : "/workflows")}
-            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity flex-shrink-0"
-          >
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: "var(--gradient-brand)" }}
-            >
-              <Zap size={15} className="text-white" />
-            </div>
-          </button>
+        <div className="flex items-center gap-2 px-3 py-4 flex-shrink-0 border-b border-white/10 min-h-[57px] overflow-hidden">
           {!collapsed && (
-            <span className="text-sm font-bold text-white tracking-tight flex-1 truncate">FlowMake</span>
+            <button
+              onClick={() => navigate(isSuperAdmin ? "/admin" : "/workflows")}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0"
+            >
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--gradient-brand)" }}
+              >
+                <Zap size={15} className="text-white" />
+              </div>
+              <span className="text-sm font-bold text-white tracking-tight">FlowMake</span>
+            </button>
           )}
+          {collapsed && (
+            <button
+              onClick={() => navigate(isSuperAdmin ? "/admin" : "/workflows")}
+              className="hover:opacity-80 transition-opacity flex-shrink-0"
+            >
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: "var(--gradient-brand)" }}
+              >
+                <Zap size={15} className="text-white" />
+              </div>
+            </button>
+          )}
+          <div className="flex-1" />
           <button
             onClick={() => setCollapsed(c => !c)}
             className="p-1 rounded-md text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors flex-shrink-0"
