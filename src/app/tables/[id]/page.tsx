@@ -12,7 +12,8 @@ import {
   Type, Hash, Calendar, ToggleLeft, Braces, Link2,
   ChevronsUpDown, RefreshCw, AlignLeft, Mail, Phone,
   Clock, ListOrdered, ChevronRight, Terminal, Play,
-  ChevronUp as PanelClose, Minus,
+  ChevronUp as PanelClose, Minus, Code2, History,
+  Download, Copy, GripHorizontal,
 } from "lucide-react";
 
 // ─── Types ───���────────────────────────────────────────────────────────────────
@@ -640,6 +641,15 @@ type QueryResult = {
   elapsed?: number;
 };
 
+type SavedQuery = {
+  conditions: Condition[];
+  selectedCols: string[];
+  orderBy: string;
+  orderDir: "asc" | "desc";
+  limit: number;
+  label: string;
+};
+
 const OPS = [
   { value: "=",            label: "equals" },
   { value: "!=",           label: "not equals" },
@@ -655,11 +665,49 @@ const OPS = [
   { value: "is_not_empty", label: "is not empty" },
 ];
 
+function buildSQL(
+  tableName: string,
+  selectedCols: string[],
+  conditions: Condition[],
+  orderBy: string,
+  orderDir: string,
+  limit: number,
+): string {
+  const cols = selectedCols.length ? selectedCols.join(", ") : "*";
+  let sql = `SELECT ${cols}\nFROM ${tableName}`;
+  const valid = conditions.filter(c => c.field);
+  if (valid.length) {
+    sql += "\nWHERE\n  ";
+    sql += valid.map((c, i) => {
+      const prefix = i === 0 ? "" : `${c.logic} `;
+      switch (c.op) {
+        case "=":            return `${prefix}${c.field} = '${c.value}'`;
+        case "!=":           return `${prefix}${c.field} != '${c.value}'`;
+        case ">":            return `${prefix}${c.field} > ${c.value}`;
+        case "<":            return `${prefix}${c.field} < ${c.value}`;
+        case ">=":           return `${prefix}${c.field} >= ${c.value}`;
+        case "<=":           return `${prefix}${c.field} <= ${c.value}`;
+        case "contains":     return `${prefix}${c.field} LIKE '%${c.value}%'`;
+        case "not_contains": return `${prefix}${c.field} NOT LIKE '%${c.value}%'`;
+        case "starts_with":  return `${prefix}${c.field} LIKE '${c.value}%'`;
+        case "ends_with":    return `${prefix}${c.field} LIKE '%${c.value}'`;
+        case "is_empty":     return `${prefix}${c.field} IS NULL`;
+        case "is_not_empty": return `${prefix}${c.field} IS NOT NULL`;
+        default:             return `${prefix}${c.field} = '${c.value}'`;
+      }
+    }).join("\n  ");
+  }
+  if (orderBy) sql += `\nORDER BY ${orderBy} ${orderDir.toUpperCase()}`;
+  sql += `\nLIMIT ${limit}`;
+  return sql;
+}
+
 function QueryBuilder({
-  tableId, columns, onClose,
+  tableId, columns, tableName, onClose,
 }: {
   tableId: string;
   columns: UserTableColumn[];
+  tableName: string;
   onClose: () => void;
 }) {
   const [conditions, setConditions] = useState<Condition[]>([
@@ -673,6 +721,16 @@ function QueryBuilder({
   const [result, setResult]     = useState<QueryResult | null>(null);
   const [error, setError]       = useState("");
 
+  // enhancements
+  const [panelHeight, setPanelHeight] = useState(380);
+  const [showSQL, setShowSQL]         = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory]         = useState<SavedQuery[]>([]);
+  const [resultSort, setResultSort]   = useState<{ col: string; dir: "asc" | "desc" } | null>(null);
+  const [copiedJSON, setCopiedJSON]   = useState(false);
+  const panelResizeRef = useRef<{ startY: number; startH: number } | null>(null);
+  const runQueryRef    = useRef<() => void>(() => {});
+
   const allColNames = ["id", ...columns.map(c => c.name), "created_at"];
 
   const addCondition = () =>
@@ -685,6 +743,7 @@ function QueryBuilder({
     setRunning(true);
     setError("");
     setResult(null);
+    setResultSort(null);
     const t0 = Date.now();
     try {
       const res = await fetch(`/api/tables/${tableId}/query`, {
@@ -701,6 +760,9 @@ function QueryBuilder({
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Query failed"); return; }
       setResult({ ...data, elapsed: Date.now() - t0 });
+      // save to history
+      const label = conditions.filter(c => c.field).map(c => `${c.field} ${c.op} ${c.value}`).join(" & ") || "All rows";
+      setHistory(h => [{ conditions, selectedCols, orderBy, orderDir, limit, label }, ...h].slice(0, 8));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
     } finally {
@@ -708,36 +770,164 @@ function QueryBuilder({
     }
   };
 
+  // keep ref in sync so keyboard shortcut always gets latest version
+  useEffect(() => { runQueryRef.current = runQuery; });
+
+  // Cmd+Enter / Ctrl+Enter to run
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        runQueryRef.current();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // Panel resize drag
+  const onPanelResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    panelResizeRef.current = { startY: e.clientY, startH: panelHeight };
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+    const onMove = (ev: MouseEvent) => {
+      if (!panelResizeRef.current) return;
+      const delta = panelResizeRef.current.startY - ev.clientY;
+      setPanelHeight(Math.max(220, Math.min(700, panelResizeRef.current.startH + delta)));
+    };
+    const onUp = () => {
+      panelResizeRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  // Export results as CSV
+  const exportCSV = () => {
+    if (!result?.rows.length) return;
+    const cols = Object.keys(result.rows[0]);
+    const header = cols.join(",");
+    const rows = result.rows.map(r => cols.map(c => JSON.stringify(r[c] ?? "")).join(","));
+    const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `${tableName}_query.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Copy results as JSON
+  const copyJSON = () => {
+    if (!result?.rows.length) return;
+    navigator.clipboard.writeText(JSON.stringify(result.rows, null, 2));
+    setCopiedJSON(true);
+    setTimeout(() => setCopiedJSON(false), 1500);
+  };
+
+  // Sorted results
+  const sortedRows = (() => {
+    if (!result?.rows.length || !resultSort) return result?.rows ?? [];
+    return [...result.rows].sort((a, b) => {
+      const av = String(a[resultSort.col] ?? "");
+      const bv = String(b[resultSort.col] ?? "");
+      const an = parseFloat(av), bn = parseFloat(bv);
+      const cmp = !isNaN(an) && !isNaN(bn) ? an - bn : av.localeCompare(bv);
+      return resultSort.dir === "asc" ? cmp : -cmp;
+    });
+  })();
+
   const resultCols = result?.rows[0] ? Object.keys(result.rows[0]) : [];
+  const sqlPreview = buildSQL(tableName, selectedCols, conditions, orderBy, orderDir, limit);
+
+  const loadHistory = (q: SavedQuery) => {
+    setConditions(q.conditions);
+    setSelectedCols(q.selectedCols);
+    setOrderBy(q.orderBy);
+    setOrderDir(q.orderDir);
+    setLimit(q.limit);
+    setShowHistory(false);
+  };
 
   return (
-    <div className="border-t-2 border-violet-200 bg-white flex flex-col" style={{ height: 360 }}>
-      {/* Panel header */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-violet-50 border-b border-violet-100 flex-shrink-0">
-        <Terminal size={14} className="text-violet-500" />
+    <div className="border-t-2 border-violet-200 bg-white flex flex-col flex-shrink-0" style={{ height: panelHeight }}>
+
+      {/* ── Resize handle ─────────────────────────────────────────────────── */}
+      <div
+        onMouseDown={onPanelResizeStart}
+        className="flex items-center justify-center h-3 cursor-ns-resize hover:bg-violet-50 transition-colors group flex-shrink-0"
+      >
+        <GripHorizontal size={14} className="text-gray-300 group-hover:text-violet-400 transition-colors" />
+      </div>
+
+      {/* ── Panel header ──────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 border-b border-violet-100 flex-shrink-0">
+        <Terminal size={13} className="text-violet-500 flex-shrink-0" />
         <span className="text-xs font-bold text-violet-700">Query Builder</span>
         <div className="flex-1" />
+
+        {/* SQL preview toggle */}
+        <button
+          onClick={() => setShowSQL(s => !s)}
+          title="SQL preview"
+          className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border transition-all ${showSQL ? "bg-violet-600 text-white border-violet-600" : "text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+        >
+          <Code2 size={11} /> SQL
+        </button>
+
+        {/* Query history */}
+        <div className="relative">
+          <button
+            onClick={() => setShowHistory(s => !s)}
+            title="Query history"
+            disabled={history.length === 0}
+            className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-all"
+          >
+            <History size={11} /> History
+          </button>
+          {showHistory && history.length > 0 && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowHistory(false)} />
+              <div className="absolute right-0 bottom-8 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 w-72 z-20">
+                <p className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Recent queries</p>
+                {history.map((q, i) => (
+                  <button key={i} onClick={() => loadHistory(q)}
+                    className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-violet-50 hover:text-violet-700 truncate transition-colors">
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="w-px h-4 bg-violet-200 flex-shrink-0" />
+
         <button
           onClick={runQuery}
           disabled={running}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+          title="Run (⌘Enter)"
         >
-          {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+          {running ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />}
           Run
         </button>
-        <button onClick={onClose} className="p-1 rounded hover:bg-violet-100 text-violet-400">
+        <button onClick={onClose} className="p-1 rounded hover:bg-violet-100 text-violet-400 flex-shrink-0">
           <X size={14} />
         </button>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* ── Left: query config ─────────────────────────────────────────── */}
-        <div className="w-80 flex-shrink-0 border-r border-gray-100 overflow-y-auto px-4 py-3 space-y-4">
+
+        {/* ── Left: query config ────────────────────────────────────────────── */}
+        <div className="w-72 flex-shrink-0 border-r border-gray-100 overflow-y-auto px-4 py-3 space-y-4">
 
           {/* SELECT */}
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">SELECT</p>
-            <div className="flex flex-wrap gap-1.5">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">SELECT</p>
+            <div className="flex flex-wrap gap-1">
               {allColNames.map(c => {
                 const active = selectedCols.includes(c) || selectedCols.length === 0;
                 return (
@@ -745,7 +935,7 @@ function QueryBuilder({
                     onClick={() => setSelectedCols(prev =>
                       prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
                     )}
-                    className={`text-xs px-2 py-0.5 rounded-md border font-mono transition-all ${active ? "bg-violet-50 border-violet-300 text-violet-700" : "bg-gray-50 border-gray-200 text-gray-400"}`}
+                    className={`text-[11px] px-1.5 py-0.5 rounded border font-mono transition-all ${active ? "bg-violet-50 border-violet-300 text-violet-700" : "bg-gray-50 border-gray-200 text-gray-400"}`}
                   >
                     {c}
                   </button>
@@ -753,13 +943,13 @@ function QueryBuilder({
               })}
             </div>
             <p className="text-[10px] text-gray-400 mt-1">
-              {selectedCols.length === 0 ? "All columns selected" : `${selectedCols.length} column${selectedCols.length > 1 ? "s" : ""} selected`}
+              {selectedCols.length === 0 ? "All columns" : `${selectedCols.length} selected`}
             </p>
           </div>
 
           {/* WHERE */}
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">WHERE</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">WHERE</p>
             <div className="space-y-2">
               {conditions.map((cond, i) => (
                 <div key={i} className="space-y-1">
@@ -801,7 +991,7 @@ function QueryBuilder({
 
           {/* ORDER BY + LIMIT */}
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">ORDER BY / LIMIT</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">ORDER BY / LIMIT</p>
             <div className="flex gap-2 mb-2">
               <select value={orderBy} onChange={e => setOrderBy(e.target.value)}
                 className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 bg-white font-mono min-w-0">
@@ -815,70 +1005,129 @@ function QueryBuilder({
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">LIMIT</span>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">LIMIT</span>
               <input type="number" value={limit} onChange={e => setLimit(Number(e.target.value))} min={1} max={5000}
                 className="w-20 text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400"
               />
-              <span className="text-xs text-gray-400">rows (max 5000)</span>
+              <span className="text-[10px] text-gray-400">max 5000</span>
             </div>
           </div>
+
+          {/* SQL preview */}
+          {showSQL && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">SQL Preview</p>
+              <pre className="text-[10px] font-mono bg-gray-900 text-green-300 rounded-xl p-3 overflow-x-auto leading-relaxed whitespace-pre-wrap break-words">
+                {sqlPreview}
+              </pre>
+            </div>
+          )}
         </div>
 
-        {/* ── Right: results ─────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-auto">
+        {/* ── Right: results ────────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
           {error && (
-            <div className="m-4 p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 flex items-center gap-2">
+            <div className="m-3 p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 flex items-center gap-2 flex-shrink-0">
               <AlertCircle size={13} /> {error}
             </div>
           )}
+
           {!result && !running && !error && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
+            <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2">
               <Terminal size={28} className="text-gray-200" />
-              <p className="text-sm">Configure and run a query</p>
-              <p className="text-xs">Results will appear here</p>
+              <p className="text-sm font-medium">Configure and run a query</p>
+              <p className="text-xs text-gray-300">⌘ Enter to run</p>
             </div>
           )}
-          {result && (
+
+          {running && (
+            <div className="flex items-center justify-center flex-1 gap-2 text-violet-500">
+              <Loader2 size={18} className="animate-spin" />
+              <span className="text-xs font-medium">Running…</span>
+            </div>
+          )}
+
+          {result && !running && (
             <>
-              <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 flex-shrink-0">
-                <span className="font-semibold text-gray-700">{result.total_matched} row{result.total_matched !== 1 ? "s" : ""}</span>
-                <span>matched</span>
-                <span className="text-gray-300">·</span>
-                <span>{result.total_scanned} scanned</span>
-                <span className="text-gray-300">·</span>
-                <span>{result.elapsed}ms</span>
+              {/* Results stats + actions */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100 flex-shrink-0">
+                <span className="text-xs font-bold text-gray-700">{result.total_matched.toLocaleString()}</span>
+                <span className="text-xs text-gray-400">rows matched</span>
+                <span className="text-gray-300 text-xs">·</span>
+                <span className="text-xs text-gray-400">{result.total_scanned.toLocaleString()} scanned</span>
+                <span className="text-gray-300 text-xs">·</span>
+                <span className="text-xs text-gray-400">{result.elapsed}ms</span>
+                <div className="flex-1" />
+                {result.rows.length > 0 && (
+                  <>
+                    <button onClick={copyJSON}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                      {copiedJSON ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
+                      {copiedJSON ? "Copied!" : "JSON"}
+                    </button>
+                    <button onClick={exportCSV}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                      <Download size={11} /> CSV
+                    </button>
+                  </>
+                )}
               </div>
+
               {result.rows.length === 0 ? (
-                <div className="flex items-center justify-center h-32 text-xs text-gray-400">No rows match your query</div>
+                <div className="flex items-center justify-center flex-1 text-xs text-gray-400">No rows match your query</div>
               ) : (
-                <table className="w-full text-xs border-collapse">
-                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      {resultCols.map(c => (
-                        <th key={c} className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wider text-[10px] border-r border-gray-100 font-mono whitespace-nowrap">
-                          {c}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {result.rows.map((row, i) => (
-                      <tr key={i} className="hover:bg-gray-50/60">
-                        {resultCols.map(c => (
-                          <td key={c} className="px-3 py-2 border-r border-gray-50 max-w-[200px]">
-                            <span className="truncate block text-gray-700">
-                              {row[c] === null || row[c] === undefined ? (
-                                <span className="text-gray-300 italic">null</span>
-                              ) : typeof row[c] === "object" ? (
-                                <span className="font-mono text-gray-500">{JSON.stringify(row[c])}</span>
-                              ) : String(row[c])}
-                            </span>
-                          </td>
-                        ))}
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="w-10 px-3 py-2 text-gray-400 font-medium text-right border-r border-gray-100 select-none">#</th>
+                        {resultCols.map(c => {
+                          const isActive = resultSort?.col === c;
+                          return (
+                            <th
+                              key={c}
+                              onClick={() => setResultSort(s =>
+                                s?.col === c ? (s.dir === "asc" ? { col: c, dir: "desc" } : null) : { col: c, dir: "asc" }
+                              )}
+                              className="text-left px-3 py-2 text-gray-500 font-semibold text-[10px] uppercase tracking-wider border-r border-gray-100 font-mono whitespace-nowrap cursor-pointer hover:bg-gray-100 select-none transition-colors group"
+                            >
+                              <span className="flex items-center gap-1">
+                                {c}
+                                {isActive ? (
+                                  resultSort!.dir === "asc"
+                                    ? <ChevronUp size={10} className="text-violet-500" />
+                                    : <ChevronDown size={10} className="text-violet-500" />
+                                ) : (
+                                  <ChevronsUpDown size={10} className="text-gray-300 opacity-0 group-hover:opacity-100" />
+                                )}
+                              </span>
+                            </th>
+                          );
+                        })}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 bg-white">
+                      {sortedRows.map((row, i) => (
+                        <tr key={i} className="hover:bg-violet-50/30 transition-colors">
+                          <td className="px-3 py-2 text-gray-300 text-right font-mono border-r border-gray-50 select-none">{i + 1}</td>
+                          {resultCols.map(c => (
+                            <td key={c} className="px-3 py-2 border-r border-gray-50 max-w-[220px]">
+                              <span className="truncate block text-gray-700">
+                                {row[c] === null || row[c] === undefined ? (
+                                  <span className="text-gray-300 italic">null</span>
+                                ) : typeof row[c] === "object" ? (
+                                  <span className="font-mono text-gray-500">{JSON.stringify(row[c])}</span>
+                                ) : (
+                                  String(row[c])
+                                )}
+                              </span>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </>
           )}
@@ -1499,6 +1748,7 @@ export default function TableGridPage() {
         {showQuery && table.columns.length > 0 && (
           <QueryBuilder
             tableId={id}
+            tableName={table.name}
             columns={table.columns}
             onClose={() => setShowQuery(false)}
           />
