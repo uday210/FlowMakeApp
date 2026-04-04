@@ -315,8 +315,9 @@ asyncio.run(main())`;
             <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
               {(["sse", "http"] as const).map((tr) => (
                 <button key={tr} onClick={() => setActiveTransport(tr)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${activeTransport === tr ? "bg-violet-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${activeTransport === tr ? "bg-violet-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
                   {tr === "sse" ? "SSE" : "HTTP"}
+                  {tr === "http" && <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${activeTransport === tr ? "bg-white/20 text-white" : "bg-green-100 text-green-600"}`}>recommended</span>}
                 </button>
               ))}
             </div>
@@ -343,7 +344,15 @@ asyncio.run(main())`;
         </div>
 
         {/* Contextual callout */}
-        <div className="mx-6 mt-3">
+        <div className="mx-6 mt-3 space-y-2">
+          {activeTransport === "sse" && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+              <AlertCircle size={12} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">
+                <strong>SSE requires a persistent connection.</strong> It may drop on serverless or multi-instance deployments. <button onClick={() => setActiveTransport("http")} className="underline font-semibold hover:text-amber-900">Switch to HTTP</button> — it&apos;s stateless, more reliable, and what the MCP spec recommends going forward.
+              </p>
+            </div>
+          )}
           {mode === "code" && lang === "javascript" && (
             <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
               <AlertCircle size={12} className="text-amber-500 flex-shrink-0" />
