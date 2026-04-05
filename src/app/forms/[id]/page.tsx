@@ -113,10 +113,25 @@ function newQuestion(type: QuestionType): Question {
 
 // ── Responses tab ──────────────────────────────────────────────────────────────
 
+function renderAnswerCell(answer: unknown): React.ReactNode {
+  if (answer === null || answer === undefined || answer === "") return <span className="text-gray-300">—</span>;
+  if (Array.isArray(answer)) return <span>{answer.join(", ")}</span>;
+  if (typeof answer === "object") {
+    const f = answer as { url?: string; name?: string };
+    if (f.url) return (
+      <a href={f.url} target="_blank" rel="noreferrer"
+        className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 underline">
+        <ExternalLink size={11} />{f.name ?? "View file"}
+      </a>
+    );
+  }
+  return <span>{String(answer)}</span>;
+}
+
 function ResponsesTab({ formId, questions }: { formId: string; questions: Question[] }) {
   const [responses, setResponses] = useState<FormResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<FormResponse | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/forms/${formId}/responses`)
@@ -141,54 +156,71 @@ function ResponsesTab({ formId, questions }: { formId: string; questions: Questi
     </div>
   );
 
-  const questionMap = Object.fromEntries(questions.map(q => [q.id, q]));
+  // Only show questions that actually have at least one answer
+  const answeredQuestions = questions.filter(q =>
+    responses.some(r => r.answers[q.id] !== undefined && r.answers[q.id] !== "")
+  );
 
   return (
-    <div className="flex gap-6 h-full">
-      {/* List */}
-      <div className="w-72 flex-shrink-0 space-y-2 overflow-auto">
-        <p className="text-xs font-semibold text-gray-400 mb-3">{responses.length} response{responses.length !== 1 ? "s" : ""}</p>
-        {responses.map((r, i) => (
-          <button key={r.id} onClick={() => setSelected(r)}
-            className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${selected?.id === r.id ? "border-indigo-300 bg-indigo-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-            <p className="text-xs font-semibold text-gray-800">Response #{responses.length - i}</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {new Date(r.submitted_at ?? r.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-            </p>
-          </button>
-        ))}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-400">{responses.length} response{responses.length !== 1 ? "s" : ""}</p>
       </div>
 
-      {/* Detail */}
-      <div className="flex-1 overflow-auto">
-        {selected ? (
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-gray-900">Response detail</h3>
-              <button onClick={() => setSelected(null)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={14} /></button>
-            </div>
-            {Object.entries(selected.answers).map(([qId, answer]) => {
-              const q = questionMap[qId];
-              return (
-                <div key={qId} className="pb-4 border-b border-gray-100 last:border-0">
-                  <p className="text-xs font-semibold text-gray-500 mb-1">{q?.title || qId}</p>
-                  {(() => {
-                    if (Array.isArray(answer)) return <span>{answer.join(", ")}</span>;
-                    if (answer && typeof answer === "object") {
-                      const f = answer as { url?: string; name?: string; size?: number };
-                      if (f.url) return <a href={f.url} target="_blank" rel="noreferrer" className="text-indigo-600 underline hover:text-indigo-800">{f.name ?? "View file"}</a>;
-                    }
-                    return <span>{String(answer ?? "—")}</span>;
-                  })()}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-sm text-gray-400">
-            Select a response to view details
-          </div>
-        )}
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 font-semibold text-gray-500 whitespace-nowrap w-8">#</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-500 whitespace-nowrap">Submitted</th>
+                {answeredQuestions.map(q => (
+                  <th key={q.id} className="text-left px-4 py-3 font-semibold text-gray-500 max-w-[180px]">
+                    <span className="block truncate" title={q.title}>{q.title || "Untitled"}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {responses.map((r, i) => {
+                const isExpanded = expandedRow === r.id;
+                return (
+                  <>
+                    <tr key={r.id}
+                      onClick={() => setExpandedRow(isExpanded ? null : r.id)}
+                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 cursor-pointer transition-colors">
+                      <td className="px-4 py-3 text-gray-400 font-medium">{responses.length - i}</td>
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                        {new Date(r.submitted_at ?? r.created_at).toLocaleString("en-US", {
+                          month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                        })}
+                      </td>
+                      {answeredQuestions.map(q => (
+                        <td key={q.id} className="px-4 py-3 text-gray-700 max-w-[180px]">
+                          <div className="truncate">{renderAnswerCell(r.answers[q.id])}</div>
+                        </td>
+                      ))}
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`${r.id}-expanded`} className="bg-indigo-50/40 border-b border-indigo-100">
+                        <td colSpan={2 + answeredQuestions.length} className="px-4 py-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            {answeredQuestions.map(q => (
+                              <div key={q.id}>
+                                <p className="text-[11px] font-semibold text-gray-400 mb-0.5 truncate">{q.title || "Untitled"}</p>
+                                <div className="text-sm text-gray-800 break-words">{renderAnswerCell(r.answers[q.id])}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
