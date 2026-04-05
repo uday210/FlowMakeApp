@@ -32,7 +32,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
 
-  const allowed = ["name", "url", "auth_key", "description", "enabled", "status",
+  const allowed = ["name", "url", "auth_key", "auth_header_name", "description", "enabled", "status",
                    "transport", "tools_cache", "last_discovered_at", "slug"];
   const patch: Record<string, unknown> = {};
   for (const k of allowed) {

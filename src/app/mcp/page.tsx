@@ -20,6 +20,7 @@ interface McpServer {
   type: "external" | "hosted";
   url?: string;
   auth_key?: string;
+  auth_header_name?: string;
   slug?: string;
   status: "unknown" | "connected" | "error" | "active";
   transport: "sse" | "http" | "both";
@@ -529,7 +530,7 @@ function CreateServerModal({
 }) {
   const [tab, setTab] = useState<"external" | "hosted">(initialType);
   const [form, setForm] = useState({
-    name: "", url: initialUrl, auth_key: "", description: "", slug: "", transport: "sse",
+    name: "", url: initialUrl, auth_key: "", auth_header_name: "Authorization", description: "", slug: "", transport: "sse",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -600,12 +601,19 @@ function CreateServerModal({
                     placeholder="https://mcp.example.com/sse"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400" />
                 </div>
-                <div className="col-span-2">
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Auth Key (optional)</label>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Header Name <span className="font-normal text-gray-400">(optional)</span></label>
+                  <input value={form.auth_header_name} onChange={(e) => setForm({ ...form, auth_header_name: e.target.value })}
+                    placeholder="Authorization"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400 font-mono" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Header Value <span className="font-normal text-gray-400">(optional)</span></label>
                   <input type="password" value={form.auth_key} onChange={(e) => setForm({ ...form, auth_key: e.target.value })}
-                    placeholder="Bearer token"
+                    placeholder="Bearer your-token"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400" />
                 </div>
+                <p className="col-span-2 text-[11px] text-gray-400">Paste the full value as-is, e.g. <span className="font-mono">Bearer abc123</span></p>
               </>
             ) : (
               <>
@@ -668,6 +676,7 @@ function EditServerModal({
     description: server.description ?? "",
     url: server.url ?? "",
     auth_key: server.auth_key ?? "",
+    auth_header_name: server.auth_header_name ?? "Authorization",
     slug: server.slug ?? "",
     transport: server.transport ?? "sse",
   });
@@ -684,6 +693,7 @@ function EditServerModal({
     if (!isHosted) {
       body.url = form.url;
       if (form.auth_key) body.auth_key = form.auth_key;
+      body.auth_header_name = form.auth_header_name || "Authorization";
     } else {
       body.slug = form.slug;
       body.transport = form.transport;
@@ -731,12 +741,21 @@ function EditServerModal({
                   placeholder="https://mcp.example.com/sse"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400" />
               </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Auth Key</label>
-                <input type="password" value={form.auth_key} onChange={(e) => setForm({ ...form, auth_key: e.target.value })}
-                  placeholder="Leave blank to keep existing"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Header Name</label>
+                  <input value={form.auth_header_name} onChange={(e) => setForm({ ...form, auth_header_name: e.target.value })}
+                    placeholder="Authorization"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400 font-mono" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Header Value</label>
+                  <input type="password" value={form.auth_key} onChange={(e) => setForm({ ...form, auth_key: e.target.value })}
+                    placeholder="Bearer your-token"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-violet-400" />
+                </div>
               </div>
+              <p className="text-[11px] text-gray-400">Paste the full value as-is, e.g. <span className="font-mono">Bearer abc123</span></p>
             </>
           )}
 

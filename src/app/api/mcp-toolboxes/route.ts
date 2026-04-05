@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const ctx = await getOrgContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await request.json();
-  const { name, url, auth_key, description, type, slug, transport } = body;
+  const { name, url, auth_key, auth_header_name, description, type, slug, transport } = body;
   const serverType: string = type ?? "external";
 
   if (serverType === "external" && !url) return NextResponse.json({ error: "url required for external servers" }, { status: 400 });
@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       name,
       url: serverType === "external" ? url : null,
       auth_key: auth_key ?? null,
+      auth_header_name: auth_header_name ?? null,
       description: description ?? null,
       org_id: ctx.orgId,
       type: serverType,

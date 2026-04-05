@@ -91,7 +91,7 @@ export async function POST(
 
   const { data: server, error: serverErr } = await ctx.admin
     .from("mcp_toolboxes")
-    .select("id, url, auth_key, type")
+    .select("id, url, auth_key, auth_header_name, type")
     .eq("id", id)
     .eq("org_id", ctx.orgId)
     .single();
@@ -103,7 +103,7 @@ export async function POST(
     "Content-Type": "application/json",
     "Accept": "application/json, text/event-stream",
   };
-  if (server.auth_key) headers["Authorization"] = server.auth_key;
+  if (server.auth_key) headers[server.auth_header_name?.trim() || "Authorization"] = server.auth_key;
 
   let postUrl: string = server.url;
   let tools: unknown[] = [];
