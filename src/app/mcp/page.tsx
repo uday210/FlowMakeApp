@@ -1551,7 +1551,10 @@ type McpDiscoveredTool = {
 
 function McpPlayground() {
   const [url, setUrl] = useState("");
-  const [authKey, setAuthKey] = useState("");
+  // Full header value — passed as-is (e.g. "Bearer abc123")
+  const [authHeader, setAuthHeader] = useState("");
+  const [authHeaderName, setAuthHeaderName] = useState("Authorization");
+  const [showAuthFields, setShowAuthFields] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [tools, setTools] = useState<McpDiscoveredTool[] | null>(null);
   const [connectError, setConnectError] = useState("");
@@ -1561,6 +1564,13 @@ function McpPlayground() {
   const [result, setResult] = useState<{ output?: unknown; error?: string; duration_ms?: number } | null>(null);
 
   useEffect(() => { setArgs({}); setResult(null); }, [selectedTool]);
+
+  const buildProxyBody = (extra: object) => ({
+    url: url.trim(),
+    authHeader: authHeader.trim() || undefined,
+    authHeaderName: authHeaderName.trim() || undefined,
+    ...extra,
+  });
 
   const connect = async () => {
     if (!url.trim()) return;
@@ -1572,7 +1582,7 @@ function McpPlayground() {
       const res = await fetch("/api/mcp/proxy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim(), authKey: authKey.trim() || undefined, action: "list" }),
+        body: JSON.stringify(buildProxyBody({ action: "list" })),
       });
       const data = await res.json();
       if (data.error) { setConnectError(data.error); return; }
@@ -1600,7 +1610,7 @@ function McpPlayground() {
       const res = await fetch("/api/mcp/proxy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim(), authKey: authKey.trim() || undefined, action: "call", tool: selectedTool.name, args: parsedArgs }),
+        body: JSON.stringify(buildProxyBody({ action: "call", tool: selectedTool.name, args: parsedArgs })),
       });
       const data = await res.json();
       setResult(data.error ? { error: data.error, duration_ms: data.duration_ms } : { output: data.result, duration_ms: data.duration_ms });
@@ -1636,17 +1646,51 @@ function McpPlayground() {
               className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-violet-400 font-mono"
             />
           </div>
+
+          {/* Auth section */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Auth Key <span className="font-normal text-gray-400">(optional)</span></label>
-            <input
-              value={authKey}
-              onChange={(e) => setAuthKey(e.target.value)}
-              type="password"
-              placeholder="Bearer token"
-              className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-violet-400"
-            />
+            <button
+              onClick={() => setShowAuthFields((v) => !v)}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <Key size={11} />
+              Authentication
+              <ChevronDown size={11} className={`transition-transform ${showAuthFields ? "rotate-180" : ""}`} />
+            </button>
+            {showAuthFields && (
+              <div className="mt-2 space-y-2">
+                <div className="flex gap-2">
+                  <div className="w-28 flex-shrink-0">
+                    <label className="block text-[10px] font-medium text-gray-400 mb-1">Header name</label>
+                    <input
+                      value={authHeaderName}
+                      onChange={(e) => setAuthHeaderName(e.target.value)}
+                      placeholder="Authorization"
+                      className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-400 font-mono"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-[10px] font-medium text-gray-400 mb-1">Header value</label>
+                    <input
+                      value={authHeader}
+                      onChange={(e) => setAuthHeader(e.target.value)}
+                      type="password"
+                      placeholder="Bearer your-token"
+                      className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400">Paste the full value, e.g. <span className="font-mono">Bearer abc123</span></p>
+              </div>
+            )}
           </div>
-          {connectError && <p className="text-xs text-red-500">{connectError}</p>}
+
+          {connectError && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+              <p className="text-xs text-red-600 font-medium">Connection failed</p>
+              <p className="text-xs text-red-500 mt-0.5 break-words">{connectError}</p>
+            </div>
+          )}
           <button
             onClick={connect}
             disabled={connecting || !url.trim()}

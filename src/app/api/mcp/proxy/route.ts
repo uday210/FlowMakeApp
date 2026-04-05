@@ -11,7 +11,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json() as {
     url: string;
-    authKey?: string;
+    // Full header value e.g. "Bearer abc123" — passed as-is, no modification
+    authHeader?: string;
+    // Header name, defaults to "Authorization"
+    authHeaderName?: string;
     action: "list" | "call";
     tool?: string;
     args?: Record<string, unknown>;
@@ -20,14 +23,17 @@ export async function POST(req: NextRequest) {
   if (!body.url) return NextResponse.json({ error: "url is required" }, { status: 400 });
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (body.authKey) headers["Authorization"] = `Bearer ${body.authKey}`;
+  if (body.authHeader) {
+    const headerName = body.authHeaderName?.trim() || "Authorization";
+    headers[headerName] = body.authHeader;
+  }
 
   const start = Date.now();
 
   const send = (payload: unknown) =>
     fetch(body.url, { method: "POST", headers, body: JSON.stringify(payload) });
 
-  // Always initialize first
+  // Initialize
   const initRes = await send({
     jsonrpc: "2.0", id: 1, method: "initialize",
     params: {
@@ -37,15 +43,21 @@ export async function POST(req: NextRequest) {
     },
   });
   if (!initRes.ok) {
+    let detail = "";
+    try { const t = await initRes.text(); detail = t.slice(0, 200); } catch { /* ignore */ }
     return NextResponse.json(
-      { error: `Server returned ${initRes.status} on initialize` },
+      { error: `Server returned ${initRes.status}${detail ? `: ${detail}` : ""}` },
       { status: 502 }
     );
   }
 
   if (body.action === "list") {
     const listRes = await send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
-    if (!listRes.ok) return NextResponse.json({ error: "tools/list failed" }, { status: 502 });
+    if (!listRes.ok) {
+      let detail = "";
+      try { const t = await listRes.text(); detail = t.slice(0, 200); } catch { /* ignore */ }
+      return NextResponse.json({ error: `tools/list failed (${listRes.status})${detail ? `: ${detail}` : ""}` }, { status: 502 });
+    }
     const listJson = await listRes.json();
     return NextResponse.json({ tools: listJson.result?.tools ?? [], duration_ms: Date.now() - start });
   }
