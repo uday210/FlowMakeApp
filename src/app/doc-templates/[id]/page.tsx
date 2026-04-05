@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, FileText, Tag, Loader2, Save, Play, Download,
   RefreshCw, BookOpen, AlertTriangle, Check, ChevronDown, ChevronRight,
-  Zap, Clock, RotateCcw, Eye, Code2, List, Image,
+  Zap, Clock, RotateCcw, Eye, Code2, List, Image, Copy, CheckCheck,
+  GitBranch, Hash,
 } from "lucide-react";
 
 interface DetectedField {
@@ -28,6 +29,21 @@ interface DocTemplate {
   usage_count: number;
   created_at: string;
   updated_at: string;
+}
+
+function CopyableCode({ text, colorClass = "bg-violet-50 text-violet-700" }: { text: string; colorClass?: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+      className={`flex items-center gap-1.5 font-mono text-xs px-2 py-1 rounded group/copy transition-all hover:ring-1 hover:ring-violet-300 ${colorClass}`}
+      title="Click to copy">
+      <span className="truncate max-w-[180px]">{text}</span>
+      {copied
+        ? <CheckCheck size={10} className="flex-shrink-0 text-emerald-500" />
+        : <Copy size={10} className="flex-shrink-0 opacity-0 group-hover/copy:opacity-60 transition-opacity" />}
+    </button>
+  );
 }
 
 function buildPreviewDoc(html: string) {
@@ -323,50 +339,81 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
-        <div className="w-56 bg-white border-r border-gray-100 flex flex-col overflow-y-auto p-4 gap-4 flex-shrink-0">
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wide block mb-1">Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-              placeholder="What is this template for?"
-              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400 resize-none" />
-          </div>
-          <div className="border-t border-gray-100 pt-3 space-y-2 text-xs text-gray-500">
-            {[
-              ["Merge fields", mergeFields.length],
-              ["Loops", loopFields.length],
-              ["Conditions", condFields.length],
-              ["Images", imageFields.length],
-              ["Generated", `${tpl.usage_count}×`],
-            ].map(([label, val]) => (
-              <div key={String(label)} className="flex justify-between">
-                <span>{label}</span>
-                <span className="font-semibold text-gray-800">{val}</span>
+        <div className="w-64 bg-white border-r border-gray-100 flex flex-col overflow-y-auto flex-shrink-0">
+          <div className="p-4 space-y-4 flex-1">
+            {/* Description */}
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Description</label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+                placeholder="What is this template for?"
+                className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-violet-400 resize-none focus:ring-2 focus:ring-violet-100" />
+            </div>
+
+            {/* Stat grid */}
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Template stats</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { icon: <Hash size={11} />, label: "Fields",     val: mergeFields.length, color: "text-violet-600 bg-violet-50" },
+                  { icon: <RefreshCw size={11} />, label: "Loops",  val: loopFields.length,  color: "text-blue-600 bg-blue-50" },
+                  { icon: <GitBranch size={11} />, label: "Conds",  val: condFields.length,  color: "text-amber-600 bg-amber-50" },
+                  { icon: <Image size={11} />,     label: "Images", val: imageFields.length, color: "text-teal-600 bg-teal-50" },
+                ].map(s => (
+                  <div key={s.label} className={`rounded-xl px-3 py-2.5 ${s.color.split(" ")[1]}`}>
+                    <div className={`flex items-center gap-1 mb-1 ${s.color.split(" ")[0]}`}>{s.icon}<span className="text-[11px] font-semibold">{s.label}</span></div>
+                    <span className="text-lg font-bold text-gray-800">{s.val}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-            <div className="flex justify-between">
-              <span>Updated</span>
-              <span className="font-semibold text-gray-800">
-                {new Date(tpl.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </span>
+            </div>
+
+            {/* Meta */}
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Generated</span>
+                <span className="font-semibold text-gray-700 flex items-center gap-1"><Zap size={10} className="text-amber-500" />{tpl.usage_count}×</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">File</span>
+                <span className="font-semibold text-gray-700 font-mono text-[11px]">{tpl.file_name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Updated</span>
+                <span className="font-semibold text-gray-700">
+                  {new Date(tpl.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </span>
+              </div>
             </div>
           </div>
-          <button onClick={handleRedetect} disabled={redetecting}
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-violet-600 transition-colors disabled:opacity-50">
-            {redetecting ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
-            Re-detect fields
-          </button>
+
+          {/* Footer actions */}
+          <div className="p-4 border-t border-gray-100 space-y-2">
+            <button onClick={handleRedetect} disabled={redetecting}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50">
+              {redetecting ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+              Re-detect fields
+            </button>
+          </div>
         </div>
 
         {/* Main area */}
         <div className="flex-1 overflow-hidden flex flex-col min-w-0">
           {/* Tabs */}
           <div className="bg-white border-b border-gray-100 px-6 flex items-center gap-1 flex-shrink-0">
-            {(["fields", "test", "history"] as const).map(tab => (
-              <button key={tab} onClick={() => { setActiveTab(tab); if (tab === "history") loadHistory(); }}
-                className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors ${
-                  activeTab === tab ? "border-violet-500 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700"
+            {([
+              { id: "fields",  label: "Merge Fields", badge: mergeFields.length, icon: <Tag size={12} /> },
+              { id: "test",    label: "Test & Preview", icon: <Eye size={12} /> },
+              { id: "history", label: "History", icon: <Clock size={12} /> },
+            ] as const).map(tab => (
+              <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "history") loadHistory(); }}
+                className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.id ? "border-violet-500 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}>
-                {tab === "fields" ? `Merge Fields (${mergeFields.length})` : tab === "test" ? "Test & Preview" : "History"}
+                {tab.icon}
+                {tab.label}
+                {"badge" in tab && tab.badge > 0 && (
+                  <span className="bg-violet-100 text-violet-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{tab.badge}</span>
+                )}
               </button>
             ))}
           </div>
@@ -388,13 +435,18 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                   <>
                     {mergeFields.length > 0 && (
                       <section>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Merge Fields</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Merge Fields</span>
+                          <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{mergeFields.length}</span>
+                        </div>
                         <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
                           {mergeFields.map(f => (
-                            <div key={f.key} className="px-4 py-3 flex items-center gap-3">
-                              <code className="text-xs font-mono bg-violet-50 text-violet-700 px-2 py-1 rounded flex-1 truncate">{"{" + f.key + "}"}</code>
-                              {f.formatter && <span className="text-xs bg-blue-50 text-blue-600 font-mono px-1.5 py-0.5 rounded">| {f.formatter}</span>}
-                              <span className="text-xs text-gray-400 font-mono truncate max-w-[120px]">{f.path}</span>
+                            <div key={f.key} className="px-4 py-3 flex items-center gap-3 group/row hover:bg-gray-50/60 transition-colors">
+                              <CopyableCode text={"{" + f.key + "}"} />
+                              {f.formatter && (
+                                <span className="text-[11px] bg-blue-50 text-blue-600 font-mono px-1.5 py-0.5 rounded border border-blue-100">| {f.formatter}</span>
+                              )}
+                              <span className="ml-auto text-[11px] text-gray-300 font-mono">{f.path}</span>
                             </div>
                           ))}
                         </div>
@@ -402,13 +454,16 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                     )}
                     {imageFields.length > 0 && (
                       <section>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Image Fields</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Image Fields</span>
+                          <span className="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full font-bold">{imageFields.length}</span>
+                        </div>
                         <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
                           {imageFields.map(f => (
-                            <div key={f.key} className="px-4 py-3 flex items-center gap-3">
-                              <Image size={12} className="text-teal-400 flex-shrink-0" />
-                              <code className="text-xs font-mono bg-teal-50 text-teal-700 px-2 py-1 rounded flex-1">{"{%" + f.path + "}"}</code>
-                              <span className="text-xs text-gray-400">base64 data URI or HTTPS URL</span>
+                            <div key={f.key} className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
+                              <Image size={11} className="text-teal-400 flex-shrink-0" />
+                              <CopyableCode text={"{%" + f.path + "}"} colorClass="bg-teal-50 text-teal-700" />
+                              <span className="ml-auto text-[11px] text-gray-400">base64 or HTTPS URL</span>
                             </div>
                           ))}
                         </div>
@@ -416,13 +471,17 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                     )}
                     {loopFields.length > 0 && (
                       <section>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Array Loops</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Array Loops</span>
+                          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">{loopFields.length}</span>
+                        </div>
                         <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
                           {loopFields.map(f => (
-                            <div key={f.key} className="px-4 py-3 flex items-center gap-3">
-                              <RefreshCw size={12} className="text-violet-400 flex-shrink-0" />
-                              <code className="text-xs font-mono bg-violet-50 text-violet-700 px-2 py-1 rounded flex-1">{"{#" + f.path + "}"} … {"{/" + f.path + "}"}</code>
-                              <span className="text-xs text-gray-400">iterates over <code className="font-mono">{f.path}</code></span>
+                            <div key={f.key} className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
+                              <RefreshCw size={11} className="text-blue-400 flex-shrink-0" />
+                              <CopyableCode text={"{#" + f.path + "}"} colorClass="bg-blue-50 text-blue-700" />
+                              <span className="text-[11px] text-gray-400">…</span>
+                              <CopyableCode text={"{/" + f.path + "}"} colorClass="bg-blue-50 text-blue-700" />
                             </div>
                           ))}
                         </div>
@@ -430,13 +489,16 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                     )}
                     {condFields.length > 0 && (
                       <section>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Conditionals</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Conditionals</span>
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">{condFields.length}</span>
+                        </div>
                         <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
                           {condFields.map(f => (
-                            <div key={f.key} className="px-4 py-3 flex items-center gap-3">
-                              <ChevronDown size={12} className="text-amber-400 flex-shrink-0" />
-                              <code className="text-xs font-mono bg-amber-50 text-amber-700 px-2 py-1 rounded">{"{#" + f.path + "}"}</code>
-                              <span className="text-xs text-gray-400">shown when truthy</span>
+                            <div key={f.key} className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
+                              <ChevronDown size={11} className="text-amber-400 flex-shrink-0" />
+                              <CopyableCode text={"{#" + f.path + "}"} colorClass="bg-amber-50 text-amber-700" />
+                              <span className="ml-auto text-[11px] text-gray-400">shown when truthy</span>
                             </div>
                           ))}
                         </div>
@@ -604,46 +666,44 @@ export default function DocTemplateDetailPage({ params }: { params: Promise<{ id
                 )}
               </div>
 
-              {/* Action buttons */}
-              <div className="px-4 pb-4 pt-2 border-t border-gray-100 flex-shrink-0 space-y-2">
-                {genErr && (
-                  <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                    <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" /> {genErr}
+              {/* Action strip */}
+              <div className="border-t border-gray-100 flex-shrink-0 bg-gray-50/80">
+                {(genErr || genOk) && (
+                  <div className={`mx-3 mt-3 flex items-center gap-2 text-xs rounded-xl px-3 py-2 border ${genErr ? "text-red-600 bg-red-50 border-red-200" : "text-emerald-700 bg-emerald-50 border-emerald-200"}`}>
+                    {genErr ? <AlertTriangle size={12} className="flex-shrink-0" /> : <Check size={12} />}
+                    {genErr || genOk}
                   </div>
                 )}
-                {genOk && (
-                  <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                    <Check size={12} /> {genOk}
-                  </div>
-                )}
-                <button onClick={handlePreview} disabled={previewing}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-violet-600 hover:bg-violet-700 text-white rounded-xl transition-colors disabled:opacity-50">
-                  {previewing ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
-                  {previewing ? "Rendering…" : "Preview"}
-                </button>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => handleGenerate(true, "docx")} disabled={generating}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50">
-                    {generating ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                    DOCX
-                  </button>
-                  <button onClick={() => handleGenerate(true, "pdf")} disabled={generating}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50">
-                    {generating ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                    PDF
-                  </button>
-                </div>
-                <button onClick={() => handleGenerate(false, "docx")} disabled={generating}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50">
-                  {generating ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-                  Save & Get URL
-                </button>
                 {previewWarnings.length > 0 && (
-                  <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-0.5">
-                    <p className="font-bold mb-1">Warnings:</p>
+                  <div className="mx-3 mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 space-y-0.5">
+                    <p className="font-bold">Warnings</p>
                     {previewWarnings.map((w, i) => <p key={i}>• {w}</p>)}
                   </div>
                 )}
+                <div className="p-3 space-y-2">
+                  <button onClick={handlePreview} disabled={previewing}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-xl transition-colors disabled:opacity-50 shadow-sm shadow-violet-200">
+                    {previewing ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+                    {previewing ? "Rendering…" : "Preview with data"}
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => handleGenerate(true, "docx")} disabled={generating}
+                      className="flex items-center justify-center gap-1.5 py-2 text-xs font-semibold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-50">
+                      {generating ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} className="text-gray-500" />}
+                      Download DOCX
+                    </button>
+                    <button onClick={() => handleGenerate(true, "pdf")} disabled={generating}
+                      className="flex items-center justify-center gap-1.5 py-2 text-xs font-semibold bg-white border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50">
+                      {generating ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                      Download PDF
+                    </button>
+                  </div>
+                  <button onClick={() => handleGenerate(false, "docx")} disabled={generating}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-gray-600">
+                    {generating ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                    Save & get URL
+                  </button>
+                </div>
               </div>
             </div>
 
