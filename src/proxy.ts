@@ -39,8 +39,11 @@ const PUBLIC_PREFIXES = [
 
 // Specific path patterns that are public (regex match)
 const PUBLIC_PATTERNS = [
-  /^\/api\/agents\/[^/]+\/chat$/,         // embed chat — unauthenticated iframe calls
-  /^\/api\/documents\/[^/]+\/download$/,  // signer download after signing (verified via request_id)
+  /^\/api\/agents\/[^/]+\/chat$/,           // embed chat — unauthenticated iframe calls
+  /^\/api\/documents\/[^/]+\/download$/,    // signer download after signing (verified via request_id)
+  /^\/api\/forms\/[^/]+\/submit$/,          // form submission (no auth required)
+  /^\/api\/forms\/[^/]+\/public$/,          // public form fetch for rendering
+  /^\/api\/forms\/[^/]+\/upload$/,          // file upload from public form
 ];
 
 export async function proxy(request: NextRequest) {

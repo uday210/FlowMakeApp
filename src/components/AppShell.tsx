@@ -74,6 +74,7 @@ const USER_NAV_SECTIONS = [
       { href: "/documents",       icon: FileText,     label: "E-Sign" },
       { href: "/doc-templates",   icon: LayoutTemplate, label: "Doc Composer" },
       { href: "/email-templates", icon: Mail,         label: "Email Templates" },
+      { href: "/forms",           icon: ClipboardList, label: "Forms" },
     ],
   },
   {
