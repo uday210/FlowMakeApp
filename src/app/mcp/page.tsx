@@ -8,7 +8,7 @@ import {
   ChevronUp, ToggleLeft, ToggleRight, Link2, AlertCircle,
   CheckCircle2, Settings, Zap, ShieldCheck, ShieldOff, Eye, EyeOff, RotateCcw,
   History, Clock, XCircle, ChevronRight,
-  BarChart2, Bell, Code2, Download, Play, Pencil,
+  BarChart2, Bell, Code2, Download, Play, Pencil, FlaskConical,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1537,6 +1537,265 @@ function ToolPlaygroundModal({
   );
 }
 
+// ── MCP Playground (top-level) ────────────────────────────────────────────────
+
+type McpDiscoveredTool = {
+  name: string;
+  description?: string;
+  inputSchema?: {
+    type?: string;
+    properties?: Record<string, { type?: string; description?: string; enum?: string[] }>;
+    required?: string[];
+  };
+};
+
+function McpPlayground() {
+  const [url, setUrl] = useState("");
+  const [authKey, setAuthKey] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [tools, setTools] = useState<McpDiscoveredTool[] | null>(null);
+  const [connectError, setConnectError] = useState("");
+  const [selectedTool, setSelectedTool] = useState<McpDiscoveredTool | null>(null);
+  const [args, setArgs] = useState<Record<string, string>>({});
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<{ output?: unknown; error?: string; duration_ms?: number } | null>(null);
+
+  useEffect(() => { setArgs({}); setResult(null); }, [selectedTool]);
+
+  const connect = async () => {
+    if (!url.trim()) return;
+    setConnecting(true);
+    setConnectError("");
+    setTools(null);
+    setSelectedTool(null);
+    try {
+      const res = await fetch("/api/mcp/proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim(), authKey: authKey.trim() || undefined, action: "list" }),
+      });
+      const data = await res.json();
+      if (data.error) { setConnectError(data.error); return; }
+      setTools(data.tools ?? []);
+      if (data.tools?.length) setSelectedTool(data.tools[0]);
+    } catch {
+      setConnectError("Failed to reach server");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const runTool = async () => {
+    if (!selectedTool) return;
+    setRunning(true);
+    setResult(null);
+    try {
+      const parsedArgs: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(args)) {
+        const propSchema = selectedTool.inputSchema?.properties?.[k];
+        if (propSchema?.type === "number" || propSchema?.type === "integer") parsedArgs[k] = Number(v);
+        else if (propSchema?.type === "boolean") parsedArgs[k] = v === "true";
+        else parsedArgs[k] = v;
+      }
+      const res = await fetch("/api/mcp/proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim(), authKey: authKey.trim() || undefined, action: "call", tool: selectedTool.name, args: parsedArgs }),
+      });
+      const data = await res.json();
+      setResult(data.error ? { error: data.error, duration_ms: data.duration_ms } : { output: data.result, duration_ms: data.duration_ms });
+    } catch {
+      setResult({ error: "Request failed" });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const props = selectedTool?.inputSchema?.properties ?? {};
+  const required = selectedTool?.inputSchema?.required ?? [];
+
+  return (
+    <div className="flex gap-6 h-full">
+      {/* Left column: connection + tool list */}
+      <div className="w-72 flex-shrink-0 flex flex-col gap-4">
+        {/* Connection panel */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-6 h-6 bg-violet-100 rounded-lg flex items-center justify-center">
+              <Plug size={12} className="text-violet-600" />
+            </div>
+            <span className="text-sm font-semibold text-gray-800">Connect to Server</span>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">MCP Server URL</label>
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && connect()}
+              placeholder="https://your-server.com/mcp"
+              className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-violet-400 font-mono"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Auth Key <span className="font-normal text-gray-400">(optional)</span></label>
+            <input
+              value={authKey}
+              onChange={(e) => setAuthKey(e.target.value)}
+              type="password"
+              placeholder="Bearer token"
+              className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-violet-400"
+            />
+          </div>
+          {connectError && <p className="text-xs text-red-500">{connectError}</p>}
+          <button
+            onClick={connect}
+            disabled={connecting || !url.trim()}
+            className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+          >
+            {connecting ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+            {connecting ? "Connecting…" : tools !== null ? "Reconnect" : "Connect & List Tools"}
+          </button>
+        </div>
+
+        {/* Tool list */}
+        {tools !== null && (
+          <div className="bg-white rounded-2xl border border-gray-200 flex-1 overflow-auto">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+              <Wrench size={12} className="text-violet-500" />
+              <span className="text-xs font-semibold text-gray-700">Tools</span>
+              <span className="ml-auto text-xs bg-violet-100 text-violet-600 px-2 py-0.5 rounded-full font-semibold">{tools.length}</span>
+            </div>
+            {tools.length === 0 ? (
+              <p className="px-4 py-6 text-xs text-gray-400 text-center">No tools discovered</p>
+            ) : (
+              <div className="p-2 space-y-0.5">
+                {tools.map((t) => (
+                  <button
+                    key={t.name}
+                    onClick={() => setSelectedTool(t)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      selectedTool?.name === t.name
+                        ? "bg-violet-100 text-violet-700"
+                        : "text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="block text-xs font-mono font-medium truncate">{t.name}</span>
+                    {t.description && <span className="block text-[11px] text-gray-400 truncate mt-0.5">{t.description}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Right column: parameter form + result */}
+      <div className="flex-1 min-w-0">
+        {!tools ? (
+          <div className="h-full flex flex-col items-center justify-center text-center gap-3">
+            <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center">
+              <FlaskConical size={28} className="text-violet-300" />
+            </div>
+            <p className="text-sm font-semibold text-gray-500">Enter a server URL and connect</p>
+            <p className="text-xs text-gray-400 max-w-xs">Works with any MCP server — your hosted servers, third-party servers, or local dev instances</p>
+          </div>
+        ) : !selectedTool ? (
+          <div className="h-full flex items-center justify-center">
+            <p className="text-xs text-gray-400">Select a tool from the list</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+            {/* Tool header */}
+            <div className="flex items-start gap-3 pb-4 border-b border-gray-100">
+              <div className="w-8 h-8 bg-violet-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Wrench size={14} className="text-violet-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-800 font-mono">{selectedTool.name}</h3>
+                {selectedTool.description && <p className="text-xs text-gray-500 mt-0.5">{selectedTool.description}</p>}
+              </div>
+            </div>
+
+            {/* Parameters */}
+            {Object.keys(props).length > 0 ? (
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Parameters</p>
+                {Object.entries(props).map(([key, schema]) => (
+                  <div key={key}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                      {key}
+                      {required.includes(key) && <span className="text-red-400 ml-0.5">*</span>}
+                      {schema.description && <span className="font-normal text-gray-400 ml-2">{schema.description}</span>}
+                      <span className="ml-2 text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{schema.type ?? "any"}</span>
+                    </label>
+                    {schema.enum ? (
+                      <select
+                        value={args[key] ?? ""}
+                        onChange={(e) => setArgs((a) => ({ ...a, [key]: e.target.value }))}
+                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-300"
+                      >
+                        <option value="">— select —</option>
+                        {schema.enum.map((v) => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    ) : schema.type === "boolean" ? (
+                      <select
+                        value={args[key] ?? ""}
+                        onChange={(e) => setArgs((a) => ({ ...a, [key]: e.target.value }))}
+                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-300"
+                      >
+                        <option value="">— select —</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                      </select>
+                    ) : (
+                      <input
+                        type={schema.type === "number" || schema.type === "integer" ? "number" : "text"}
+                        value={args[key] ?? ""}
+                        onChange={(e) => setArgs((a) => ({ ...a, [key]: e.target.value }))}
+                        placeholder={schema.type ?? "value"}
+                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">This tool takes no parameters.</p>
+            )}
+
+            <button
+              onClick={runTool}
+              disabled={running}
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-violet-600 text-white rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-colors"
+            >
+              {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+              {running ? "Running…" : "Run Tool"}
+            </button>
+
+            {result && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    {result.error ? "Error" : "Result"}
+                  </p>
+                  {result.duration_ms !== undefined && (
+                    <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                      <Clock size={10} /> {result.duration_ms}ms
+                    </span>
+                  )}
+                </div>
+                <pre className={`text-xs font-mono p-4 rounded-xl border overflow-auto max-h-80 whitespace-pre-wrap ${result.error ? "border-red-200 bg-red-50 text-red-700" : "border-gray-200 bg-gray-50 text-gray-700"}`}>
+                  {result.error ? `Error: ${result.error}` : JSON.stringify(result.output, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Server Card ───────────────────────────────────────────────────────────────
 
 function ServerCard({
@@ -2036,6 +2295,7 @@ function ServerCard({
               {expandedTab === "alerts" && (
                 <AlertsTabContent serverId={server.id} />
               )}
+
             </div>
           </div>
         )}
@@ -2101,6 +2361,7 @@ export default function MCPToolboxesPage() {
   const [createType, setCreateType] = useState<"hosted" | "external">("hosted");
   const [createInitialUrl, setCreateInitialUrl] = useState("");
   const [filter, setFilter] = useState<"all" | "hosted" | "external">("all");
+  const [pageView, setPageView] = useState<"servers" | "playground">("servers");
 
   const openCreate = (type: "hosted" | "external" = "hosted", initialUrl = "") => {
     setCreateType(type);
@@ -2146,24 +2407,46 @@ export default function MCPToolboxesPage() {
           title="MCP Toolbox"
           subtitle="Build your own MCP servers with scenarios as tools, or connect external MCP servers"
           action={
-            <div className="flex gap-2">
-<button
-                onClick={() => openCreate("external")}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 hover:text-violet-700 transition-colors"
-              >
-                <Plug size={14} /> Connect External
-              </button>
-              <button
-                onClick={() => openCreate("hosted")}
-                className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
-              >
-                <Plus size={14} /> New Server
-              </button>
+            <div className="flex items-center gap-2">
+              {/* View toggle */}
+              <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+                <button onClick={() => setPageView("servers")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${pageView === "servers" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  <Server size={12} /> Servers
+                </button>
+                <button onClick={() => setPageView("playground")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${pageView === "playground" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  <FlaskConical size={12} /> Playground
+                </button>
+              </div>
+              {pageView === "servers" && (
+                <>
+                  <button
+                    onClick={() => openCreate("external")}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:border-violet-300 hover:text-violet-700 transition-colors"
+                  >
+                    <Plug size={14} /> Connect External
+                  </button>
+                  <button
+                    onClick={() => openCreate("hosted")}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+                  >
+                    <Plus size={14} /> New Server
+                  </button>
+                </>
+              )}
             </div>
           }
         />
 
         <main className="flex-1 overflow-auto px-8 py-6">
+          {/* Playground view */}
+          {pageView === "playground" && (
+            <McpPlayground />
+          )}
+
+          {/* Servers view */}
+          {pageView === "servers" && <>
           {/* Search + filter bar */}
           <div className="flex items-center gap-3 mb-6">
             <div className="relative max-w-sm flex-1">
@@ -2272,6 +2555,7 @@ export default function MCPToolboxesPage() {
               )}
             </div>
           )}
+          </>}
         </main>
       </AppShell>
 
