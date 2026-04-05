@@ -172,7 +172,14 @@ function ResponsesTab({ formId, questions }: { formId: string; questions: Questi
               return (
                 <div key={qId} className="pb-4 border-b border-gray-100 last:border-0">
                   <p className="text-xs font-semibold text-gray-500 mb-1">{q?.title || qId}</p>
-                  <p className="text-sm text-gray-900">{Array.isArray(answer) ? answer.join(", ") : String(answer ?? "—")}</p>
+                  {(() => {
+                    if (Array.isArray(answer)) return <span>{answer.join(", ")}</span>;
+                    if (answer && typeof answer === "object") {
+                      const f = answer as { url?: string; name?: string; size?: number };
+                      if (f.url) return <a href={f.url} target="_blank" rel="noreferrer" className="text-indigo-600 underline hover:text-indigo-800">{f.name ?? "View file"}</a>;
+                    }
+                    return <span>{String(answer ?? "—")}</span>;
+                  })()}
                 </div>
               );
             })}
