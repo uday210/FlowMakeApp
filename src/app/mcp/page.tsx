@@ -220,12 +220,11 @@ async def main():
             )
             print(result)
 
-# Works in scripts, Jupyter, and Google Colab
-try:
-    loop = asyncio.get_running_loop()
-    loop.create_task(main())   # already inside an event loop (Colab/Jupyter)
-except RuntimeError:
-    asyncio.run(main())        # standard script`;
+# Google Colab / Jupyter: run this cell as-is (event loop already running)
+await main()
+
+# Standard Python script: replace the line above with:
+# asyncio.run(main())`;
 
   const pyHttp = `# pip install mcp
 import asyncio
@@ -250,12 +249,11 @@ async def main():
             )
             print(result)
 
-# Works in scripts, Jupyter, and Google Colab
-try:
-    loop = asyncio.get_running_loop()
-    loop.create_task(main())   # already inside an event loop (Colab/Jupyter)
-except RuntimeError:
-    asyncio.run(main())        # standard script`;
+# Google Colab / Jupyter: run this cell as-is (event loop already running)
+await main()
+
+# Standard Python script: replace the line above with:
+# asyncio.run(main())`;
 
   const snippet = lang === "javascript"
     ? (activeTransport === "sse" ? jsSse : jsHttp)
