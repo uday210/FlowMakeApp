@@ -30,9 +30,18 @@ type Question = {
 type FormSettings = {
   accent_color: string;
   bg_color: string;
+  text_color?: string;
   font: string;
   show_progress: boolean;
+  progress_style?: "bar" | "dots" | "steps";
+  show_question_numbers?: boolean;
   show_branding: boolean;
+  button_label?: string;
+  submit_label?: string;
+  show_welcome?: boolean;
+  welcome_title?: string;
+  welcome_description?: string;
+  welcome_button_text?: string;
   submit_message: string;
   redirect_url?: string;
 };
@@ -430,45 +439,67 @@ function QuestionSlide({
   const [fileUploading, setFileUploading] = useState(false);
   const canProceed = !fileUploading && (!question.required || (question.type === "checkbox" ? value.trim() !== "" : value.trim() !== ""));
 
+  const textColor = settings.text_color ?? "#111827";
+  const pct = Math.round(((index + 1) / total) * 100);
+  const showNums = settings.show_question_numbers ?? true;
+  const btnLabel = isLast ? (settings.submit_label || "Submit") : (settings.button_label || "Continue");
+  const progressStyle = settings.progress_style ?? "bar";
+
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: settings.bg_color, fontFamily: settings.font }}>
-      {/* Progress bar */}
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: settings.bg_color, fontFamily: settings.font, color: textColor }}>
+
+      {/* ── Progress indicator ── */}
       {settings.show_progress && total > 1 && (
-        <div className="fixed top-0 left-0 right-0 h-1 bg-gray-200 z-10">
-          <div className="h-full transition-all duration-500"
-            style={{ width: `${((index + 1) / total) * 100}%`, backgroundColor: accent }} />
-        </div>
+        <>
+          {progressStyle === "bar" && (
+            <div className="fixed top-0 left-0 right-0 z-20">
+              <div className="flex items-center justify-between px-5 py-2.5 bg-white/90 backdrop-blur-sm border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-500">Question {index + 1} of {total}</span>
+                <span className="text-xs font-bold" style={{ color: accent }}>{pct}%</span>
+              </div>
+              <div className="h-1.5 bg-gray-100">
+                <div className="h-full transition-all duration-500 rounded-r-full" style={{ width: `${pct}%`, backgroundColor: accent }} />
+              </div>
+            </div>
+          )}
+          {progressStyle === "dots" && (
+            <div className="fixed top-0 left-0 right-0 z-20 flex items-center justify-center gap-1.5 py-3 bg-white/90 backdrop-blur-sm border-b border-gray-100">
+              {Array.from({ length: total }, (_, i) => (
+                <div key={i} className="rounded-full transition-all duration-300"
+                  style={{ width: i === index ? 20 : 8, height: 8, backgroundColor: i <= index ? accent : "#e5e7eb" }} />
+              ))}
+            </div>
+          )}
+          {progressStyle === "steps" && (
+            <div className="fixed top-3 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs font-bold shadow-sm" style={{ color: accent }}>
+              {index + 1} / {total}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Counter */}
-      <div className="fixed top-4 right-6 text-xs text-gray-400 font-medium z-10">
-        {index + 1} / {total}
-      </div>
-
       {/* Question */}
-      <div className="flex-1 flex items-center justify-center px-6 py-16" onKeyDown={handleKeyDown}>
+      <div className="flex-1 flex items-center justify-center px-6 py-20" onKeyDown={handleKeyDown}>
         <div className="w-full max-w-xl">
-          {/* Question number */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm font-bold" style={{ color: accent }}>{index + 1}</span>
-            <ArrowRight size={12} style={{ color: accent }} />
-          </div>
+          {showNums && (
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm font-bold" style={{ color: accent }}>{index + 1}</span>
+              <ArrowRight size={12} style={{ color: accent }} />
+            </div>
+          )}
 
-          {/* Title */}
-          <h2 className="text-2xl font-bold text-gray-900 mb-2 leading-snug">
+          <h2 className="text-2xl font-bold mb-2 leading-snug" style={{ color: textColor }}>
             {question.title || "Untitled question"}
             {question.required && <span className="text-red-400 ml-1">*</span>}
           </h2>
 
-          {/* Description */}
           {question.description && (
-            <p className="text-sm text-gray-500 mb-6">{question.description}</p>
+            <p className="text-sm mb-6" style={{ color: textColor, opacity: 0.6 }}>{question.description}</p>
           )}
 
-          {/* Input */}
           <div className="mt-6">
             {question.type === "statement" ? (
-              <p className="text-gray-600" />
+              <p style={{ color: textColor, opacity: 0.7 }} />
             ) : question.type === "long_text" ? (
               <LongTextInput q={question} value={value} onChange={onChange} accent={accent} />
             ) : question.type === "date" ? (
@@ -488,12 +519,11 @@ function QuestionSlide({
             )}
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-3 mt-8">
             <button onClick={onNext} disabled={!canProceed}
               className="flex items-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-bold transition-all hover:opacity-90 disabled:opacity-40"
               style={{ backgroundColor: accent }}>
-              {isLast ? "Submit" : <><span>Continue</span><ArrowRight size={14} /></>}
+              {btnLabel} {!isLast && <ArrowRight size={14} />}
             </button>
             {question.type !== "statement" && question.type !== "multiple_choice" && question.type !== "checkbox" && question.type !== "rating" && (
               <span className="text-xs text-gray-400">press <kbd className="font-mono bg-gray-100 px-1 rounded">Enter</kbd></span>
@@ -506,7 +536,6 @@ function QuestionSlide({
         </div>
       </div>
 
-      {/* Branding */}
       {settings.show_branding && (
         <div className="fixed bottom-4 right-6 flex items-center gap-1 text-xs text-gray-300">
           <Zap size={10} /> Powered by FlowMake
@@ -570,6 +599,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ id: strin
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [done, setDone] = useState(false);
+  const [welcomePassed, setWelcomePassed] = useState(false);
 
   useEffect(() => {
     fetch(`/api/forms/${id}/public`)
@@ -669,6 +699,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ id: strin
     setCurrentIndex(0);
     setDone(false);
     setSubmitError("");
+    setWelcomePassed(false);
   };
 
   if (loading) return (
@@ -693,6 +724,34 @@ export default function PublicFormPage({ params }: { params: Promise<{ id: strin
   );
 
   if (done) return <ThankYouScreen settings={form.settings} onReset={handleReset} />;
+
+  // Welcome screen
+  if (form.settings.show_welcome && !welcomePassed) {
+    const s = form.settings;
+    const accent = s.accent_color;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center"
+        style={{ backgroundColor: s.bg_color, fontFamily: s.font, color: s.text_color ?? "#111827" }}>
+        <div className="max-w-lg w-full">
+          <h1 className="text-3xl font-bold mb-4 leading-snug">{s.welcome_title || form.name}</h1>
+          {(s.welcome_description || form.description) && (
+            <p className="text-base mb-8 opacity-60">{s.welcome_description || form.description}</p>
+          )}
+          <button onClick={() => setWelcomePassed(true)}
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white text-sm font-bold transition-all hover:opacity-90"
+            style={{ backgroundColor: accent }}>
+            {s.welcome_button_text || "Get started"} <ArrowRight size={16} />
+          </button>
+          <p className="text-xs text-gray-400 mt-6">{form.questions.length} question{form.questions.length !== 1 ? "s" : ""}</p>
+        </div>
+        {s.show_branding && (
+          <div className="absolute bottom-6 flex items-center gap-1 text-xs text-gray-300">
+            <Zap size={10} /> Powered by FlowMake
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const q = form.questions[currentIndex];
   const currentAnswer = answers[q.id] ?? "";

@@ -36,9 +36,18 @@ type Question = {
 type FormSettings = {
   accent_color: string;
   bg_color: string;
+  text_color: string;
   font: string;
   show_progress: boolean;
+  progress_style: "bar" | "dots" | "steps";
+  show_question_numbers: boolean;
   show_branding: boolean;
+  button_label: string;
+  submit_label: string;
+  show_welcome: boolean;
+  welcome_title: string;
+  welcome_description: string;
+  welcome_button_text: string;
   submit_message: string;
   redirect_url?: string;
 };
@@ -434,82 +443,160 @@ function QuestionEditor({
 
 // ── Settings panel ─────────────────────────────────────────────────────────────
 
-function SettingsPanel({ settings, onChange }: { settings: FormSettings; onChange: (s: FormSettings) => void }) {
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="space-y-5">
-      <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Appearance</h3>
+    <div>
+      <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{label}</label>
+      <div className="flex items-center gap-2">
+        <input type="color" value={value} onChange={e => onChange(e.target.value)}
+          className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0" />
+        <span className="text-xs text-gray-500 font-mono">{value}</span>
+      </div>
+    </div>
+  );
+}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Accent color</label>
-          <div className="flex items-center gap-2">
-            <input type="color" value={settings.accent_color}
-              onChange={e => onChange({ ...settings, accent_color: e.target.value })}
-              className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer" />
-            <span className="text-xs text-gray-500 font-mono">{settings.accent_color}</span>
-          </div>
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Background</label>
-          <div className="flex items-center gap-2">
-            <input type="color" value={settings.bg_color}
-              onChange={e => onChange({ ...settings, bg_color: e.target.value })}
-              className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer" />
-            <span className="text-xs text-gray-500 font-mono">{settings.bg_color}</span>
-          </div>
-        </div>
+function ToggleRow({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <span className="text-xs font-semibold text-gray-600">{label}</span>
+        {hint && <p className="text-[11px] text-gray-400 mt-0.5">{hint}</p>}
+      </div>
+      <button onClick={() => onChange(!value)} className={`transition-colors flex-shrink-0 ${value ? "text-indigo-600" : "text-gray-300"}`}>
+        {value ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
+      </button>
+    </div>
+  );
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pt-3 pb-1 border-t border-gray-100 first:border-0 first:pt-0">{children}</h3>;
+}
+
+function SettingsPanel({ settings, onChange }: { settings: FormSettings; onChange: (s: FormSettings) => void }) {
+  const s = settings;
+  const set = (patch: Partial<FormSettings>) => onChange({ ...s, ...patch });
+
+  return (
+    <div className="space-y-4">
+
+      {/* ── Appearance ─────────────────────────────── */}
+      <SectionHeading>Appearance</SectionHeading>
+
+      <div className="grid grid-cols-3 gap-3">
+        <ColorField label="Accent" value={s.accent_color} onChange={v => set({ accent_color: v })} />
+        <ColorField label="Background" value={s.bg_color} onChange={v => set({ bg_color: v })} />
+        <ColorField label="Text" value={s.text_color ?? "#111827"} onChange={v => set({ text_color: v })} />
       </div>
 
       <div>
         <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Font</label>
-        <select value={settings.font} onChange={e => onChange({ ...settings, font: e.target.value })}
+        <select value={s.font} onChange={e => set({ font: e.target.value })}
           className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400">
           <option value="Inter, sans-serif">Inter</option>
           <option value="system-ui, sans-serif">System</option>
+          <option value="'DM Sans', sans-serif">DM Sans</option>
           <option value="Georgia, serif">Georgia</option>
           <option value="'Courier New', monospace">Courier New</option>
         </select>
       </div>
 
-      <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide pt-2">Behavior</h3>
+      {/* ── Progress ───────────────────────────────── */}
+      <SectionHeading>Progress</SectionHeading>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-600">Show progress bar</span>
-          <button onClick={() => onChange({ ...settings, show_progress: !settings.show_progress })}
-            className={`transition-colors ${settings.show_progress ? "text-indigo-600" : "text-gray-300"}`}>
-            {settings.show_progress ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
-          </button>
+      <ToggleRow label="Show progress indicator" value={s.show_progress} onChange={v => set({ show_progress: v })} />
+
+      {s.show_progress && (
+        <div>
+          <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Style</label>
+          <div className="grid grid-cols-3 gap-2">
+            {(["bar", "dots", "steps"] as const).map(style => (
+              <button key={style} onClick={() => set({ progress_style: style })}
+                className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-all capitalize ${s.progress_style === style ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
+                {style}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1.5">
+            {s.progress_style === "bar" ? "Smooth fill bar across the top" : s.progress_style === "dots" ? "One dot per question" : 'Shows "Q 2 of 5" text only'}
+          </p>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-600">Show branding</span>
-          <button onClick={() => onChange({ ...settings, show_branding: !settings.show_branding })}
-            className={`transition-colors ${settings.show_branding ? "text-indigo-600" : "text-gray-300"}`}>
-            {settings.show_branding ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
-          </button>
+      )}
+
+      {/* ── Questions ──────────────────────────────── */}
+      <SectionHeading>Questions</SectionHeading>
+
+      <ToggleRow label="Show question numbers" hint="Displays 1→ before each question" value={s.show_question_numbers ?? true} onChange={v => set({ show_question_numbers: v })} />
+
+      {/* ── Welcome screen ─────────────────────────── */}
+      <SectionHeading>Welcome Screen</SectionHeading>
+
+      <ToggleRow label="Show welcome screen" hint="Intro page before the first question" value={s.show_welcome ?? false} onChange={v => set({ show_welcome: v })} />
+
+      {s.show_welcome && (
+        <div className="space-y-3 pl-2 border-l-2 border-indigo-100">
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">Headline</label>
+            <input value={s.welcome_title ?? ""} onChange={e => set({ welcome_title: e.target.value })}
+              placeholder="Welcome to our survey" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">Description <span className="font-normal text-gray-400">(optional)</span></label>
+            <textarea value={s.welcome_description ?? ""} onChange={e => set({ welcome_description: e.target.value })}
+              rows={2} placeholder="Takes about 2 minutes."
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400 resize-none" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">Start button text</label>
+            <input value={s.welcome_button_text ?? "Get started"} onChange={e => set({ welcome_button_text: e.target.value })}
+              placeholder="Get started" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400" />
+          </div>
+        </div>
+      )}
+
+      {/* ── Buttons ────────────────────────────────── */}
+      <SectionHeading>Button Labels</SectionHeading>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-semibold text-gray-500 mb-1 block">Continue button</label>
+          <input value={s.button_label ?? "Continue"} onChange={e => set({ button_label: e.target.value })}
+            placeholder="Continue" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 mb-1 block">Submit button</label>
+          <input value={s.submit_label ?? "Submit"} onChange={e => set({ submit_label: e.target.value })}
+            placeholder="Submit" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400" />
         </div>
       </div>
 
-      <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide pt-2">Completion</h3>
+      {/* ── Completion ─────────────────────────────── */}
+      <SectionHeading>Completion</SectionHeading>
 
       <div>
         <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Thank-you message</label>
-        <textarea value={settings.submit_message ?? ""}
-          onChange={e => onChange({ ...settings, submit_message: e.target.value })}
-          rows={3}
-          placeholder="Thanks for your submission!"
-          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none"
-        />
+        <textarea value={s.submit_message ?? ""} onChange={e => set({ submit_message: e.target.value })}
+          rows={3} placeholder="Thanks for your submission!"
+          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none" />
       </div>
 
       <div>
         <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Redirect URL <span className="font-normal text-gray-400">(optional)</span></label>
-        <input value={settings.redirect_url ?? ""}
-          onChange={e => onChange({ ...settings, redirect_url: e.target.value })}
+        <input value={s.redirect_url ?? ""} onChange={e => set({ redirect_url: e.target.value })}
           placeholder="https://yoursite.com/thank-you"
-          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-        />
+          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" />
       </div>
+
+      {/* ── Branding ───────────────────────────────── */}
+      <SectionHeading>Branding</SectionHeading>
+
+      <ToggleRow
+        label="Show 'Powered by FlowMake' badge"
+        hint="Displays a small badge at the bottom of your form"
+        value={s.show_branding}
+        onChange={v => set({ show_branding: v })}
+      />
     </div>
   );
 }
@@ -573,9 +660,18 @@ export default function FormBuilderPage() {
     data.settings = {
       accent_color: "#6366f1",
       bg_color: "#ffffff",
+      text_color: "#111827",
       font: "Inter, sans-serif",
       show_progress: true,
+      progress_style: "bar",
+      show_question_numbers: true,
       show_branding: true,
+      button_label: "Continue",
+      submit_label: "Submit",
+      show_welcome: false,
+      welcome_title: "",
+      welcome_description: "",
+      welcome_button_text: "Get started",
       submit_message: "Thanks for submitting!",
       ...data.settings,
     };
