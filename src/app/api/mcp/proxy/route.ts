@@ -4,16 +4,14 @@ import { getOrgContext } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 // Proxy arbitrary MCP JSON-RPC calls from the browser to any MCP server URL.
-// Required so the browser avoids CORS issues hitting third-party servers.
+// Supports both plain JSON responses and SSE-streamed responses (Streamable HTTP transport).
 export async function POST(req: NextRequest) {
   const ctx = await getOrgContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json() as {
     url: string;
-    // Full header value e.g. "Bearer abc123" — passed as-is, no modification
     authHeader?: string;
-    // Header name, defaults to "Authorization"
     authHeaderName?: string;
     action: "list" | "call";
     tool?: string;
@@ -22,13 +20,35 @@ export async function POST(req: NextRequest) {
 
   if (!body.url) return NextResponse.json({ error: "url is required" }, { status: 400 });
 
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    // Required by Streamable HTTP transport (MCP spec 2025-03-26)
+    "Accept": "application/json, text/event-stream",
+  };
   if (body.authHeader) {
     const headerName = body.authHeaderName?.trim() || "Authorization";
     headers[headerName] = body.authHeader;
   }
 
   const start = Date.now();
+
+  // Parse a response that may be plain JSON or an SSE stream.
+  // Returns the parsed JSON-RPC result object.
+  async function parseResponse(res: Response): Promise<unknown> {
+    const ct = res.headers.get("content-type") ?? "";
+    if (ct.includes("text/event-stream")) {
+      // SSE stream — read all data: lines and parse the last complete JSON-RPC message
+      const text = await res.text();
+      let last: unknown = null;
+      for (const line of text.split("\n")) {
+        if (line.startsWith("data: ")) {
+          try { last = JSON.parse(line.slice(6)); } catch { /* skip */ }
+        }
+      }
+      return last;
+    }
+    return res.json();
+  }
 
   const send = (payload: unknown) =>
     fetch(body.url, { method: "POST", headers, body: JSON.stringify(payload) });
@@ -44,7 +64,7 @@ export async function POST(req: NextRequest) {
   });
   if (!initRes.ok) {
     let detail = "";
-    try { const t = await initRes.text(); detail = t.slice(0, 200); } catch { /* ignore */ }
+    try { detail = (await initRes.text()).slice(0, 300); } catch { /* ignore */ }
     return NextResponse.json(
       { error: `Server returned ${initRes.status}${detail ? `: ${detail}` : ""}` },
       { status: 502 }
@@ -55,11 +75,15 @@ export async function POST(req: NextRequest) {
     const listRes = await send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
     if (!listRes.ok) {
       let detail = "";
-      try { const t = await listRes.text(); detail = t.slice(0, 200); } catch { /* ignore */ }
-      return NextResponse.json({ error: `tools/list failed (${listRes.status})${detail ? `: ${detail}` : ""}` }, { status: 502 });
+      try { detail = (await listRes.text()).slice(0, 300); } catch { /* ignore */ }
+      return NextResponse.json(
+        { error: `tools/list failed (${listRes.status})${detail ? `: ${detail}` : ""}` },
+        { status: 502 }
+      );
     }
-    const listJson = await listRes.json();
-    return NextResponse.json({ tools: listJson.result?.tools ?? [], duration_ms: Date.now() - start });
+    const listJson = await parseResponse(listRes) as { result?: { tools?: unknown[] } } | null;
+    const tools = (listJson as { result?: { tools?: unknown[] } })?.result?.tools ?? [];
+    return NextResponse.json({ tools, duration_ms: Date.now() - start });
   }
 
   if (body.action === "call") {
@@ -68,12 +92,13 @@ export async function POST(req: NextRequest) {
       jsonrpc: "2.0", id: 3, method: "tools/call",
       params: { name: body.tool, arguments: body.args ?? {} },
     });
-    const callJson = await callRes.json();
+    const callJson = await parseResponse(callRes) as { result?: unknown; error?: { message?: string } } | null;
     const duration_ms = Date.now() - start;
-    if (callJson.error) {
-      return NextResponse.json({ error: callJson.error.message ?? "Tool error", duration_ms }, { status: 200 });
+    if ((callJson as { error?: { message?: string } })?.error) {
+      const err = (callJson as { error: { message?: string } }).error;
+      return NextResponse.json({ error: err.message ?? "Tool error", duration_ms });
     }
-    return NextResponse.json({ result: callJson.result, duration_ms });
+    return NextResponse.json({ result: (callJson as { result?: unknown })?.result, duration_ms });
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
