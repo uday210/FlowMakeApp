@@ -5,6 +5,7 @@ import {
   ChevronDown, Star, CheckSquare, Check, Loader2, AlertCircle,
   ArrowRight, RotateCcw, Zap,
 } from "lucide-react";
+import WorkflowForm, { type WorkflowFormConfig } from "./WorkflowForm";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -591,6 +592,7 @@ function ThankYouScreen({ settings, onReset }: { settings: FormSettings; onReset
 export default function PublicFormPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [form, setForm] = useState<FormData | null>(null);
+  const [workflowForm, setWorkflowForm] = useState<WorkflowFormConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -602,11 +604,18 @@ export default function PublicFormPage({ params }: { params: Promise<{ id: strin
   const [welcomePassed, setWelcomePassed] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/forms/${id}/public`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data) { setNotFound(true); }
-        else {
+    let cancelled = false;
+
+    // The /form/<id> route serves two things: a published form from the Forms
+    // module, and the public form of a workflow whose trigger is `trigger_form`
+    // (the builder hands out /form/<workflowId>). Try the form first, then the
+    // workflow.
+    (async () => {
+      try {
+        const res = await fetch(`/api/forms/${id}/public`);
+        if (res.ok) {
+          const data = await res.json();
+          if (cancelled) return;
           data.questions = data.questions ?? [];
           data.settings = {
             accent_color: "#6366f1",
@@ -618,9 +627,21 @@ export default function PublicFormPage({ params }: { params: Promise<{ id: strin
             ...data.settings,
           };
           setForm(data);
+          return;
         }
-      })
-      .finally(() => setLoading(false));
+
+        const wfRes = await fetch(`/api/workflows/${id}/form`);
+        if (cancelled) return;
+        if (wfRes.ok) setWorkflowForm(await wfRes.json());
+        else setNotFound(true);
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [id]);
 
   // Resolve the effective answer value for logic checks (strips __other__ prefix)
@@ -707,6 +728,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ id: strin
       <Loader2 size={24} className="animate-spin text-indigo-500" />
     </div>
   );
+
+  if (workflowForm) return <WorkflowForm form={workflowForm} />;
 
   if (notFound || !form) return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 text-center px-6">

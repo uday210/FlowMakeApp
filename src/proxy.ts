@@ -44,6 +44,7 @@ const PUBLIC_PATTERNS = [
   /^\/api\/forms\/[^/]+\/submit$/,          // form submission (no auth required)
   /^\/api\/forms\/[^/]+\/public$/,          // public form fetch for rendering
   /^\/api\/forms\/[^/]+\/upload$/,          // file upload from public form
+  /^\/api\/workflows\/[^/]+\/form$/,        // public form config for a trigger_form workflow
 ];
 
 export async function proxy(request: NextRequest) {
